@@ -1,0 +1,10 @@
+{
+  "name": "VisionPOS 極速視覺辨識庫存與結帳系統",
+  "short_name": "VisionPOS",
+  "description": "手機拍照建檔、即時視覺掃描辨識產品、即時庫存管理與極速結帳系統",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0f14",
+  "theme_color": "#10b981",
+  "orientation": "any"
+}
