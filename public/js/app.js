@@ -677,9 +677,9 @@
       el['btn-rec-add-cart'].disabled = p.stock <= 0;
       el['btn-rec-add-cart'].textContent = p.stock > 0 ? '🛒 加入購物車' : '暫無庫存';
     } else {
-      el['hud-match-title'].textContent = '請將相機對準商品...';
-      el['hud-match-sub'].textContent = '掃描到建檔商品後將顯示產品介紹';
-      el['hud-match-price'].textContent = '--';
+      el['hud-match-title'].textContent = '⚠️ 未建檔';
+      el['hud-match-sub'].textContent = '未掃描到庫存中的商品';
+      el['hud-match-price'].textContent = '未建檔';
       el['hud-add-cart-btn'].disabled = true;
 
       el['recognized-product-card'].classList.add('hidden');

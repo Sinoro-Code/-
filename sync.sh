@@ -31,7 +31,7 @@ echo "[2/4] 正在覆寫更新 Google 雲端硬碟檔案 (ID: $GDRIVE_FILE_ID) �
 gdrive mutate update "$GDRIVE_FILE_ID" "$STANDALONE_HTML"
 
 # 檢查雲端硬碟是否有其他同名舊檔案，若有則移至垃圾桶避免重複
-DUP_IDS=$(gdrive readonly search --name-contains "VisionPOS-Xiaomi15.html" | awk '{print $1}' | grep -E '^[a-zA-Z0-9_-]{20,}$' | grep -v "^${GDRIVE_FILE_ID}$" || true)
+DUP_IDS=$(gdrive readonly search --name-contains "VisionPOS-Xiaomi15.html" | awk '{print $1}' | grep -E '^[a-zA-Z0-9][a-zA-Z0-9_-]{20,}$' | grep -v "^${GDRIVE_FILE_ID}$" || true)
 for old_id in $DUP_IDS; do
   echo "  -> 移除雲端硬碟重複舊檔 ID: $old_id"
   gdrive mutate trash "$old_id" || true

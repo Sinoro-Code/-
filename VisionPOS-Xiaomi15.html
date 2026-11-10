@@ -1157,19 +1157,16 @@ button {
             </div>
           </div>
 
-          <!-- Unregistered Product Prompt Banner -->
-          <div class="recognized-card hidden" id="unregistered-prompt-card" style="border-color: var(--accent-amber);">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-              <div>
-                <h3 style="font-size:15px; font-weight:700;">請將相機對準已建檔商品</h3>
-                <p style="font-size:12px; color:var(--text-secondary); margin-top:2px;">
-                  若為新商品，請切換至「📸 相機拍照建檔」登錄產品名稱、價格與介紹。
-                </p>
-              </div>
-              <button type="button" class="btn btn-secondary btn-sm" id="btn-jump-register">
-                前往後台建檔
-              </button>
-            </div>
+          <!-- Unregistered Product Prompt Banner (Displays 未建檔 when not found in inventory) -->
+          <div class="recognized-card hidden" id="unregistered-prompt-card" style="border-color: var(--accent-amber); text-align:center; padding:24px 16px;">
+            <span class="badge badge-amber" style="font-size:14px; padding:4px 12px; margin-bottom:10px;">⚠️ 未建檔</span>
+            <h3 style="font-size:20px; font-weight:800; color:var(--accent-amber); margin-top:4px;">未建檔</h3>
+            <p style="font-size:13px; color:var(--text-secondary); margin-top:6px; margin-bottom:14px;">
+              未掃描到庫存中的商品
+            </p>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-jump-register">
+              📸 前往後台拍照建檔
+            </button>
           </div>
 
           <div id="top-candidates-list" class="hidden"></div>
@@ -2960,9 +2957,9 @@ button {
       el['btn-rec-add-cart'].disabled = p.stock <= 0;
       el['btn-rec-add-cart'].textContent = p.stock > 0 ? '🛒 加入購物車' : '暫無庫存';
     } else {
-      el['hud-match-title'].textContent = '請將相機對準商品...';
-      el['hud-match-sub'].textContent = '掃描到建檔商品後將顯示產品介紹';
-      el['hud-match-price'].textContent = '--';
+      el['hud-match-title'].textContent = '⚠️ 未建檔';
+      el['hud-match-sub'].textContent = '未掃描到庫存中的商品';
+      el['hud-match-price'].textContent = '未建檔';
       el['hud-add-cart-btn'].disabled = true;
 
       el['recognized-product-card'].classList.add('hidden');
