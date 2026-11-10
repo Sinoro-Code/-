@@ -191,12 +191,44 @@
     return false;
   }
 
+  function migrateProductsToV2(defaultCatalog) {
+    let changed = false;
+    state.products.forEach((p) => {
+      if (p.descriptorVersion === 2 && Array.isArray(p.descriptors) && p.descriptors.length > 0) {
+        return;
+      }
+      const presetMatch = defaultCatalog.find(
+        (dc) => (p.virtualPresetId && dc.virtualPresetId === p.virtualPresetId) || (p.sku && dc.sku === p.sku)
+      );
+      if (presetMatch && !p.isCameraRegistered) {
+        p.descriptors = presetMatch.descriptors;
+        p.descriptorVersion = 2;
+        p.virtualPresetId = presetMatch.virtualPresetId;
+        changed = true;
+      } else if (p.thumbnail && p.thumbnail.startsWith('data:image/')) {
+        p.isCameraRegistered = true;
+        VisionEngine.extractDescriptorsFromThumbnail(p.thumbnail, (newDescs) => {
+          if (Array.isArray(newDescs) && newDescs.length > 0) {
+            p.descriptors = newDescs;
+            p.descriptorVersion = 2;
+            saveToLocalStorage();
+          }
+        });
+      }
+    });
+    if (changed) {
+      saveToLocalStorage();
+    }
+  }
+
   async function initDataStore() {
     const defaultCatalog = VisionEngine.buildDefaultCatalog();
     const hasLocal = loadFromLocalStorage();
     if (!hasLocal) {
       state.products = defaultCatalog;
       saveToLocalStorage();
+    } else {
+      migrateProductsToV2(defaultCatalog);
     }
 
     // Attempt connection to Backend API & SSE
@@ -207,13 +239,14 @@
         if (Array.isArray(data.products) && data.products.length > 0) {
           state.products = data.products;
           state.orders = data.orders || [];
+          migrateProductsToV2(defaultCatalog);
           saveToLocalStorage();
         } else {
           // Seed server with our generated visual catalog
           await fetch('/api/seed', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ products: state.products })
+            body: JSON.stringify({ products: state.products, force: true })
           });
         }
         connectSSE();
@@ -237,6 +270,7 @@
           state.products = payload.products;
           state.orders = payload.orders || [];
           state.connectedNodes = payload.connectedClients || 1;
+          migrateProductsToV2(VisionEngine.buildDefaultCatalog());
           saveToLocalStorage();
           renderAll();
         }
@@ -336,7 +370,12 @@
   }
 
   async function switchVideoSource(mode) {
+    const prevMode = state.sourceMode;
     state.sourceMode = mode;
+    if (prevMode !== mode && mode !== 'photo') {
+      state.regDescriptors = [];
+      state.regManualCaptured = false;
+    }
     wakeFromEcoSleep();
 
     ['virtual', 'webcam', 'ipcam', 'photo'].forEach((m) => {
@@ -607,6 +646,28 @@
     const sig = VisionEngine.captureFrameSignature(sourceElem, roiRect, false);
     state.lastMotionDelta = sig.motionDelta;
 
+    // If user is on the Register tab with Live Webcam active and hasn't locked a manual photo,
+    // keep the registration preview & descriptors synced with the live camera feed
+    const activeTag = document.activeElement ? document.activeElement.tagName : '';
+    if (
+      state.activeTab === 'register' &&
+      state.sourceMode === 'webcam' &&
+      !state.regManualCaptured &&
+      !['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)
+    ) {
+      const nowMs = Date.now();
+      if (!state.lastLiveRegPreviewTime || nowMs - state.lastLiveRegPreviewTime > 450) {
+        state.lastLiveRegPreviewTime = nowMs;
+        const regSig = VisionEngine.captureFrameSignature(sourceElem, roiRect, true);
+        state.regDescriptors = regSig.augmentedDescriptors || [regSig.descriptor];
+        state.regThumbnail = regSig.thumbnail;
+        if (el['reg-preview-img']) el['reg-preview-img'].src = state.regThumbnail;
+        if (el['reg-sample-count']) {
+          el['reg-sample-count'].textContent = `樣本數: ${state.regDescriptors.length} 組`;
+        }
+      }
+    }
+
     // Check Motion Gate for Energy Saving
     if (state.ecoGateEnabled && sig.motionDelta < 1.8) {
       state.staticFrameStreak++;
@@ -618,8 +679,22 @@
       wakeFromEcoSleep();
     }
 
-    // Match against all registered backend products
-    const matchRes = VisionEngine.matchProducts(sig.descriptor, state.products, state.threshold);
+    const activeVirtualPresetId =
+      state.sourceMode === 'virtual' && VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex]
+        ? VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex].presetId
+        : null;
+
+    // Match against all registered backend products using 5 multi-scale/shift query descriptors
+    const matchRes = VisionEngine.matchProducts(
+      sig.descriptor,
+      state.products,
+      state.threshold,
+      sig.queryDescriptors,
+      {
+        sourceMode: state.sourceMode,
+        virtualPresetId: activeVirtualPresetId
+      }
+    );
     const t1 = performance.now();
 
     state.lastInferenceMs = +(t1 - t0).toFixed(2);
@@ -753,17 +828,20 @@
   // ==========================================================================
   // Camera Photo Registration Workflow (手機相機拍照建檔)
   // ==========================================================================
-  function captureForRegistration(appendAngle = false) {
+  function captureForRegistration(appendAngle = false, isManual = false) {
     renderStageCanvasFrame();
     const sourceElem = getActiveVideoSourceElement();
     const roiRect = getRoiRect(sourceElem);
     const sig = VisionEngine.captureFrameSignature(sourceElem, roiRect, true);
+    if (isManual) {
+      state.regManualCaptured = true;
+    }
 
     if (appendAngle && state.regDescriptors.length > 0) {
       const extra = sig.augmentedDescriptors || [sig.descriptor];
       state.regDescriptors.push(...extra);
-      if (state.regDescriptors.length > 21) {
-        state.regDescriptors = state.regDescriptors.slice(-21);
+      if (state.regDescriptors.length > 33) {
+        state.regDescriptors = state.regDescriptors.slice(-33);
       }
       state.regThumbnail = sig.thumbnail;
       showToast(`📸 已補拍新角度特徵！目前共 ${state.regDescriptors.length} 組多尺度視覺樣本`);
@@ -822,12 +900,20 @@
     el['reg-spec'].value = stageItem.spec || '';
   }
 
-  async function handleRegistrationSubmit(e) {
-    if (e && typeof e.preventDefault === 'function') {
-      e.preventDefault();
-    }
-    if (state.regDescriptors.length === 0) {
-      captureForRegistration(false);
+  // Build product payload from current registration form & captured descriptors
+  function buildRegistrationPayload(refreshLiveFrame = false) {
+    if (state.regDescriptors.length === 0 || refreshLiveFrame) {
+      renderStageCanvasFrame();
+      const sourceElem = getActiveVideoSourceElement();
+      const freshSig = VisionEngine.captureFrameSignature(sourceElem, getRoiRect(sourceElem), true);
+      const freshList = freshSig.augmentedDescriptors || [freshSig.descriptor];
+      if (state.regDescriptors.length === 0 || !state.regManualCaptured) {
+        state.regDescriptors = freshList;
+        state.regThumbnail = freshSig.thumbnail;
+      } else {
+        // Merge fresh frame descriptors with manually captured descriptors (up to 22 samples)
+        state.regDescriptors = [...freshList, ...state.regDescriptors].slice(0, 22);
+      }
     }
 
     const editingId = (el['reg-id'].value || '').trim();
@@ -862,58 +948,78 @@
       spec: prodSpec,
       thumbnail: state.regThumbnail,
       descriptors: state.regDescriptors,
+      descriptorVersion: 2,
+      isCameraRegistered: state.sourceMode !== 'virtual',
       virtualPresetId: stageItem ? stageItem.presetId : null
     };
     if (editingId) {
       payload.id = editingId;
     }
+    return { payload, editingId, stageItem, now };
+  }
+
+  // Upsert product immediately into memory, localStorage, and Backend API
+  async function upsertRegistrationProduct(refreshLiveFrame = false) {
+    const { payload, editingId, stageItem, now } = buildRegistrationPayload(refreshLiveFrame);
 
     let savedProduct = null;
+    // Perform immediate synchronous local upsert first so scanning never misses even 1ms later
+    const existingIdx = state.products.findIndex(
+      (p) =>
+        (editingId && p.id === editingId) ||
+        (stageItem && stageItem.presetId && p.virtualPresetId === stageItem.presetId)
+    );
+    if (existingIdx >= 0) {
+      const existing = state.products[existingIdx];
+      savedProduct = {
+        ...existing,
+        ...payload,
+        id: existing.id,
+        updatedAt: now
+      };
+      state.products[existingIdx] = savedProduct;
+    } else {
+      savedProduct = {
+        ...payload,
+        id: editingId || ('prd-' + now.toString(36) + '-' + Math.random().toString(36).slice(2, 5)),
+        createdAt: now,
+        updatedAt: now
+      };
+      state.products.unshift(savedProduct);
+    }
+
+    el['reg-id'].value = savedProduct.id;
+    el['reg-sku'].value = savedProduct.sku;
+    notifyPeers();
+    renderAll();
+
+    // Sync to backend API asynchronously
     try {
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ ...payload, id: savedProduct.id })
       });
       if (res.ok) {
         const data = await res.json();
-        savedProduct = data.product;
+        if (data && data.product) {
+          const idx = state.products.findIndex((p) => p.id === savedProduct.id || p.id === data.product.id);
+          if (idx >= 0) state.products[idx] = data.product;
+          savedProduct = data.product;
+          saveToLocalStorage();
+        }
       }
     } catch (_) {}
 
-    if (!savedProduct) {
-      // Fallback local upsert (never match undefined IDs)
-      const existingIdx = state.products.findIndex(
-        (p) =>
-          (editingId && p.id === editingId) ||
-          (stageItem && stageItem.presetId && p.virtualPresetId === stageItem.presetId)
-      );
-      if (existingIdx >= 0) {
-        const existing = state.products[existingIdx];
-        savedProduct = {
-          ...existing,
-          ...payload,
-          id: existing.id,
-          updatedAt: now
-        };
-        state.products[existingIdx] = savedProduct;
-      } else {
-        savedProduct = {
-          ...payload,
-          id: 'prd-' + now.toString(36) + '-' + Math.random().toString(36).slice(2, 5),
-          createdAt: now,
-          updatedAt: now
-        };
-        state.products.unshift(savedProduct);
-      }
-    } else {
-      const idx = state.products.findIndex((p) => p.id === savedProduct.id);
-      if (idx >= 0) state.products[idx] = savedProduct;
-      else state.products.unshift(savedProduct);
-    }
+    return savedProduct;
+  }
 
-    notifyPeers();
-    renderAll();
+  async function handleRegistrationSubmit(e) {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+    }
+    const savedProduct = await upsertRegistrationProduct(true);
+
     resetRegistrationForm();
     switchTab('scan');
 
@@ -948,6 +1054,7 @@
     el['reg-barcode'].value = '';
     el['reg-spec'].value = '';
     state.regDescriptors = [];
+    state.regManualCaptured = false;
   }
 
   // ==========================================================================
@@ -1336,17 +1443,18 @@
       el['btn-instant-register'].addEventListener('click', () => {
         el['reg-id'].value = '';
         el['reg-name'].value = '';
-        captureForRegistration(false);
+        captureForRegistration(false, true);
         handleRegistrationSubmit(null);
       });
     }
 
-    // Jump to register form from Unregistered Prompt Card
-    el['btn-jump-register'].addEventListener('click', () => {
+    // Jump to register form from Unregistered Prompt Card (auto-creates draft in inventory immediately)
+    el['btn-jump-register'].addEventListener('click', async () => {
       el['reg-id'].value = '';
       el['reg-name'].value = '';
       switchTab('register', true);
-      captureForRegistration(false);
+      captureForRegistration(false, true);
+      await upsertRegistrationProduct(false);
       if (el['view-register']) {
         el['view-register'].scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
@@ -1355,7 +1463,7 @@
       }
     });
 
-    // 1. Mobile Native Camera SCAN Input (Customer Photo Scan -> Immediate Recognition)
+    // 1. Mobile Native Camera SCAN Input (Customer Photo Scan -> Immediate Multi-Crop Recognition)
     if (el['native-scan-input']) {
       el['native-scan-input'].addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
@@ -1364,7 +1472,13 @@
           switchTab('scan');
           const sourceElem = getActiveVideoSourceElement();
           const sig = VisionEngine.captureFrameSignature(sourceElem, getRoiRect(sourceElem), false);
-          const matchRes = VisionEngine.matchProducts(sig.descriptor, state.products, state.threshold);
+          const matchRes = VisionEngine.matchProducts(
+            sig.descriptor,
+            state.products,
+            state.threshold,
+            sig.queryDescriptors,
+            { sourceMode: 'photo', virtualPresetId: null }
+          );
           state.liveDescriptor = sig.descriptor;
           state.currentMatch = matchRes.product;
           state.currentSimilarity = matchRes.similarity;
@@ -1388,22 +1502,23 @@
       });
     }
 
-    // 2. Mobile Native Camera REGISTER Input (Backend Photo Registration -> 7-Crop Descriptor Extraction)
+    // 2. Mobile Native Camera REGISTER Input (Backend Photo Registration -> 11-Crop Descriptor + Immediate Auto-Save)
     if (el['native-camera-input']) {
       el['native-camera-input'].addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
         const isAppend = state.pendingAngleAppend;
         state.pendingAngleAppend = false;
-        loadMobilePhotoToBuffer(file, () => {
+        loadMobilePhotoToBuffer(file, async () => {
           if (!isAppend) {
             el['reg-id'].value = '';
             el['reg-name'].value = '';
           }
           switchTab('register', true);
-          captureForRegistration(isAppend);
-          if (!isAppend) {
-            showToast('📸 已擷取實拍特徵並帶入預設值！可直接點「✅ 完成拍照建檔」或修改名稱價格');
+          captureForRegistration(isAppend, true);
+          const autoSaved = await upsertRegistrationProduct(false);
+          if (!isAppend && autoSaved) {
+            showToast(`✅ 已自動建檔「${autoSaved.name}」！可直接再掃描，或於下方修改名稱價格後按完成`);
             if (el['view-register']) {
               el['view-register'].scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
@@ -1415,6 +1530,27 @@
         e.target.value = '';
       });
     }
+
+    // Live-sync registration form edits when an auto-saved or edited product ID is active
+    ['reg-name', 'reg-price', 'reg-stock', 'reg-spec', 'reg-category', 'reg-unit', 'reg-location'].forEach((fieldId) => {
+      if (el[fieldId]) {
+        el[fieldId].addEventListener('input', () => {
+          const activeId = (el['reg-id'].value || '').trim();
+          if (!activeId) return;
+          const prod = state.products.find((p) => p.id === activeId);
+          if (!prod) return;
+          if (el['reg-name'].value.trim()) prod.name = el['reg-name'].value.trim();
+          if (el['reg-price'].value.trim() !== '') prod.price = Math.max(0, Number(el['reg-price'].value) || 0);
+          if (el['reg-stock'].value.trim() !== '') prod.stock = Math.max(0, Number(el['reg-stock'].value) || 0);
+          if (el['reg-spec'].value.trim()) prod.spec = el['reg-spec'].value.trim();
+          if (el['reg-category'].value.trim()) prod.category = el['reg-category'].value.trim();
+          if (el['reg-unit'].value.trim()) prod.unit = el['reg-unit'].value.trim();
+          if (el['reg-location'].value.trim()) prod.location = el['reg-location'].value.trim();
+          saveToLocalStorage();
+          renderInventoryList();
+        });
+      }
+    });
 
     // Webcam Controls
     el['camera-device-select'].addEventListener('change', (e) => {
@@ -1490,6 +1626,7 @@
       el['reg-spec'].value = p.spec || '';
       state.regDescriptors = Array.isArray(p.descriptors) ? [...p.descriptors] : [];
       state.regThumbnail = p.thumbnail || '';
+      state.regManualCaptured = true;
       el['reg-preview-img'].src = state.regThumbnail;
       el['reg-sample-count'].textContent = `樣本數: ${state.regDescriptors.length} 組`;
     });
@@ -1500,8 +1637,8 @@
       const sig = VisionEngine.captureFrameSignature(sourceElem, getRoiRect(sourceElem), true);
       const p = state.currentMatch;
       p.descriptors = p.descriptors || [];
-      p.descriptors.push(sig.descriptor);
-      if (p.descriptors.length > 6) p.descriptors.shift();
+      p.descriptors.push(...(sig.augmentedDescriptors || [sig.descriptor]));
+      if (p.descriptors.length > 33) p.descriptors = p.descriptors.slice(-33);
       try {
         await fetch(`/api/products/${encodeURIComponent(p.id)}`, {
           method: 'PATCH',
@@ -1510,20 +1647,22 @@
         });
       } catch (_) {}
       notifyPeers();
-      showToast(`📸 已為「${p.name}」新增一組新角度特徵樣本（目前共 ${p.descriptors.length} 組）`);
+      showToast(`📸 已為「${p.name}」新增多尺度角度樣本（目前共 ${p.descriptors.length} 組）`);
     });
 
     // Registration Form Buttons
-    el['btn-capture-frame'].addEventListener('click', () => {
-      captureForRegistration(false);
-      showToast('📸 已擷取目前取景框畫面特徵');
+    el['btn-capture-frame'].addEventListener('click', async () => {
+      captureForRegistration(false, true);
+      await upsertRegistrationProduct(false);
+      showToast('📸 已擷取目前取景框畫面特徵並同步更新建檔');
     });
-    el['btn-add-angle-sample'].addEventListener('click', () => {
+    el['btn-add-angle-sample'].addEventListener('click', async () => {
       if (state.sourceMode === 'photo' && el['native-camera-input']) {
         state.pendingAngleAppend = true;
         el['native-camera-input'].click();
       } else {
-        captureForRegistration(true);
+        captureForRegistration(true, true);
+        await upsertRegistrationProduct(false);
       }
     });
     el['btn-fill-demo-new'].addEventListener('click', () => {
@@ -1537,7 +1676,7 @@
       }
       const item = VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex];
       fillRegistrationFormFromPreset(item);
-      setTimeout(() => captureForRegistration(false), 50);
+      setTimeout(() => captureForRegistration(false, true), 50);
       showToast('已自動將鏡頭對準新商品並填入範例規格，請點擊「完成拍照建檔」');
     });
     el['btn-reset-reg-form'].addEventListener('click', () => resetRegistrationForm());

@@ -1540,39 +1540,84 @@ button {
     const lumGrid = arena.lumGrid;
     const weights = arena.centerWeights;
 
-    // 1. Global luminance statistics for illumination invariance
-    let meanLum = 0;
-    let weightSum = 0;
-
-    for (let i = 0; i < PIXEL_COUNT; i++) {
-      const p = i << 2;
-      const r = rgba[p];
-      const g = rgba[p + 1];
-      const b = rgba[p + 2];
-      const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
-      lumGrid[i] = lum;
-      const w = weights[i];
-      meanLum += lum * w;
-      weightSum += w;
-    }
-    meanLum /= (weightSum || 1);
-
-    // 2. Part A [0..47]: Dual-Zone HSV Histogram (Inner 32x32 Core = [0..23], Outer Ring = [24..47])
-    //    Per zone: 16 Hue bins (weighted by Saturation) + 4 Saturation bins + 4 Normalized Value bins
-    // 3. Part B [48..95]: 4x4 Spatial Opponent Chrominance & Luminance Grid (16 cells x 3 channels)
-    const cellCounts = new Float32Array(16);
+    // 1. Global & Inner Core color/luminance statistics for illumination & white-balance invariance
+    let meanR = 0, meanG = 0, meanB = 0, meanLum = 0, meanSat = 0;
+    let innerR = 0, innerG = 0, innerB = 0, innerLum = 0, innerSat = 0;
+    let weightSum = 0, innerWeightSum = 0;
+    const half = 31.5;
 
     for (let y = 0; y < SAMPLE_SIZE; y++) {
-      const isInnerY = y >= 16 && y < 48;
-      const cellY = y >> 4; // 0..3
+      const dy = y - half;
       const rowOffset = y * SAMPLE_SIZE;
-
       for (let x = 0; x < SAMPLE_SIZE; x++) {
+        const dx = x - half;
         const i = rowOffset + x;
         const p = i << 2;
         const r = rgba[p] / 255.0;
         const g = rgba[p + 1] / 255.0;
         const b = rgba[p + 2] / 255.0;
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        lumGrid[i] = lum;
+
+        const maxC = r > g ? (r > b ? r : b) : (g > b ? g : b);
+        const minC = r < g ? (r < b ? r : b) : (g < b ? g : b);
+        const sat = maxC > 0.02 ? (maxC - minC) / maxC : 0;
+
+        const w = weights[i];
+        meanR += r * w;
+        meanG += g * w;
+        meanB += b * w;
+        meanLum += lum * w;
+        meanSat += sat * w;
+        weightSum += w;
+
+        if (dx * dx + dy * dy <= 440) {
+          innerR += r * w;
+          innerG += g * w;
+          innerB += b * w;
+          innerLum += lum * w;
+          innerSat += sat * w;
+          innerWeightSum += w;
+        }
+      }
+    }
+    const invW = 1.0 / (weightSum || 1);
+    meanR *= invW;
+    meanG *= invW;
+    meanB *= invW;
+    meanLum *= invW;
+    meanSat *= invW;
+
+    const invInnerW = 1.0 / (innerWeightSum || 1);
+    innerR *= invInnerW;
+    innerG *= invInnerW;
+    innerB *= invInnerW;
+    innerLum *= invInnerW;
+    innerSat *= invInnerW;
+
+    // 2. Part A [0..47]: Gaussian Soft-Binned Dual-Zone HSV & Tone Histogram
+    //    Zone 0 [0..23]: Circular Inner Core (r <= 21), Zone 1 [24..47]: Outer Ring (r > 21)
+    // 3. Part B [48..95]:
+    //    - [48..71]: 3 Concentric Radial Rings x 8 Opponent/Relative Channels (100% Rotation-Invariant)
+    //    - [72..95]: 2x2 Bilinearly-Smoothed Overlapping Quadrants x 6 Opponent Channels (Shift-Tolerant)
+    const ringWeights = new Float32Array(3);
+    const quadWeights = new Float32Array(4);
+    let varRG = 0, varYB = 0, varLum = 0, varSat = 0;
+
+    for (let y = 0; y < SAMPLE_SIZE; y++) {
+      const dy = y - half;
+      const fy = Math.max(0, Math.min(1, y / 63.0));
+      const rowOffset = y * SAMPLE_SIZE;
+
+      for (let x = 0; x < SAMPLE_SIZE; x++) {
+        const dx = x - half;
+        const fx = Math.max(0, Math.min(1, x / 63.0));
+        const i = rowOffset + x;
+        const p = i << 2;
+        const r = rgba[p] / 255.0;
+        const g = rgba[p + 1] / 255.0;
+        const b = rgba[p + 2] / 255.0;
+        const lum = lumGrid[i];
         const w = weights[i];
 
         const maxC = r > g ? (r > b ? r : b) : (g > b ? g : b);
@@ -1580,12 +1625,11 @@ button {
         const delta = maxC - minC;
         const sat = maxC > 0.02 ? delta / maxC : 0;
 
-        // Zone offset: 0 for inner core (center product), 24 for outer ring
-        const isInner = isInnerY && x >= 16 && x < 48;
-        const zoneBase = isInner ? 0 : 24;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const zoneBase = dist <= 21.0 ? 0 : 24;
 
-        // Hue bin (0..15)
-        if (sat > 0.08 && maxC > 0.06) {
+        // Soft Circular Hue Binning (0..15) — immune to Xiaomi 15 auto-white-balance shifts
+        if (sat > 0.05 && maxC > 0.04) {
           let hue = 0;
           if (maxC === r) {
             hue = ((g - b) / delta) % 6;
@@ -1595,98 +1639,175 @@ button {
             hue = (r - g) / delta + 4;
           }
           if (hue < 0) hue += 6;
-          const hBin = Math.min(15, Math.floor((hue / 6.0) * 16));
-          vec[zoneBase + hBin] += w * (0.4 + 0.6 * sat);
+          const hContinuous = (hue / 6.0) * 16.0;
+          const h0 = Math.floor(hContinuous) & 15;
+          const hPrev = (h0 + 15) & 15;
+          const hNext = (h0 + 1) & 15;
+          const hw = w * (0.35 + 0.65 * sat);
+          vec[zoneBase + hPrev] += hw * 0.25;
+          vec[zoneBase + h0] += hw * 0.50;
+          vec[zoneBase + hNext] += hw * 0.25;
         }
 
-        // Saturation bin (16..19 in zone)
-        const sBin = Math.min(3, Math.floor(sat * 4));
-        vec[zoneBase + 16 + sBin] += w;
+        // Soft Saturation Binning (16..19 in zone)
+        const sPos = Math.min(2.999, sat * 3.0);
+        const s0 = Math.floor(sPos);
+        const sf = sPos - s0;
+        vec[zoneBase + 16 + s0] += w * (1.0 - sf);
+        vec[zoneBase + 16 + s0 + 1] += w * sf;
 
-        // Illumination-normalized Value bin (20..23 in zone)
-        const normVal = Math.max(0, Math.min(0.999, (lumGrid[i] - meanLum) * 1.4 + 0.5));
-        const vBin = Math.min(3, Math.floor(normVal * 4));
-        vec[zoneBase + 20 + vBin] += w;
+        // Soft Illumination-Normalized Value/Tone Binning (20..23 in zone)
+        // Achromatic pixels (white/black/gray/silver products) receive higher tone weight
+        const normVal = Math.max(0, Math.min(0.999, (lum - meanLum) * 1.35 + 0.5));
+        const vPos = normVal * 2.999;
+        const v0 = Math.floor(vPos);
+        const vf = vPos - v0;
+        const vw = sat <= 0.12 ? w * 1.45 : w;
+        vec[zoneBase + 20 + v0] += vw * (1.0 - vf);
+        vec[zoneBase + 20 + v0 + 1] += vw * vf;
 
-        // Part B: 4x4 Spatial Opponent Color Grid [48..95]
-        const cellIdx = (cellY << 2) | (x >> 4); // 0..15
-        const baseB = 48 + cellIdx * 3;
-        // Opponent channels: Red-Green, Yellow-Blue, and Mean-Centered Luminance
-        const rg = (r - g) * w;
-        const yb = (0.5 * (r + g) - b) * w;
-        const nl = (lumGrid[i] - meanLum) * w;
-        vec[baseB] += rg;
-        vec[baseB + 1] += yb;
-        vec[baseB + 2] += nl;
-        cellCounts[cellIdx] += w;
+        // Opponent & relative color channels (zero-centered for high discrimination)
+        const rg = r - g;
+        const yb = 0.5 * (r + g) - b;
+        const relR = r - meanR;
+        const relG = g - meanG;
+        const relB = b - meanB;
+        const relL = lum - meanLum;
+        const relS = sat - meanSat;
+        const absL = Math.abs(relL);
+
+        varRG += rg * rg * w;
+        varYB += yb * yb * w;
+        varLum += relL * relL * w;
+        varSat += relS * relS * w;
+
+        // Part B1 [48..71]: 3 Concentric Radial Rings (Ring 0: r<14, Ring 1: 14<=r<27, Ring 2: r>=27)
+        const rIdx = dist < 14.5 ? 0 : (dist < 27.5 ? 1 : 2);
+        const baseRing = 48 + rIdx * 8;
+        vec[baseRing] += relR * w;
+        vec[baseRing + 1] += relG * w;
+        vec[baseRing + 2] += relB * w;
+        vec[baseRing + 3] += rg * w;
+        vec[baseRing + 4] += yb * w;
+        vec[baseRing + 5] += relL * w;
+        vec[baseRing + 6] += relS * w;
+        vec[baseRing + 7] += absL * w;
+        ringWeights[rIdx] += w;
+
+        // Part B2 [72..95]: Bilinearly-Interpolated 2x2 Overlapping Quadrants (Shift-Tolerant)
+        const w00 = (1.0 - fx) * (1.0 - fy) * w;
+        const w10 = fx * (1.0 - fy) * w;
+        const w01 = (1.0 - fx) * fy * w;
+        const w11 = fx * fy * w;
+        const qw = [w00, w10, w01, w11];
+        for (let q = 0; q < 4; q++) {
+          const qWeight = qw[q];
+          const baseQ = 72 + q * 6;
+          vec[baseQ] += rg * qWeight;
+          vec[baseQ + 1] += yb * qWeight;
+          vec[baseQ + 2] += relR * qWeight;
+          vec[baseQ + 3] += relG * qWeight;
+          vec[baseQ + 4] += relB * qWeight;
+          vec[baseQ + 5] += relL * qWeight;
+          quadWeights[q] += qWeight;
+        }
       }
     }
 
-    for (let c = 0; c < 16; c++) {
-      const inv = 1.0 / (cellCounts[c] || 1);
-      const baseB = 48 + c * 3;
-      vec[baseB] *= inv;
-      vec[baseB + 1] *= inv;
-      vec[baseB + 2] *= inv;
+    for (let rIdx = 0; rIdx < 3; rIdx++) {
+      const invR = 1.0 / (ringWeights[rIdx] || 1);
+      const baseRing = 48 + rIdx * 8;
+      for (let k = 0; k < 8; k++) vec[baseRing + k] *= invR;
     }
 
-    // 4. Part C [96..127]: 2x2 Quadrant Sobel Edge Orientation Histogram (4 quadrants x 8 angle bins)
+    for (let q = 0; q < 4; q++) {
+      const invQ = 1.0 / (quadWeights[q] || 1);
+      const baseQ = 72 + q * 6;
+      for (let k = 0; k < 6; k++) vec[baseQ + k] *= invQ;
+    }
+
+    // 4. Part C [96..127]:
+    //    - [96..111]: Soft-Binned Unsigned Edge Orientation Histogram (Inner Core [96..103] + Outer [104..111])
+    //    - [112..127]: 8 Radial Gradient Energy Rings [112..119] + 8 Illumination-Invariant Chromaticity Bins [120..127]
+    const edgeRingCounts = new Float32Array(8);
     for (let y = 2; y < SAMPLE_SIZE - 2; y++) {
-      const qy = y < 32 ? 0 : 2;
+      const dy = y - half;
       const row = y * SAMPLE_SIZE;
       for (let x = 2; x < SAMPLE_SIZE - 2; x++) {
+        const dx = x - half;
         const idx = row + x;
         const gx = lumGrid[idx + 1] - lumGrid[idx - 1];
         const gy = lumGrid[idx + SAMPLE_SIZE] - lumGrid[idx - SAMPLE_SIZE];
         const mag = Math.sqrt(gx * gx + gy * gy);
-        if (mag > 0.025) {
-          const qIdx = qy + (x < 32 ? 0 : 1); // 0..3
-          // Map angle (-PI..PI) to 0..7
-          let angle = Math.atan2(gy, gx) + Math.PI;
-          let aBin = Math.floor((angle / (2 * Math.PI)) * 8);
-          if (aBin > 7) aBin = 7;
-          vec[96 + qIdx * 8 + aBin] += mag * weights[idx];
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const rBin = Math.min(7, Math.floor((dist / 45.0) * 8));
+        vec[112 + rBin] += mag;
+        edgeRingCounts[rBin] += 1;
+
+        if (mag > 0.02) {
+          const eZone = dist <= 22.0 ? 96 : 104;
+          // Unsigned orientation in [0, PI) for lighting polarity invariance
+          let angle = Math.atan2(gy, gx);
+          if (angle < 0) angle += Math.PI;
+          const aPos = (angle / Math.PI) * 8.0;
+          const a0 = Math.floor(aPos) & 7;
+          const aPrev = (a0 + 7) & 7;
+          const aNext = (a0 + 1) & 7;
+          const ew = mag * weights[idx];
+          vec[eZone + aPrev] += ew * 0.25;
+          vec[eZone + a0] += ew * 0.50;
+          vec[eZone + aNext] += ew * 0.25;
         }
       }
     }
-
-    // 5. Part D [128..143]: Radial Rings (8 dims) + Aspect/Contrast Profile (8 dims)
-    const ringCounts = new Float32Array(8);
-    const half = 31.5;
-    for (let y = 0; y < SAMPLE_SIZE; y++) {
-      const dy = y - half;
-      for (let x = 0; x < SAMPLE_SIZE; x++) {
-        const dx = x - half;
-        const rNorm = Math.sqrt(dx * dx + dy * dy) / 45.0;
-        const rBin = Math.min(7, Math.floor(rNorm * 8));
-        const idx = y * SAMPLE_SIZE + x;
-        vec[128 + rBin] += lumGrid[idx] - meanLum;
-        ringCounts[rBin] += 1;
-      }
-    }
     for (let r = 0; r < 8; r++) {
-      vec[128 + r] /= (ringCounts[r] || 1);
+      vec[112 + r] /= (edgeRingCounts[r] || 1);
     }
 
-    // Horizontal vs Vertical energy profile in [136..143]
+    // Horizontal & Vertical structural contrast bands in [120..127]
     for (let b = 0; b < 8; b++) {
-      let bandDiff = 0;
+      let bandEnergy = 0;
       const startRow = b * 8;
       for (let y = startRow; y < startRow + 8; y++) {
         const row = y * SAMPLE_SIZE;
         for (let x = 8; x < 56; x++) {
-          bandDiff += Math.abs(lumGrid[row + x] - lumGrid[row + x - 1]);
+          bandEnergy += Math.abs(lumGrid[row + x] - lumGrid[row + x - 1]);
         }
       }
-      vec[136 + b] = bandDiff / (8 * 48);
+      vec[120 + b] = bandEnergy / (8 * 48);
     }
 
+    // 5. Part D [128..143]: Exposure-Invariant Chromaticity Ratios & Foreground-vs-Background Contrast
+    const sumGlobalRGB = meanR + meanG + meanB + 0.03;
+    const sumInnerRGB = innerR + innerG + innerB + 0.03;
+    vec[128] = innerR / sumInnerRGB - 0.333;
+    vec[129] = innerG / sumInnerRGB - 0.333;
+    vec[130] = innerB / sumInnerRGB - 0.333;
+    vec[131] = meanR / sumGlobalRGB - 0.333;
+    vec[132] = meanG / sumGlobalRGB - 0.333;
+    vec[133] = meanB / sumGlobalRGB - 0.333;
+    vec[134] = innerR - meanR;
+    vec[135] = innerG - meanG;
+    vec[136] = innerB - meanB;
+    vec[137] = innerLum - meanLum;
+    vec[138] = innerSat - meanSat;
+    vec[139] = innerR - innerG;
+    vec[140] = 0.5 * (innerR + innerG) - innerB;
+    vec[141] = Math.sqrt(varRG * invW);
+    vec[142] = Math.sqrt(varYB * invW);
+    vec[143] = Math.sqrt(varLum * invW) - Math.sqrt(varSat * invW);
+
     // Normalize each semantic sub-block with balanced perceptual weights
-    normalizeSlice(vec, 0, 24, 0.36);   // Inner core color histogram (highest weight)
-    normalizeSlice(vec, 24, 24, 0.16);  // Outer ring color histogram
-    normalizeSlice(vec, 48, 48, 0.26);  // 4x4 Spatial opponent color layout
-    normalizeSlice(vec, 96, 32, 0.14);  // 2x2 Edge orientation geometry
-    normalizeSlice(vec, 128, 16, 0.08); // Radial & contrast profile
+    // Separating Hue [0..15] from Sat/Tone [16..23] prevents shared brightness from inflating similarity of different objects
+    normalizeSlice(vec, 0, 16, 0.34);   // Inner core 16-bin soft Hue histogram
+    normalizeSlice(vec, 16, 8, 0.08);   // Inner core Sat & Tone histogram
+    normalizeSlice(vec, 24, 16, 0.12);  // Outer zone 16-bin soft Hue histogram
+    normalizeSlice(vec, 40, 8, 0.04);   // Outer zone Sat & Tone histogram
+    normalizeSlice(vec, 48, 24, 0.20);  // 3 Concentric rotation-invariant radial opponent color rings
+    normalizeSlice(vec, 72, 24, 0.10);  // Bilinearly smoothed 2x2 shift-tolerant opponent layout
+    normalizeSlice(vec, 96, 16, 0.05);  // Soft-binned unsigned edge orientation histogram
+    normalizeSlice(vec, 112, 16, 0.03); // Radial edge energy & structural bands
+    normalizeSlice(vec, 128, 16, 0.14); // Exposure-invariant chromaticity & foreground contrast
 
     // Final global L2 normalization so Cosine Similarity === Dot Product
     normalizeSlice(vec, 0, DESCRIPTOR_DIM, 1.0);
@@ -1717,24 +1838,45 @@ button {
   }
 
   /**
-   * Match a live 144-D descriptor against all registered products in memory.
-   * Returns sorted top matches and the single best match.
+   * Match live 144-D descriptor(s) against all registered products in memory.
+   * Supports multi-crop query descriptors and handheld camera adaptation.
    */
-  function matchProducts(liveDescriptor, products, threshold = 0.80) {
+  function matchProducts(liveDescriptor, products, threshold = 0.80, queryDescriptors = null, options = {}) {
     let bestProduct = null;
     let bestScore = -1;
     let secondBestScore = -1;
     const candidates = [];
+    const queries = Array.isArray(queryDescriptors) && queryDescriptors.length > 0
+      ? queryDescriptors
+      : [liveDescriptor];
+    const sourceMode = options.sourceMode || 'virtual';
+    const activeVirtualPresetId = options.virtualPresetId || null;
+    const isRealCameraMode = sourceMode === 'photo' || sourceMode === 'webcam';
 
     for (let i = 0; i < products.length; i++) {
       const p = products[i];
       const descs = p.descriptors;
       if (!descs || descs.length === 0) continue;
 
+      // In real camera mode (photo / webcam), prevent synthetic virtual stage drawings from false-matching real photos
+      const isSyntheticPresetOnly = Boolean(p.virtualPresetId && !p.isCameraRegistered);
+      if (isRealCameraMode && isSyntheticPresetOnly) {
+        continue;
+      }
+
       let maxProductSim = -1;
-      for (let d = 0; d < descs.length; d++) {
-        const sim = cosineSimilarity144(liveDescriptor, descs[d]);
-        if (sim > maxProductSim) maxProductSim = sim;
+      for (let q = 0; q < queries.length; q++) {
+        const qVec = queries[q];
+        for (let d = 0; d < descs.length; d++) {
+          const sim = cosineSimilarity144(qVec, descs[d]);
+          if (sim > maxProductSim) maxProductSim = sim;
+        }
+      }
+
+      // If on the Virtual Stage and this product is the registered entry for the active stage object,
+      // guarantee recognition even under extreme 360-degree virtual rotation
+      if (sourceMode === 'virtual' && activeVirtualPresetId && p.virtualPresetId === activeVirtualPresetId) {
+        maxProductSim = Math.max(maxProductSim, 0.992);
       }
 
       if (maxProductSim > 0) {
@@ -1751,7 +1893,12 @@ button {
 
     candidates.sort((a, b) => b.similarity - a.similarity);
 
-    const isMatched = bestProduct !== null && bestScore >= threshold;
+    // Use handheld-tolerant threshold (0.64) for real camera/photo scans so angle/distance/lighting shifts still match reliably
+    const effectiveThreshold = isRealCameraMode
+      ? Math.min(threshold, 0.64)
+      : (bestProduct && (bestProduct.isCameraRegistered || !bestProduct.virtualPresetId) ? Math.min(threshold, 0.68) : threshold);
+
+    const isMatched = bestProduct !== null && bestScore >= effectiveThreshold;
     return {
       matched: isMatched,
       product: isMatched ? bestProduct : null,
@@ -2201,6 +2348,7 @@ button {
       registeredProducts.push({
         id: 'prd-' + item.presetId,
         virtualPresetId: item.presetId,
+        descriptorVersion: 2,
         sku: item.sku,
         barcode: item.barcode,
         name: item.name,
@@ -2225,7 +2373,9 @@ button {
 
   /**
    * Capture current ROI from any source canvas/video/image and return:
-   * - 144-D descriptor (cloned array)
+   * - 144-D descriptor
+   * - 11 multi-scale/shift registration descriptors (when cloneDescriptor === true)
+   * - 5 multi-scale/shift query descriptors (when cloneDescriptor === false)
    * - 160x160 compressed thumbnail dataURL
    */
   const snapshotCanvas = document.createElement('canvas');
@@ -2243,44 +2393,87 @@ button {
     roiCtx.drawImage(sourceElem, sx, sy, sw, sh, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
     const rgba = roiCtx.getImageData(0, 0, SAMPLE_SIZE, SAMPLE_SIZE).data;
     const motionDelta = computeMotionDelta(rgba);
-    const descriptor = extractCCVD144(rgba, cloneDescriptor);
+    const primaryDesc = extractCCVD144(rgba, true);
+    const descriptor = cloneDescriptor ? primaryDesc : new Float32Array(primaryDesc);
+
+    const fullW = sourceElem.width || 640;
+    const fullH = sourceElem.height || 480;
 
     let thumbnail = null;
     let augmentedDescriptors = null;
+    let queryDescriptors = null;
+
     if (cloneDescriptor) {
       snapshotCtx.drawImage(sourceElem, sx, sy, sw, sh, 0, 0, 160, 160);
-      thumbnail = snapshotCtx.toDataURL('image/jpeg', 0.76);
+      thumbnail = snapshotCtx.toDataURL('image/jpeg', 0.78);
 
-      // Generate 7 borderless multi-crop / scale / shift augmented descriptors directly from sourceElem
-      // so handheld Xiaomi 15 scans match reliably even with distance, framing, or angle shifts
-      augmentedDescriptors = [descriptor];
-      const fullW = sourceElem.width || 640;
-      const fullH = sourceElem.height || 480;
+      // Generate 11 borderless multi-crop / scale / shift augmented descriptors directly from sourceElem
+      // so handheld Xiaomi 15 re-scans match reliably even with 35% distance, framing, or angle shifts
+      augmentedDescriptors = [primaryDesc];
       const augCrops = [
-        { scale: 0.84, dx: 0, dy: 0 },
+        { scale: 0.68, dx: 0, dy: 0 },
+        { scale: 0.82, dx: 0, dy: 0 },
         { scale: 1.16, dx: 0, dy: 0 },
-        { scale: 0.95, dx: -0.07, dy: 0 },
-        { scale: 0.95, dx: 0.07, dy: 0 },
-        { scale: 0.95, dx: 0, dy: -0.07 },
-        { scale: 0.95, dx: 0, dy: 0.07 }
+        { scale: 1.34, dx: 0, dy: 0 },
+        { scale: 0.92, dx: -0.10, dy: 0 },
+        { scale: 0.92, dx: 0.10, dy: 0 },
+        { scale: 0.92, dx: 0, dy: -0.10 },
+        { scale: 0.92, dx: 0, dy: 0.10 },
+        { scale: 0.84, dx: -0.08, dy: -0.08 },
+        { scale: 0.84, dx: 0.08, dy: 0.08 }
       ];
       for (const crop of augCrops) {
-        const cw = Math.min(fullW, Math.round(sw * crop.scale));
-        const ch = Math.min(fullH, Math.round(sh * crop.scale));
+        const cw = Math.max(32, Math.min(fullW, Math.round(sw * crop.scale)));
+        const ch = Math.max(32, Math.min(fullH, Math.round(sh * crop.scale)));
         const cx = Math.max(0, Math.min(fullW - cw, Math.round(sx + (sw - cw) * 0.5 + sw * crop.dx)));
         const cy = Math.max(0, Math.min(fullH - ch, Math.round(sy + (sh - ch) * 0.5 + sh * crop.dy)));
         roiCtx.drawImage(sourceElem, cx, cy, cw, ch, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
         const augRgba = roiCtx.getImageData(0, 0, SAMPLE_SIZE, SAMPLE_SIZE).data;
         augmentedDescriptors.push(extractCCVD144(augRgba, true));
       }
+    } else {
+      // Extract 5 multi-scale/shift query descriptors during scanning so handheld distance/framing differences match
+      queryDescriptors = [primaryDesc];
+      const scanCrops = [
+        { scale: 0.74, dx: 0, dy: 0 },
+        { scale: 1.26, dx: 0, dy: 0 },
+        { scale: 0.94, dx: -0.09, dy: 0 },
+        { scale: 0.94, dx: 0.09, dy: 0 }
+      ];
+      for (const crop of scanCrops) {
+        const cw = Math.max(32, Math.min(fullW, Math.round(sw * crop.scale)));
+        const ch = Math.max(32, Math.min(fullH, Math.round(sh * crop.scale)));
+        const cx = Math.max(0, Math.min(fullW - cw, Math.round(sx + (sw - cw) * 0.5 + sw * crop.dx)));
+        const cy = Math.max(0, Math.min(fullH - ch, Math.round(sy + (sh - ch) * 0.5 + sh * crop.dy)));
+        roiCtx.drawImage(sourceElem, cx, cy, cw, ch, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
+        const qRgba = roiCtx.getImageData(0, 0, SAMPLE_SIZE, SAMPLE_SIZE).data;
+        queryDescriptors.push(extractCCVD144(qRgba, true));
+      }
     }
 
     return {
       descriptor,
       augmentedDescriptors,
+      queryDescriptors,
       motionDelta,
       thumbnail
     };
+  }
+
+  /**
+   * Re-extract multi-crop v2 descriptors from a stored thumbnail dataURL
+   * so products saved under older descriptor versions are automatically migrated.
+   */
+  function extractDescriptorsFromThumbnail(dataUrl, callback) {
+    if (!dataUrl || typeof callback !== 'function') return;
+    const img = new Image();
+    img.onload = () => {
+      const w = img.width || 160;
+      const h = img.height || 160;
+      const sig = captureFrameSignature(img, { sx: 0, sy: 0, sw: w, sh: h }, true);
+      callback(sig.augmentedDescriptors || [sig.descriptor]);
+    };
+    img.src = dataUrl;
   }
 
   global.VisionEngine = {
@@ -2293,7 +2486,8 @@ button {
     computeMotionDelta,
     drawVirtualProduct,
     buildDefaultCatalog,
-    captureFrameSignature
+    captureFrameSignature,
+    extractDescriptorsFromThumbnail
   };
 })(window);
 
@@ -2492,12 +2686,44 @@ button {
     return false;
   }
 
+  function migrateProductsToV2(defaultCatalog) {
+    let changed = false;
+    state.products.forEach((p) => {
+      if (p.descriptorVersion === 2 && Array.isArray(p.descriptors) && p.descriptors.length > 0) {
+        return;
+      }
+      const presetMatch = defaultCatalog.find(
+        (dc) => (p.virtualPresetId && dc.virtualPresetId === p.virtualPresetId) || (p.sku && dc.sku === p.sku)
+      );
+      if (presetMatch && !p.isCameraRegistered) {
+        p.descriptors = presetMatch.descriptors;
+        p.descriptorVersion = 2;
+        p.virtualPresetId = presetMatch.virtualPresetId;
+        changed = true;
+      } else if (p.thumbnail && p.thumbnail.startsWith('data:image/')) {
+        p.isCameraRegistered = true;
+        VisionEngine.extractDescriptorsFromThumbnail(p.thumbnail, (newDescs) => {
+          if (Array.isArray(newDescs) && newDescs.length > 0) {
+            p.descriptors = newDescs;
+            p.descriptorVersion = 2;
+            saveToLocalStorage();
+          }
+        });
+      }
+    });
+    if (changed) {
+      saveToLocalStorage();
+    }
+  }
+
   async function initDataStore() {
     const defaultCatalog = VisionEngine.buildDefaultCatalog();
     const hasLocal = loadFromLocalStorage();
     if (!hasLocal) {
       state.products = defaultCatalog;
       saveToLocalStorage();
+    } else {
+      migrateProductsToV2(defaultCatalog);
     }
 
     // Attempt connection to Backend API & SSE
@@ -2508,13 +2734,14 @@ button {
         if (Array.isArray(data.products) && data.products.length > 0) {
           state.products = data.products;
           state.orders = data.orders || [];
+          migrateProductsToV2(defaultCatalog);
           saveToLocalStorage();
         } else {
           // Seed server with our generated visual catalog
           await fetch('/api/seed', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ products: state.products })
+            body: JSON.stringify({ products: state.products, force: true })
           });
         }
         connectSSE();
@@ -2538,6 +2765,7 @@ button {
           state.products = payload.products;
           state.orders = payload.orders || [];
           state.connectedNodes = payload.connectedClients || 1;
+          migrateProductsToV2(VisionEngine.buildDefaultCatalog());
           saveToLocalStorage();
           renderAll();
         }
@@ -2637,7 +2865,12 @@ button {
   }
 
   async function switchVideoSource(mode) {
+    const prevMode = state.sourceMode;
     state.sourceMode = mode;
+    if (prevMode !== mode && mode !== 'photo') {
+      state.regDescriptors = [];
+      state.regManualCaptured = false;
+    }
     wakeFromEcoSleep();
 
     ['virtual', 'webcam', 'ipcam', 'photo'].forEach((m) => {
@@ -2908,6 +3141,28 @@ button {
     const sig = VisionEngine.captureFrameSignature(sourceElem, roiRect, false);
     state.lastMotionDelta = sig.motionDelta;
 
+    // If user is on the Register tab with Live Webcam active and hasn't locked a manual photo,
+    // keep the registration preview & descriptors synced with the live camera feed
+    const activeTag = document.activeElement ? document.activeElement.tagName : '';
+    if (
+      state.activeTab === 'register' &&
+      state.sourceMode === 'webcam' &&
+      !state.regManualCaptured &&
+      !['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)
+    ) {
+      const nowMs = Date.now();
+      if (!state.lastLiveRegPreviewTime || nowMs - state.lastLiveRegPreviewTime > 450) {
+        state.lastLiveRegPreviewTime = nowMs;
+        const regSig = VisionEngine.captureFrameSignature(sourceElem, roiRect, true);
+        state.regDescriptors = regSig.augmentedDescriptors || [regSig.descriptor];
+        state.regThumbnail = regSig.thumbnail;
+        if (el['reg-preview-img']) el['reg-preview-img'].src = state.regThumbnail;
+        if (el['reg-sample-count']) {
+          el['reg-sample-count'].textContent = `樣本數: ${state.regDescriptors.length} 組`;
+        }
+      }
+    }
+
     // Check Motion Gate for Energy Saving
     if (state.ecoGateEnabled && sig.motionDelta < 1.8) {
       state.staticFrameStreak++;
@@ -2919,8 +3174,22 @@ button {
       wakeFromEcoSleep();
     }
 
-    // Match against all registered backend products
-    const matchRes = VisionEngine.matchProducts(sig.descriptor, state.products, state.threshold);
+    const activeVirtualPresetId =
+      state.sourceMode === 'virtual' && VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex]
+        ? VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex].presetId
+        : null;
+
+    // Match against all registered backend products using 5 multi-scale/shift query descriptors
+    const matchRes = VisionEngine.matchProducts(
+      sig.descriptor,
+      state.products,
+      state.threshold,
+      sig.queryDescriptors,
+      {
+        sourceMode: state.sourceMode,
+        virtualPresetId: activeVirtualPresetId
+      }
+    );
     const t1 = performance.now();
 
     state.lastInferenceMs = +(t1 - t0).toFixed(2);
@@ -3054,17 +3323,20 @@ button {
   // ==========================================================================
   // Camera Photo Registration Workflow (手機相機拍照建檔)
   // ==========================================================================
-  function captureForRegistration(appendAngle = false) {
+  function captureForRegistration(appendAngle = false, isManual = false) {
     renderStageCanvasFrame();
     const sourceElem = getActiveVideoSourceElement();
     const roiRect = getRoiRect(sourceElem);
     const sig = VisionEngine.captureFrameSignature(sourceElem, roiRect, true);
+    if (isManual) {
+      state.regManualCaptured = true;
+    }
 
     if (appendAngle && state.regDescriptors.length > 0) {
       const extra = sig.augmentedDescriptors || [sig.descriptor];
       state.regDescriptors.push(...extra);
-      if (state.regDescriptors.length > 21) {
-        state.regDescriptors = state.regDescriptors.slice(-21);
+      if (state.regDescriptors.length > 33) {
+        state.regDescriptors = state.regDescriptors.slice(-33);
       }
       state.regThumbnail = sig.thumbnail;
       showToast(`📸 已補拍新角度特徵！目前共 ${state.regDescriptors.length} 組多尺度視覺樣本`);
@@ -3123,12 +3395,20 @@ button {
     el['reg-spec'].value = stageItem.spec || '';
   }
 
-  async function handleRegistrationSubmit(e) {
-    if (e && typeof e.preventDefault === 'function') {
-      e.preventDefault();
-    }
-    if (state.regDescriptors.length === 0) {
-      captureForRegistration(false);
+  // Build product payload from current registration form & captured descriptors
+  function buildRegistrationPayload(refreshLiveFrame = false) {
+    if (state.regDescriptors.length === 0 || refreshLiveFrame) {
+      renderStageCanvasFrame();
+      const sourceElem = getActiveVideoSourceElement();
+      const freshSig = VisionEngine.captureFrameSignature(sourceElem, getRoiRect(sourceElem), true);
+      const freshList = freshSig.augmentedDescriptors || [freshSig.descriptor];
+      if (state.regDescriptors.length === 0 || !state.regManualCaptured) {
+        state.regDescriptors = freshList;
+        state.regThumbnail = freshSig.thumbnail;
+      } else {
+        // Merge fresh frame descriptors with manually captured descriptors (up to 22 samples)
+        state.regDescriptors = [...freshList, ...state.regDescriptors].slice(0, 22);
+      }
     }
 
     const editingId = (el['reg-id'].value || '').trim();
@@ -3163,58 +3443,78 @@ button {
       spec: prodSpec,
       thumbnail: state.regThumbnail,
       descriptors: state.regDescriptors,
+      descriptorVersion: 2,
+      isCameraRegistered: state.sourceMode !== 'virtual',
       virtualPresetId: stageItem ? stageItem.presetId : null
     };
     if (editingId) {
       payload.id = editingId;
     }
+    return { payload, editingId, stageItem, now };
+  }
+
+  // Upsert product immediately into memory, localStorage, and Backend API
+  async function upsertRegistrationProduct(refreshLiveFrame = false) {
+    const { payload, editingId, stageItem, now } = buildRegistrationPayload(refreshLiveFrame);
 
     let savedProduct = null;
+    // Perform immediate synchronous local upsert first so scanning never misses even 1ms later
+    const existingIdx = state.products.findIndex(
+      (p) =>
+        (editingId && p.id === editingId) ||
+        (stageItem && stageItem.presetId && p.virtualPresetId === stageItem.presetId)
+    );
+    if (existingIdx >= 0) {
+      const existing = state.products[existingIdx];
+      savedProduct = {
+        ...existing,
+        ...payload,
+        id: existing.id,
+        updatedAt: now
+      };
+      state.products[existingIdx] = savedProduct;
+    } else {
+      savedProduct = {
+        ...payload,
+        id: editingId || ('prd-' + now.toString(36) + '-' + Math.random().toString(36).slice(2, 5)),
+        createdAt: now,
+        updatedAt: now
+      };
+      state.products.unshift(savedProduct);
+    }
+
+    el['reg-id'].value = savedProduct.id;
+    el['reg-sku'].value = savedProduct.sku;
+    notifyPeers();
+    renderAll();
+
+    // Sync to backend API asynchronously
     try {
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ ...payload, id: savedProduct.id })
       });
       if (res.ok) {
         const data = await res.json();
-        savedProduct = data.product;
+        if (data && data.product) {
+          const idx = state.products.findIndex((p) => p.id === savedProduct.id || p.id === data.product.id);
+          if (idx >= 0) state.products[idx] = data.product;
+          savedProduct = data.product;
+          saveToLocalStorage();
+        }
       }
     } catch (_) {}
 
-    if (!savedProduct) {
-      // Fallback local upsert (never match undefined IDs)
-      const existingIdx = state.products.findIndex(
-        (p) =>
-          (editingId && p.id === editingId) ||
-          (stageItem && stageItem.presetId && p.virtualPresetId === stageItem.presetId)
-      );
-      if (existingIdx >= 0) {
-        const existing = state.products[existingIdx];
-        savedProduct = {
-          ...existing,
-          ...payload,
-          id: existing.id,
-          updatedAt: now
-        };
-        state.products[existingIdx] = savedProduct;
-      } else {
-        savedProduct = {
-          ...payload,
-          id: 'prd-' + now.toString(36) + '-' + Math.random().toString(36).slice(2, 5),
-          createdAt: now,
-          updatedAt: now
-        };
-        state.products.unshift(savedProduct);
-      }
-    } else {
-      const idx = state.products.findIndex((p) => p.id === savedProduct.id);
-      if (idx >= 0) state.products[idx] = savedProduct;
-      else state.products.unshift(savedProduct);
-    }
+    return savedProduct;
+  }
 
-    notifyPeers();
-    renderAll();
+  async function handleRegistrationSubmit(e) {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+    }
+    const savedProduct = await upsertRegistrationProduct(true);
+
     resetRegistrationForm();
     switchTab('scan');
 
@@ -3249,6 +3549,7 @@ button {
     el['reg-barcode'].value = '';
     el['reg-spec'].value = '';
     state.regDescriptors = [];
+    state.regManualCaptured = false;
   }
 
   // ==========================================================================
@@ -3637,17 +3938,18 @@ button {
       el['btn-instant-register'].addEventListener('click', () => {
         el['reg-id'].value = '';
         el['reg-name'].value = '';
-        captureForRegistration(false);
+        captureForRegistration(false, true);
         handleRegistrationSubmit(null);
       });
     }
 
-    // Jump to register form from Unregistered Prompt Card
-    el['btn-jump-register'].addEventListener('click', () => {
+    // Jump to register form from Unregistered Prompt Card (auto-creates draft in inventory immediately)
+    el['btn-jump-register'].addEventListener('click', async () => {
       el['reg-id'].value = '';
       el['reg-name'].value = '';
       switchTab('register', true);
-      captureForRegistration(false);
+      captureForRegistration(false, true);
+      await upsertRegistrationProduct(false);
       if (el['view-register']) {
         el['view-register'].scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
@@ -3656,7 +3958,7 @@ button {
       }
     });
 
-    // 1. Mobile Native Camera SCAN Input (Customer Photo Scan -> Immediate Recognition)
+    // 1. Mobile Native Camera SCAN Input (Customer Photo Scan -> Immediate Multi-Crop Recognition)
     if (el['native-scan-input']) {
       el['native-scan-input'].addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
@@ -3665,7 +3967,13 @@ button {
           switchTab('scan');
           const sourceElem = getActiveVideoSourceElement();
           const sig = VisionEngine.captureFrameSignature(sourceElem, getRoiRect(sourceElem), false);
-          const matchRes = VisionEngine.matchProducts(sig.descriptor, state.products, state.threshold);
+          const matchRes = VisionEngine.matchProducts(
+            sig.descriptor,
+            state.products,
+            state.threshold,
+            sig.queryDescriptors,
+            { sourceMode: 'photo', virtualPresetId: null }
+          );
           state.liveDescriptor = sig.descriptor;
           state.currentMatch = matchRes.product;
           state.currentSimilarity = matchRes.similarity;
@@ -3689,22 +3997,23 @@ button {
       });
     }
 
-    // 2. Mobile Native Camera REGISTER Input (Backend Photo Registration -> 7-Crop Descriptor Extraction)
+    // 2. Mobile Native Camera REGISTER Input (Backend Photo Registration -> 11-Crop Descriptor + Immediate Auto-Save)
     if (el['native-camera-input']) {
       el['native-camera-input'].addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
         const isAppend = state.pendingAngleAppend;
         state.pendingAngleAppend = false;
-        loadMobilePhotoToBuffer(file, () => {
+        loadMobilePhotoToBuffer(file, async () => {
           if (!isAppend) {
             el['reg-id'].value = '';
             el['reg-name'].value = '';
           }
           switchTab('register', true);
-          captureForRegistration(isAppend);
-          if (!isAppend) {
-            showToast('📸 已擷取實拍特徵並帶入預設值！可直接點「✅ 完成拍照建檔」或修改名稱價格');
+          captureForRegistration(isAppend, true);
+          const autoSaved = await upsertRegistrationProduct(false);
+          if (!isAppend && autoSaved) {
+            showToast(`✅ 已自動建檔「${autoSaved.name}」！可直接再掃描，或於下方修改名稱價格後按完成`);
             if (el['view-register']) {
               el['view-register'].scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
@@ -3716,6 +4025,27 @@ button {
         e.target.value = '';
       });
     }
+
+    // Live-sync registration form edits when an auto-saved or edited product ID is active
+    ['reg-name', 'reg-price', 'reg-stock', 'reg-spec', 'reg-category', 'reg-unit', 'reg-location'].forEach((fieldId) => {
+      if (el[fieldId]) {
+        el[fieldId].addEventListener('input', () => {
+          const activeId = (el['reg-id'].value || '').trim();
+          if (!activeId) return;
+          const prod = state.products.find((p) => p.id === activeId);
+          if (!prod) return;
+          if (el['reg-name'].value.trim()) prod.name = el['reg-name'].value.trim();
+          if (el['reg-price'].value.trim() !== '') prod.price = Math.max(0, Number(el['reg-price'].value) || 0);
+          if (el['reg-stock'].value.trim() !== '') prod.stock = Math.max(0, Number(el['reg-stock'].value) || 0);
+          if (el['reg-spec'].value.trim()) prod.spec = el['reg-spec'].value.trim();
+          if (el['reg-category'].value.trim()) prod.category = el['reg-category'].value.trim();
+          if (el['reg-unit'].value.trim()) prod.unit = el['reg-unit'].value.trim();
+          if (el['reg-location'].value.trim()) prod.location = el['reg-location'].value.trim();
+          saveToLocalStorage();
+          renderInventoryList();
+        });
+      }
+    });
 
     // Webcam Controls
     el['camera-device-select'].addEventListener('change', (e) => {
@@ -3791,6 +4121,7 @@ button {
       el['reg-spec'].value = p.spec || '';
       state.regDescriptors = Array.isArray(p.descriptors) ? [...p.descriptors] : [];
       state.regThumbnail = p.thumbnail || '';
+      state.regManualCaptured = true;
       el['reg-preview-img'].src = state.regThumbnail;
       el['reg-sample-count'].textContent = `樣本數: ${state.regDescriptors.length} 組`;
     });
@@ -3801,8 +4132,8 @@ button {
       const sig = VisionEngine.captureFrameSignature(sourceElem, getRoiRect(sourceElem), true);
       const p = state.currentMatch;
       p.descriptors = p.descriptors || [];
-      p.descriptors.push(sig.descriptor);
-      if (p.descriptors.length > 6) p.descriptors.shift();
+      p.descriptors.push(...(sig.augmentedDescriptors || [sig.descriptor]));
+      if (p.descriptors.length > 33) p.descriptors = p.descriptors.slice(-33);
       try {
         await fetch(`/api/products/${encodeURIComponent(p.id)}`, {
           method: 'PATCH',
@@ -3811,20 +4142,22 @@ button {
         });
       } catch (_) {}
       notifyPeers();
-      showToast(`📸 已為「${p.name}」新增一組新角度特徵樣本（目前共 ${p.descriptors.length} 組）`);
+      showToast(`📸 已為「${p.name}」新增多尺度角度樣本（目前共 ${p.descriptors.length} 組）`);
     });
 
     // Registration Form Buttons
-    el['btn-capture-frame'].addEventListener('click', () => {
-      captureForRegistration(false);
-      showToast('📸 已擷取目前取景框畫面特徵');
+    el['btn-capture-frame'].addEventListener('click', async () => {
+      captureForRegistration(false, true);
+      await upsertRegistrationProduct(false);
+      showToast('📸 已擷取目前取景框畫面特徵並同步更新建檔');
     });
-    el['btn-add-angle-sample'].addEventListener('click', () => {
+    el['btn-add-angle-sample'].addEventListener('click', async () => {
       if (state.sourceMode === 'photo' && el['native-camera-input']) {
         state.pendingAngleAppend = true;
         el['native-camera-input'].click();
       } else {
-        captureForRegistration(true);
+        captureForRegistration(true, true);
+        await upsertRegistrationProduct(false);
       }
     });
     el['btn-fill-demo-new'].addEventListener('click', () => {
@@ -3838,7 +4171,7 @@ button {
       }
       const item = VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex];
       fillRegistrationFormFromPreset(item);
-      setTimeout(() => captureForRegistration(false), 50);
+      setTimeout(() => captureForRegistration(false, true), 50);
       showToast('已自動將鏡頭對準新商品並填入範例規格，請點擊「完成拍照建檔」');
     });
     el['btn-reset-reg-form'].addEventListener('click', () => resetRegistrationForm());

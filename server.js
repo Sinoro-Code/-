@@ -217,12 +217,13 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  // 3. Seed or Sync Initial Products (if store is empty)
+  // 3. Seed or Sync Initial Products (if store is empty or upgrading descriptorVersion)
   if (pathname === '/api/seed' && req.method === 'POST') {
     try {
       const body = await parseBody(req);
-      if (store.products.length === 0 && Array.isArray(body.products) && body.products.length > 0) {
+      if ((store.products.length === 0 || body.force) && Array.isArray(body.products) && body.products.length > 0) {
         store.products = body.products;
+        store.version = 2;
         scheduleSave();
         broadcastEvent('products_synced', { products: store.products });
       }
@@ -258,6 +259,8 @@ const server = http.createServer(async (req, res) => {
           descriptors: Array.isArray(product.descriptors) && product.descriptors.length > 0
             ? product.descriptors
             : existing.descriptors,
+          descriptorVersion: product.descriptorVersion || existing.descriptorVersion || 2,
+          isCameraRegistered: Boolean(product.isCameraRegistered ?? existing.isCameraRegistered),
           updatedAt: now
         };
         store.products[existingIdx] = updated;
@@ -281,6 +284,8 @@ const server = http.createServer(async (req, res) => {
           description: product.description || '',
           thumbnail: product.thumbnail || '',
           descriptors: Array.isArray(product.descriptors) ? product.descriptors : [],
+          descriptorVersion: product.descriptorVersion || 2,
+          isCameraRegistered: Boolean(product.isCameraRegistered),
           colorAccent: product.colorAccent || '#10b981',
           virtualPresetId: product.virtualPresetId || null,
           createdAt: now,
