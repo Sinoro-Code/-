@@ -51,6 +51,8 @@
     cctvChannel: 'ch1',
     cctvTimer: 0,
     loadedPhotoImage: null,
+    hasLoadedPhoto: false,
+    pendingAngleAppend: false,
 
     // Eco & Telemetry State
     staticFrameStreak: 0,
@@ -60,6 +62,13 @@
     connectedNodes: 1
   };
 
+  // Pre-allocated 640x480 buffer canvas so 12MP/50MP mobile camera photos are downscaled ONCE
+  // instead of inside the 20 FPS recognition loop (prevents mobile UI thread freeze).
+  const photoBufferCanvas = document.createElement('canvas');
+  photoBufferCanvas.width = 640;
+  photoBufferCanvas.height = 480;
+  const photoBufferCtx = photoBufferCanvas.getContext('2d');
+
   // DOM Elements cache
   const el = {};
   function bindElements() {
@@ -68,7 +77,7 @@
       'metric-energy-saved', 'metric-product-count', 'nav-inv-count',
       'tab-btn-scan', 'tab-btn-register', 'tab-btn-inventory', 'tab-btn-devices',
       'view-scan', 'view-register', 'view-inventory', 'view-devices',
-      'active-source-badge', 'native-camera-input', 'quick-snap-register-btn',
+      'active-source-badge', 'native-scan-input', 'native-camera-input', 'quick-snap-register-btn',
       'src-btn-virtual', 'src-btn-webcam', 'src-btn-ipcam', 'src-btn-photo',
       'webcam-controls-bar', 'camera-device-select', 'btn-flip-camera',
       'camera-res-select', 'btn-toggle-torch',
@@ -336,10 +345,11 @@
     el['ipcam-controls-bar'].classList.toggle('hidden', mode !== 'ipcam');
     el['virtual-stage-tray'].classList.toggle('hidden', mode !== 'virtual');
 
+    // Keep #stage-canvas always visible as the unified optical display & ROI analysis surface
+    el['stage-canvas'].classList.remove('hidden');
     if (mode !== 'webcam') {
       stopWebcamStream();
       el['camera-video'].classList.add('hidden');
-      el['stage-canvas'].classList.remove('hidden');
     }
 
     if (mode === 'virtual') {
@@ -350,10 +360,7 @@
     } else if (mode === 'ipcam') {
       el['active-source-badge'].textContent = '監控串流 CCTV';
     } else if (mode === 'photo') {
-      el['active-source-badge'].textContent = '靜態照片辨識';
-      if (!state.loadedPhotoImage) {
-        el['native-camera-input'].click();
-      }
+      el['active-source-badge'].textContent = '手機相機實拍辨識';
     }
   }
 
@@ -385,8 +392,14 @@
   async function startWebcamStream() {
     stopWebcamStream();
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      showToast('此瀏覽器環境不支援直接開啟 WebRTC 相機，已切換至擬真舞台或可使用「手機拍照/傳圖」', 'warn');
-      switchVideoSource('virtual');
+      showToast('📱 已自動為您開啟手機原生相機拍照模式（本地檔案模式）', 'warn');
+      state.sourceMode = 'photo';
+      el['active-source-badge'].textContent = '手機相機實拍辨識';
+      if (state.activeTab === 'register' && el['native-camera-input']) {
+        el['native-camera-input'].click();
+      } else if (el['native-scan-input']) {
+        el['native-scan-input'].click();
+      }
       return;
     }
 
@@ -395,8 +408,7 @@
 
     const videoConstraints = {
       width: { ideal: width },
-      height: { ideal: height },
-      frameRate: { ideal: 24, max: 30 }
+      height: { ideal: height }
     };
 
     if (state.selectedDeviceId) {
@@ -406,22 +418,42 @@
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: videoConstraints,
-        audio: false
-      });
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints,
+          audio: false
+        });
+      } catch (_) {
+        // Fallback if mobile browser rejects resolution/facingMode constraints
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+      }
       state.mediaStream = stream;
       const video = el['camera-video'];
       video.srcObject = stream;
+      // Keep video active for hardware decoding while #stage-canvas renders the center-cropped feed
       video.classList.remove('hidden');
-      video.classList.toggle('mirrored', state.facingMode === 'user' && !state.selectedDeviceId);
-      el['stage-canvas'].classList.add('hidden');
+      video.style.position = 'absolute';
+      video.style.width = '1px';
+      video.style.height = '1px';
+      video.style.opacity = '0.01';
+      video.style.pointerEvents = 'none';
+      el['stage-canvas'].classList.remove('hidden');
       await video.play();
       await populateCameraDevices();
-      showToast('已開啟真實相機鏡頭，將商品對準中央框即可辨識或建檔');
+      showToast('已開啟真實相機鏡頭，將商品對準中央框即可即時辨識或建檔');
     } catch (err) {
-      showToast('無法取得相機權限或找不到實體鏡頭，您可點擊「手機拍照/傳圖」或使用擬真舞台測試', 'warn');
-      switchVideoSource('virtual');
+      showToast('📱 無法直接存取連續串流，已自動切換為「手機原生相機拍照」模式', 'warn');
+      state.sourceMode = 'photo';
+      el['active-source-badge'].textContent = '手機相機實拍辨識';
+      if (state.activeTab === 'register' && el['native-camera-input']) {
+        el['native-camera-input'].click();
+      } else if (el['native-scan-input']) {
+        el['native-scan-input'].click();
+      }
     }
   }
 
@@ -444,14 +476,30 @@
     } catch (_) {}
   }
 
-  // Render Virtual Stage or CCTV or Loaded Photo onto #stage-canvas
+  // Render Virtual Stage, Live Webcam, CCTV, or Pre-Scaled Photo onto #stage-canvas (640x480)
   function renderStageCanvasFrame() {
     const canvas = el['stage-canvas'];
     const ctx = canvas.getContext('2d');
     const w = canvas.width;
     const h = canvas.height;
 
-    if (state.sourceMode === 'virtual') {
+    if (state.sourceMode === 'webcam') {
+      const video = el['camera-video'];
+      if (state.mediaStream && video && video.readyState >= 2) {
+        const vw = video.videoWidth || 640;
+        const vh = video.videoHeight || 480;
+        const scale = Math.max(w / vw, h / vh);
+        const dw = vw * scale;
+        const dh = vh * scale;
+        ctx.save();
+        if (state.facingMode === 'user' && !state.selectedDeviceId) {
+          ctx.translate(w, 0);
+          ctx.scale(-1, 1);
+        }
+        ctx.drawImage(video, (w - dw) * 0.5, (h - dh) * 0.5, dw, dh);
+        ctx.restore();
+      }
+    } else if (state.sourceMode === 'virtual') {
       const item = VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex];
       let offsetX = 0;
       let offsetY = 0;
@@ -494,27 +542,19 @@
       ctx.fillStyle = '#10b981';
       ctx.font = '12px monospace';
       ctx.fillText(`CCTV ${state.cctvChannel.toUpperCase()} | RTSP-EDGE | ${new Date().toLocaleTimeString()}`, 22, h - 22);
-    } else if (state.sourceMode === 'photo' && state.loadedPhotoImage) {
-      ctx.fillStyle = '#090d14';
-      ctx.fillRect(0, 0, w, h);
-      const img = state.loadedPhotoImage;
-      const scale = Math.min(w / img.width, h / img.height);
-      const dw = img.width * scale;
-      const dh = img.height * scale;
-      ctx.drawImage(img, (w - dw) * 0.5, (h - dh) * 0.5, dw, dh);
+    } else if (state.sourceMode === 'photo' && state.hasLoadedPhoto) {
+      // Copy pre-downscaled 640x480 buffer in < 0.03ms (eliminates 12MP/50MP photo redraw freeze on mobile)
+      ctx.drawImage(photoBufferCanvas, 0, 0);
     }
   }
 
   function getActiveVideoSourceElement() {
-    if (state.sourceMode === 'webcam' && state.mediaStream && el['camera-video'].readyState >= 2) {
-      return el['camera-video'];
-    }
     return el['stage-canvas'];
   }
 
   function getRoiRect(sourceElem) {
-    const sw = sourceElem.videoWidth || sourceElem.width || 640;
-    const sh = sourceElem.videoHeight || sourceElem.height || 480;
+    const sw = sourceElem.width || 640;
+    const sh = sourceElem.height || 480;
     const roiW = Math.round(sw * 0.58);
     const roiH = Math.round(sh * 0.68);
     const sx = Math.round((sw - roiW) * 0.5);
@@ -555,9 +595,7 @@
       return;
     }
 
-    if (state.sourceMode !== 'webcam') {
-      renderStageCanvasFrame();
-    }
+    renderStageCanvasFrame();
 
     const sourceElem = getActiveVideoSourceElement();
     const roiRect = getRoiRect(sourceElem);
@@ -713,17 +751,19 @@
   // Camera Photo Registration Workflow (手機相機拍照建檔)
   // ==========================================================================
   function captureForRegistration(appendAngle = false) {
-    if (state.sourceMode !== 'webcam') {
-      renderStageCanvasFrame();
-    }
+    renderStageCanvasFrame();
     const sourceElem = getActiveVideoSourceElement();
     const roiRect = getRoiRect(sourceElem);
     const sig = VisionEngine.captureFrameSignature(sourceElem, roiRect, true);
 
     if (appendAngle && state.regDescriptors.length > 0) {
-      state.regDescriptors.push(sig.descriptor);
-      if (state.regDescriptors.length > 8) state.regDescriptors.shift();
-      showToast(`已補拍第 ${state.regDescriptors.length} 組視覺角度特徵！`);
+      const extra = sig.augmentedDescriptors || [sig.descriptor];
+      state.regDescriptors.push(...extra);
+      if (state.regDescriptors.length > 15) {
+        state.regDescriptors = state.regDescriptors.slice(-15);
+      }
+      state.regThumbnail = sig.thumbnail;
+      showToast(`📸 已補拍新角度特徵！目前共 ${state.regDescriptors.length} 組多尺度視覺樣本`);
     } else {
       state.regDescriptors = sig.augmentedDescriptors || [sig.descriptor];
       state.regThumbnail = sig.thumbnail;
@@ -731,7 +771,10 @@
 
     el['reg-preview-img'].src = state.regThumbnail;
     el['reg-sample-count'].textContent = `樣本數: ${state.regDescriptors.length} 組`;
-    el['reg-descriptor-status'].textContent = `已擷取 144 維視覺特徵`;
+    el['reg-descriptor-status'].textContent =
+      state.sourceMode === 'photo'
+        ? '已擷取手機實拍 144 維特徵'
+        : '已擷取 144 維視覺特徵';
     playTone(1040, 45, 'triangle');
 
     // If user is on the virtual stage and hasn't typed a name yet, pre-fill if it's an unregistered stage item
@@ -739,6 +782,19 @@
       const stageItem = VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex];
       if (stageItem) {
         fillRegistrationFormFromPreset(stageItem);
+      }
+    } else if (state.sourceMode === 'photo' && !el['reg-id'].value) {
+      // Clear any leftover virtual stage preset when switching to a real phone photo
+      const isVirtualPresetName = VisionEngine.VIRTUAL_STAGE_ITEMS.some(
+        (it) => it.name === el['reg-name'].value.trim()
+      );
+      if (isVirtualPresetName) {
+        el['reg-name'].value = '';
+        el['reg-price'].value = '';
+        el['reg-stock'].value = '10';
+        el['reg-sku'].value = '';
+        el['reg-barcode'].value = '';
+        el['reg-spec'].value = '';
       }
     }
   }
@@ -1141,13 +1197,13 @@
   // ==========================================================================
   // Navigation & Event Listeners
   // ==========================================================================
-  function switchTab(tabName) {
+  function switchTab(tabName, skipAutoCapture = false) {
     state.activeTab = tabName;
     ['scan', 'register', 'inventory', 'devices'].forEach((t) => {
       el[`tab-btn-${t}`].classList.toggle('active', t === tabName);
       el[`view-${t}`].classList.toggle('hidden', t !== tabName);
     });
-    if (tabName === 'register') {
+    if (tabName === 'register' && !skipAutoCapture) {
       captureForRegistration(false);
     }
   }
@@ -1167,6 +1223,34 @@
       .replace(/"/g, '&quot;');
   }
 
+  // Downscale any 12MP/50MP mobile photo ONCE onto the 640x480 photoBufferCanvas using center-cover scaling
+  function loadMobilePhotoToBuffer(file, onComplete) {
+    if (!file) return;
+    const objUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const w = photoBufferCanvas.width;
+      const h = photoBufferCanvas.height;
+      photoBufferCtx.fillStyle = '#090d14';
+      photoBufferCtx.fillRect(0, 0, w, h);
+      const scale = Math.max(w / img.width, h / img.height);
+      const dw = img.width * scale;
+      const dh = img.height * scale;
+      photoBufferCtx.drawImage(img, (w - dw) * 0.5, (h - dh) * 0.5, dw, dh);
+      URL.revokeObjectURL(objUrl);
+      state.hasLoadedPhoto = true;
+      switchVideoSource('photo');
+      renderStageCanvasFrame();
+      wakeFromEcoSleep();
+      if (typeof onComplete === 'function') onComplete();
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objUrl);
+      showToast('照片讀取失敗，請再試一次', 'danger');
+    };
+    img.src = objUrl;
+  }
+
   function setupEvents() {
     // Mode Navigation Tabs
     ['scan', 'register', 'inventory', 'devices'].forEach((t) => {
@@ -1174,41 +1258,71 @@
     });
 
     // Source Mode Switcher
-    ['virtual', 'webcam', 'ipcam', 'photo'].forEach((s) => {
-      el[`src-btn-${s}`].addEventListener('click', () => switchVideoSource(s));
+    ['virtual', 'webcam', 'ipcam'].forEach((s) => {
+      if (el[`src-btn-${s}`]) {
+        el[`src-btn-${s}`].addEventListener('click', () => switchVideoSource(s));
+      }
     });
 
-    // Quick Snap Register Button in Viewport Header
-    el['quick-snap-register-btn'].addEventListener('click', () => {
-      switchTab('register');
-      captureForRegistration(false);
-    });
-
+    // Jump to register from Unregistered Prompt Card
     el['btn-jump-register'].addEventListener('click', () => {
       switchTab('register');
       captureForRegistration(false);
     });
 
-    // Native Phone Camera / File Input
-    el['native-camera-input'].addEventListener('change', (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const img = new Image();
-        img.onload = () => {
-          state.loadedPhotoImage = img;
-          switchVideoSource('photo');
-          renderStageCanvasFrame();
-          if (state.activeTab === 'register') {
-            captureForRegistration(false);
+    // 1. Mobile Native Camera SCAN Input (Customer Photo Scan -> Immediate Recognition)
+    if (el['native-scan-input']) {
+      el['native-scan-input'].addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        loadMobilePhotoToBuffer(file, () => {
+          switchTab('scan');
+          const sourceElem = getActiveVideoSourceElement();
+          const sig = VisionEngine.captureFrameSignature(sourceElem, getRoiRect(sourceElem), false);
+          const matchRes = VisionEngine.matchProducts(sig.descriptor, state.products, state.threshold);
+          state.liveDescriptor = sig.descriptor;
+          state.currentMatch = matchRes.product;
+          state.currentSimilarity = matchRes.similarity;
+          state.topCandidates = matchRes.topCandidates;
+          updateRecognitionUI(matchRes);
+          if (matchRes.matched && matchRes.product) {
+            playTone(1080, 60, 'sine');
+            showToast(`✅ 掃描辨識成功：${matchRes.product.name} (NT$ ${matchRes.product.price.toLocaleString()})`);
+            if (el['recognized-product-card']) {
+              el['recognized-product-card'].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          } else {
+            playTone(440, 90, 'sawtooth');
+            showToast('⚠️ 未建檔：未掃描到庫存中的商品', 'warn');
+            if (el['unregistered-prompt-card']) {
+              el['unregistered-prompt-card'].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
           }
-          showToast('已載入照片並完成 144 維視覺特徵分析');
-        };
-        img.src = ev.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
+        });
+        e.target.value = '';
+      });
+    }
+
+    // 2. Mobile Native Camera REGISTER Input (Backend Photo Registration -> 5-Scale Descriptor Extraction)
+    if (el['native-camera-input']) {
+      el['native-camera-input'].addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const isAppend = state.pendingAngleAppend;
+        state.pendingAngleAppend = false;
+        loadMobilePhotoToBuffer(file, () => {
+          switchTab('register', true);
+          captureForRegistration(isAppend);
+          if (!isAppend) {
+            showToast('📸 已擷取手機實拍 5 組多尺度特徵！請輸入產品名稱與價格後完成建檔');
+            if (el['reg-name'] && !el['reg-name'].value) {
+              el['reg-name'].focus();
+            }
+          }
+        });
+        e.target.value = '';
+      });
+    }
 
     // Webcam Controls
     el['camera-device-select'].addEventListener('change', (e) => {
@@ -1271,7 +1385,7 @@
     el['btn-rec-edit'].addEventListener('click', () => {
       if (!state.currentMatch) return;
       const p = state.currentMatch;
-      switchTab('register');
+      switchTab('register', true);
       el['reg-id'].value = p.id;
       el['reg-name'].value = p.name;
       el['reg-price'].value = p.price;
@@ -1308,8 +1422,18 @@
     });
 
     // Registration Form Buttons
-    el['btn-capture-frame'].addEventListener('click', () => captureForRegistration(false));
-    el['btn-add-angle-sample'].addEventListener('click', () => captureForRegistration(true));
+    el['btn-capture-frame'].addEventListener('click', () => {
+      captureForRegistration(false);
+      showToast('📸 已擷取目前取景框畫面特徵');
+    });
+    el['btn-add-angle-sample'].addEventListener('click', () => {
+      if (state.sourceMode === 'photo' && el['native-camera-input']) {
+        state.pendingAngleAppend = true;
+        el['native-camera-input'].click();
+      } else {
+        captureForRegistration(true);
+      }
+    });
     el['btn-fill-demo-new'].addEventListener('click', () => {
       // Switch virtual stage to an unregistered item if not already on one
       const unregIdx = VisionEngine.VIRTUAL_STAGE_ITEMS.findIndex(

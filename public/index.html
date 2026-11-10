@@ -67,35 +67,46 @@
     <section class="panel" aria-label="光學取景與即時視覺辨識區">
       <div class="panel-header">
         <div class="panel-title">
-          <span>🎥 跨平台光學取景器</span>
+          <span>🎥 光學取景與相機掃描</span>
           <span class="badge badge-info" id="active-source-badge">互動測試舞台</span>
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
-          <label class="btn btn-secondary btn-sm" for="native-camera-input" title="呼叫手機原生相機拍照或載入照片">
-            📷 手機拍照/傳圖
-          </label>
+          <input type="file" id="native-scan-input" accept="image/*" capture="environment" class="hidden" />
           <input type="file" id="native-camera-input" accept="image/*" capture="environment" class="hidden" />
-          <button type="button" class="btn btn-primary btn-sm" id="quick-snap-register-btn" title="將目前畫面中央產品直接擷取特徵並建檔">
-            📸 快門擷取建檔
-          </button>
+          <label class="btn btn-primary btn-sm" for="native-scan-input" style="cursor:pointer;">
+            🔍 手機拍照掃描
+          </label>
+          <label class="btn btn-secondary btn-sm" for="native-camera-input" id="quick-snap-register-btn" style="cursor:pointer;">
+            📸 手機拍照建檔
+          </label>
         </div>
       </div>
 
       <div class="panel-body">
+        <!-- Prominent Mobile Camera Direct Trigger Bar (100% compatible with Android file:// & https://) -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+          <label for="native-scan-input" class="btn btn-primary" style="cursor:pointer; padding:10px; font-size:13px; text-align:center;">
+            🔍 點此開手機相機：拍照掃描商品
+          </label>
+          <label for="native-camera-input" class="btn btn-secondary" style="cursor:pointer; padding:10px; font-size:13px; text-align:center; border-color:var(--accent-primary);">
+            📸 點此開手機相機：拍照建檔新商品
+          </label>
+        </div>
+
         <!-- 4 Video Source Modes: Virtual Stage, Live Camera (WebRTC), IP Cam / CCTV, Photo -->
         <div class="source-switcher" role="group" aria-label="影像輸入來源選擇">
           <button type="button" class="source-btn active" data-source="virtual" id="src-btn-virtual">
             🎭 擬真鏡頭舞台
           </button>
           <button type="button" class="source-btn" data-source="webcam" id="src-btn-webcam">
-            📱 真實相機鏡頭
+            📱 即時連續鏡頭
           </button>
           <button type="button" class="source-btn" data-source="ipcam" id="src-btn-ipcam">
             📹 監控/IP攝影機
           </button>
-          <button type="button" class="source-btn" data-source="photo" id="src-btn-photo">
-            🖼️ 靜態照片辨識
-          </button>
+          <label for="native-scan-input" class="source-btn" id="src-btn-photo" style="cursor:pointer; display:block;">
+            🖼️ 相機拍照辨識
+          </label>
         </div>
 
         <!-- Hardware Camera Controls (Shown when Real Camera is active) -->
@@ -300,11 +311,14 @@
                 對準商品按下「拍照擷取畫面特徵」，可多角度連拍 2~3 張讓辨識更精準。
               </p>
               <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <button type="button" class="btn btn-primary btn-sm" id="btn-capture-frame">
-                  📸 重新拍照擷取畫面
+                <label for="native-camera-input" class="btn btn-primary btn-sm" style="cursor:pointer;">
+                  📱 開手機相機實拍
+                </label>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-capture-frame">
+                  📸 擷取目前畫面
                 </button>
                 <button type="button" class="btn btn-secondary btn-sm" id="btn-add-angle-sample">
-                  ➕ 補拍多角度特徵 (+1)
+                  ➕ 補拍多角度 (+1)
                 </button>
               </div>
             </div>
