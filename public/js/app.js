@@ -140,15 +140,19 @@
   // Local Storage + BroadcastChannel + Backend SSE Triple-Layer Persistence
   // ==========================================================================
   let broadcastChannel = null;
-  if ('BroadcastChannel' in window) {
-    broadcastChannel = new BroadcastChannel('vision_pos_edge_sync');
-    broadcastChannel.onmessage = (ev) => {
-      if (!ev.data) return;
-      if (ev.data.type === 'state_updated') {
-        loadFromLocalStorage();
-        renderAll();
-      }
-    };
+  try {
+    if ('BroadcastChannel' in window) {
+      broadcastChannel = new BroadcastChannel('vision_pos_edge_sync');
+      broadcastChannel.onmessage = (ev) => {
+        if (!ev.data) return;
+        if (ev.data.type === 'state_updated') {
+          loadFromLocalStorage();
+          renderAll();
+        }
+      };
+    }
+  } catch (_) {
+    broadcastChannel = null;
   }
 
   function saveToLocalStorage() {
@@ -654,41 +658,30 @@
 
     if (matchRes.matched && matchRes.product) {
       const p = matchRes.product;
-      el['hud-match-sub'].textContent = `✅ 已匹配後台商品 (${p.sku}) · 儲位 ${p.location || 'A-01'}`;
       el['hud-match-title'].textContent = p.name;
+      el['hud-match-sub'].textContent = p.spec || '精選商品';
       el['hud-match-price'].textContent = `NT$ ${p.price.toLocaleString()}`;
-      el['hud-match-stock'].textContent = `庫存: ${p.stock} ${p.unit || '件'}`;
+      el['hud-match-stock'].textContent = `${p.stock}`;
       el['hud-add-cart-btn'].disabled = p.stock <= 0;
 
-      // Update Column 2 Live Product Card
-      el['scan-match-badge'].className = 'badge badge-emerald';
-      el['scan-match-badge'].textContent = `已鎖定 (${simPct})`;
+      // Update Column 2 Customer Product Card (Strictly Name, Price, Intro, Add to Cart)
       el['recognized-product-card'].classList.remove('hidden');
       el['unregistered-prompt-card'].classList.add('hidden');
 
       if (p.thumbnail && el['rec-img'].getAttribute('src') !== p.thumbnail) {
         el['rec-img'].src = p.thumbnail;
       }
-      el['rec-category'].textContent = p.category || '一般商品';
-      el['rec-sku'].textContent = `SKU: ${p.sku}`;
-      el['rec-similarity'].textContent = `相似度 ${simPct}`;
       el['rec-name'].textContent = p.name;
-      el['rec-spec'].textContent = p.spec || '尚無額外規格描述';
       el['rec-price'].textContent = `NT$ ${p.price.toLocaleString()}`;
-      el['rec-stock'].textContent = `${p.stock} ${p.unit || '件'}`;
-      el['rec-stock'].style.color = p.stock <= (p.minStock || 5) ? 'var(--accent-danger)' : 'var(--text-primary)';
-      el['rec-location'].textContent = `${p.location || 'A-01'}${p.barcode ? ' · ' + p.barcode : ''}`;
+      el['rec-spec'].textContent = p.spec || '尚無額外產品介紹';
       el['btn-rec-add-cart'].disabled = p.stock <= 0;
-      el['btn-rec-add-cart'].textContent = p.stock > 0 ? '🛒 加入購物車 (快捷鍵 Enter)' : '⚠️ 庫存已售罄';
+      el['btn-rec-add-cart'].textContent = p.stock > 0 ? '🛒 加入購物車' : '暫無庫存';
     } else {
-      el['hud-match-sub'].textContent = '⚠️ 畫面中商品尚未建檔或低於辨識門檻';
-      el['hud-match-title'].textContent = '未知商品 — 點擊右上「快門擷取建檔」立即登錄';
+      el['hud-match-title'].textContent = '請將相機對準商品...';
+      el['hud-match-sub'].textContent = '掃描到建檔商品後將顯示產品介紹';
       el['hud-match-price'].textContent = '--';
-      el['hud-match-stock'].textContent = `最高相似度 ${simPct}`;
       el['hud-add-cart-btn'].disabled = true;
 
-      el['scan-match-badge'].className = 'badge badge-amber';
-      el['scan-match-badge'].textContent = '未建檔商品';
       el['recognized-product-card'].classList.add('hidden');
       el['unregistered-prompt-card'].classList.remove('hidden');
     }
@@ -729,10 +722,10 @@
 
     if (appendAngle && state.regDescriptors.length > 0) {
       state.regDescriptors.push(sig.descriptor);
-      if (state.regDescriptors.length > 5) state.regDescriptors.shift();
+      if (state.regDescriptors.length > 8) state.regDescriptors.shift();
       showToast(`已補拍第 ${state.regDescriptors.length} 組視覺角度特徵！`);
     } else {
-      state.regDescriptors = [sig.descriptor];
+      state.regDescriptors = sig.augmentedDescriptors || [sig.descriptor];
       state.regThumbnail = sig.thumbnail;
     }
 
@@ -1425,11 +1418,34 @@
     }
   }
 
-  // Boot Application
+  // Boot Application + Customer Native Camera Deep-Link Handler (?sku=...)
   window.addEventListener('DOMContentLoaded', async () => {
     bindElements();
     setupEvents();
     await initDataStore();
+
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const targetSku = params.get('sku');
+      if (targetSku) {
+        const matchedProd = state.products.find(
+          (p) => p.sku && p.sku.toLowerCase() === targetSku.toLowerCase()
+        );
+        if (matchedProd) {
+          const stageIdx = VisionEngine.VIRTUAL_STAGE_ITEMS.findIndex(
+            (it) => it.sku === matchedProd.sku
+          );
+          if (stageIdx >= 0) state.stageItemIndex = stageIdx;
+          state.currentMatch = matchedProd;
+          if (params.get('add') === '1') {
+            addToCart(matchedProd.id, 1, false);
+          } else {
+            showToast(`📱 已透過相機載入「${matchedProd.name}」即時資訊！`);
+          }
+        }
+      }
+    } catch (_) {}
+
     runRecognitionTick();
   });
 })();

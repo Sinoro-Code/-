@@ -153,27 +153,23 @@
               <span class="roi-corner br"></span>
             </div>
 
-            <!-- Instant Bottom HUD Match Bar -->
+            <!-- Instant Bottom HUD Match Bar (Customer View: Name, Price, Intro, Add to Cart ONLY) -->
             <div class="hud-match-banner" id="hud-match-banner">
               <div style="min-width:0; flex:1;">
-                <div style="font-size:12px; color:var(--text-secondary);" id="hud-match-sub">
-                  將產品置於中央偵測框，自動比對後台建檔特徵
-                </div>
                 <div style="font-size:15px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="hud-match-title">
-                  等待鏡頭偵測產品...
+                  請將相機對準商品...
                 </div>
+                <div style="font-size:12px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="hud-match-sub">
+                  掃描商品後將顯示產品介紹
+                </div>
+                <span class="hidden" id="hud-match-stock"></span>
               </div>
-              <div style="display:flex; align-items:center; gap:8px;">
-                <div style="text-align:right;">
-                  <div style="font-size:15px; font-weight:700; color:var(--accent-primary); font-family:var(--font-mono);" id="hud-match-price">
-                    --
-                  </div>
-                  <div style="font-size:12px; color:var(--text-secondary); font-family:var(--font-mono);" id="hud-match-stock">
-                    庫存: --
-                  </div>
+              <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+                <div style="font-size:16px; font-weight:700; color:var(--accent-primary); font-family:var(--font-mono);" id="hud-match-price">
+                  --
                 </div>
                 <button type="button" class="btn btn-primary btn-sm" id="hud-add-cart-btn" disabled>
-                  + 入車
+                  🛒 加入購物車
                 </button>
               </div>
             </div>
@@ -183,7 +179,7 @@
         <!-- Interactive Virtual Stage Controls (Allows instant testing of existing + unregistered new items) -->
         <div class="stage-tray" id="virtual-stage-tray">
           <div class="stage-tray-header">
-            <span>🎯 <strong>鏡頭前放置商品測試</strong>（點擊切換鏡頭前商品，包含 5 款已建檔 + 2 款<span style="color:var(--accent-amber);">待拍照建檔新商品</span>）：</span>
+            <span>🎯 <strong>切換鏡頭前商品測試</strong>：</span>
             <div style="display:flex; gap:6px; align-items:center;">
               <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer; font-size:12px;">
                 <input type="checkbox" id="chk-stage-motion" />
@@ -197,120 +193,89 @@
           <div class="stage-objects-scroll" id="stage-objects-list"></div>
         </div>
 
-        <!-- Live 144-D Visual Feature Fingerprint Waveform & Settings -->
-        <div style="margin-top:10px; display:flex; flex-direction:column; gap:6px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--text-secondary);">
-            <span>🧬 即時 144 維視覺特徵指紋 (CCVD-144: HSV色度 + 4×4空間對比 + Sobel邊緣梯度)</span>
-            <span style="font-family:var(--font-mono);" id="motion-delta-text">幀差 Δ: 0.0</span>
-          </div>
-          <canvas id="fingerprint-canvas" class="fingerprint-canvas" width="420" height="38"></canvas>
-
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:4px;">
-            <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary);">
-              <span>辨識門檻: <strong id="threshold-label">80%</strong></span>
-              <input type="range" id="threshold-slider" min="65" max="95" value="80" style="width:90px;" />
-            </label>
-            <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); cursor:pointer;">
-              <input type="checkbox" id="chk-auto-cart" />
-              <span>⚡ 掃描辨識成功自動加入購物車 (2秒防重覆冷卻)</span>
-            </label>
-            <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); cursor:pointer;">
-              <input type="checkbox" id="chk-eco-sleep" checked />
-              <span>🌱 智慧靜止休眠省電 (Eco Gate)</span>
-            </label>
-          </div>
+        <!-- Hidden Backend Telemetry & Controls (Preserved for DOM bindings without cluttering Customer Scan View) -->
+        <div class="hidden">
+          <span id="motion-delta-text"></span>
+          <canvas id="fingerprint-canvas" width="420" height="38"></canvas>
+          <span id="threshold-label">80%</span>
+          <input type="range" id="threshold-slider" min="65" max="95" value="80" />
+          <input type="checkbox" id="chk-auto-cart" />
+          <input type="checkbox" id="chk-eco-sleep" checked />
         </div>
       </div>
     </section>
 
-    <!-- COLUMN 2: Dynamic Context Workspace (Live Product Info / Camera Registration / Inventory / Devices) -->
+    <!-- COLUMN 2: Customer Scan Product Card (Strictly Name, Price, Intro, Add to Cart) & Backend Tabs -->
     <section class="panel" aria-label="即時產品資訊與後台建檔管理">
-      <!-- TAB VIEW 1: LIVE SCAN & INSTANT PRODUCT INFORMATION -->
+      <!-- TAB VIEW 1: CUSTOMER SCAN VIEW (ONLY Product Name, Product Price, Product Intro, Add to Cart) -->
       <div id="view-scan" class="tab-view">
         <div class="panel-header">
           <div class="panel-title">
-            <span>📋 掃描即時產品資訊卡</span>
-            <span class="badge badge-emerald" id="scan-match-badge">已鎖定產品</span>
+            <span>🛍️ 掃描商品資訊</span>
           </div>
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-train-extra-angle" title="為目前辨識到的產品補拍新角度，提升多角度辨識率">
-            📸 補拍此角度特徵
-          </button>
+          <span class="hidden" id="scan-match-badge"></span>
+          <button type="button" class="hidden" id="btn-train-extra-angle"></button>
         </div>
 
         <div class="panel-body">
-          <!-- Immediate Full Product Detail Card -->
+          <!-- Customer Streamlined Product Card: ONLY Name, Price, Description, Add to Cart -->
           <div class="recognized-card active-match" id="recognized-product-card">
             <div class="rec-header">
               <img id="rec-img" class="rec-thumb" src="" alt="產品縮圖" />
               <div class="rec-meta">
-                <div class="rec-category-row">
-                  <span class="badge badge-emerald" id="rec-category">精品咖啡</span>
-                  <span class="badge badge-info" id="rec-sku">SKU: CF-ETH-250</span>
-                  <span class="badge badge-amber" id="rec-similarity">相似度 98.4%</span>
+                <!-- 1. 產品名稱 -->
+                <h2 class="rec-name" id="rec-name" style="font-size:19px; margin-bottom:6px;">衣索比亞 耶加雪菲 精品咖啡豆 (250g)</h2>
+                <!-- 2. 產品價格 -->
+                <div style="font-size:22px; font-weight:800; color:var(--accent-primary); font-family:var(--font-mono); margin-bottom:8px;" id="rec-price">
+                  NT$ 480
                 </div>
-                <h2 class="rec-name" id="rec-name">衣索比亞 耶加雪菲 精品咖啡豆 (250g)</h2>
-                <p class="rec-spec" id="rec-spec">250g / 水洗淺焙 / 柑橘茉莉花香 / 單向排氣閥鋁箔袋</p>
               </div>
             </div>
 
-            <div class="rec-stats-grid">
-              <div class="stat-box">
-                <span class="stat-label">即時售價 (單價)</span>
-                <span class="stat-value price" id="rec-price">NT$ 480</span>
-              </div>
-              <div class="stat-box">
-                <span class="stat-label">即時庫存數量</span>
-                <span class="stat-value" id="rec-stock">42 包</span>
-              </div>
-              <div class="stat-box">
-                <span class="stat-label">貨架儲位 / 條碼</span>
-                <span class="stat-value" style="font-size:13px;" id="rec-location">A-01-上層</span>
-              </div>
+            <!-- 3. 產品介紹 -->
+            <div style="margin-top:12px; padding:12px; background:var(--bg-canvas); border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+              <div style="font-size:12px; color:var(--text-muted); margin-bottom:4px;">產品介紹</div>
+              <p class="rec-spec" id="rec-spec" style="font-size:14px; color:var(--text-primary); line-height:1.6;">
+                250g / 水洗淺焙 / 柑橘茉莉花香 / 單向排氣閥鋁箔袋
+              </p>
             </div>
 
-            <!-- Quick Actions on Recognized Product -->
-            <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
-              <button type="button" class="btn btn-primary" style="flex:2;" id="btn-rec-add-cart">
-                🛒 加入購物車 (快捷鍵 Enter)
+            <!-- 4. 加入購物車 -->
+            <div style="margin-top:14px;">
+              <button type="button" class="btn btn-primary" style="width:100%; padding:12px; font-size:15px;" id="btn-rec-add-cart">
+                🛒 加入購物車
               </button>
-              <button type="button" class="btn btn-secondary" id="btn-rec-stock-plus" title="快速入庫 +1">
-                庫存 +1
-              </button>
-              <button type="button" class="btn btn-secondary" id="btn-rec-stock-minus" title="快速出庫 -1">
-                庫存 -1
-              </button>
-              <button type="button" class="btn btn-secondary" id="btn-rec-edit" title="編輯產品資料">
-                ✏️ 編輯
-              </button>
+            </div>
+
+            <!-- Hidden elements preserved for backend state sync -->
+            <div class="hidden">
+              <span id="rec-category"></span>
+              <span id="rec-sku"></span>
+              <span id="rec-similarity"></span>
+              <span id="rec-stock"></span>
+              <span id="rec-location"></span>
+              <button type="button" id="btn-rec-stock-plus"></button>
+              <button type="button" id="btn-rec-stock-minus"></button>
+              <button type="button" id="btn-rec-edit"></button>
             </div>
           </div>
 
-          <!-- Unregistered Product Prompt Banner (Shows automatically when camera sees an unknown item) -->
+          <!-- Unregistered Product Prompt Banner -->
           <div class="recognized-card hidden" id="unregistered-prompt-card" style="border-color: var(--accent-amber);">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
               <div>
-                <span class="badge badge-amber">⚠️ 偵測到未建檔商品</span>
-                <h3 style="font-size:15px; font-weight:700; margin-top:6px;">鏡頭前商品尚未在後台建檔（最高相似度低於門檻）</h3>
+                <h3 style="font-size:15px; font-weight:700;">請將相機對準已建檔商品</h3>
                 <p style="font-size:12px; color:var(--text-secondary); margin-top:2px;">
-                  只需點擊下方按鈕拍照建檔，建立後相機再次掃描即可毫秒級列出完整資訊、庫存與價格！
+                  若為新商品，請切換至「📸 相機拍照建檔」登錄產品名稱、價格與介紹。
                 </p>
               </div>
-              <button type="button" class="btn btn-primary" id="btn-jump-register">
-                📸 立即拍照建檔此商品
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-jump-register">
+                前往後台建檔
               </button>
             </div>
           </div>
 
-          <!-- Top Visual Similarity Candidates List (Real-Time Ranking) -->
-          <div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-              <h3 style="font-size:13px; font-weight:700; color:var(--text-secondary);">
-                ⚡ 後台產品庫即時視覺相似度排行 (Top Matches)
-              </h3>
-              <span style="font-size:12px; color:var(--text-muted);" id="scan-engine-info">餘弦相似度 (Cosine Sim)</span>
-            </div>
-            <div id="top-candidates-list" style="display:flex; flex-direction:column; gap:6px;"></div>
-          </div>
+          <div id="top-candidates-list" class="hidden"></div>
         </div>
       </div>
 
