@@ -240,13 +240,18 @@ const server = http.createServer(async (req, res) => {
         return sendJSON(res, 400, { ok: false, error: '產品名稱為必填' });
       }
       const now = Date.now();
-      const existingIdx = store.products.findIndex((p) => p.id === product.id || (product.sku && p.sku === product.sku));
+      const existingIdx = store.products.findIndex(
+        (p) =>
+          (product.id && p.id === product.id) ||
+          (product.virtualPresetId && p.virtualPresetId === product.virtualPresetId)
+      );
 
       if (existingIdx >= 0) {
         const existing = store.products[existingIdx];
         const updated = {
           ...existing,
           ...product,
+          id: existing.id,
           price: Number(product.price ?? existing.price),
           stock: Number(product.stock ?? existing.stock),
           minStock: Number(product.minStock ?? existing.minStock ?? 5),

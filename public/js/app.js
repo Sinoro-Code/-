@@ -93,7 +93,7 @@
       'rec-img', 'rec-category', 'rec-sku', 'rec-similarity', 'rec-name', 'rec-spec',
       'rec-price', 'rec-stock', 'rec-location',
       'btn-rec-add-cart', 'btn-rec-stock-plus', 'btn-rec-stock-minus', 'btn-rec-edit',
-      'unregistered-prompt-card', 'btn-jump-register', 'top-candidates-list',
+      'unregistered-prompt-card', 'btn-instant-register', 'btn-jump-register', 'top-candidates-list',
       'btn-fill-demo-new', 'reg-preview-img', 'reg-descriptor-status', 'reg-sample-count',
       'btn-capture-frame', 'btn-add-angle-sample', 'register-product-form',
       'reg-id', 'reg-name', 'reg-price', 'reg-stock', 'reg-sku', 'reg-barcode',
@@ -180,7 +180,10 @@
       if (!raw) return false;
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.products) && parsed.products.length > 0) {
-        state.products = parsed.products;
+        state.products = parsed.products.map((p, idx) => ({
+          ...p,
+          id: p.id || ('prd-repaired-' + idx + '-' + Date.now().toString(36))
+        }));
         state.orders = Array.isArray(parsed.orders) ? parsed.orders : [];
         return true;
       }
@@ -759,8 +762,8 @@
     if (appendAngle && state.regDescriptors.length > 0) {
       const extra = sig.augmentedDescriptors || [sig.descriptor];
       state.regDescriptors.push(...extra);
-      if (state.regDescriptors.length > 15) {
-        state.regDescriptors = state.regDescriptors.slice(-15);
+      if (state.regDescriptors.length > 21) {
+        state.regDescriptors = state.regDescriptors.slice(-21);
       }
       state.regThumbnail = sig.thumbnail;
       showToast(`📸 已補拍新角度特徵！目前共 ${state.regDescriptors.length} 組多尺度視覺樣本`);
@@ -777,24 +780,32 @@
         : '已擷取 144 維視覺特徵';
     playTone(1040, 45, 'triangle');
 
-    // If user is on the virtual stage and hasn't typed a name yet, pre-fill if it's an unregistered stage item
-    if (state.sourceMode === 'virtual' && !el['reg-name'].value.trim()) {
-      const stageItem = VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex];
-      if (stageItem) {
-        fillRegistrationFormFromPreset(stageItem);
-      }
-    } else if (state.sourceMode === 'photo' && !el['reg-id'].value) {
-      // Clear any leftover virtual stage preset when switching to a real phone photo
+    // Auto-fill form appropriately so the user never hits empty-field validation blocks
+    if (!el['reg-id'].value && !appendAngle) {
+      const currentName = el['reg-name'].value.trim();
       const isVirtualPresetName = VisionEngine.VIRTUAL_STAGE_ITEMS.some(
-        (it) => it.name === el['reg-name'].value.trim()
+        (it) => it.name === currentName
       );
-      if (isVirtualPresetName) {
-        el['reg-name'].value = '';
-        el['reg-price'].value = '';
-        el['reg-stock'].value = '10';
-        el['reg-sku'].value = '';
-        el['reg-barcode'].value = '';
-        el['reg-spec'].value = '';
+      const isAutoDefaultName = /^實拍新商品 #\d+$/.test(currentName);
+
+      if (state.sourceMode === 'virtual') {
+        const stageItem = VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex];
+        if (stageItem && (!currentName || isVirtualPresetName || isAutoDefaultName)) {
+          fillRegistrationFormFromPreset(stageItem);
+        }
+      } else {
+        // Real camera photo or live webcam mode: never leave a virtual stage preset SKU/Name
+        if (!currentName || isVirtualPresetName) {
+          el['reg-name'].value = `實拍新商品 #${state.products.length + 1}`;
+          el['reg-price'].value = '199';
+          el['reg-stock'].value = '20';
+          el['reg-sku'].value = '';
+          el['reg-barcode'].value = '';
+          el['reg-category'].value = '手機實拍商品';
+          el['reg-unit'].value = '件';
+          el['reg-location'].value = 'A-01';
+          el['reg-spec'].value = '透過手機相機實拍建檔之庫存商品';
+        }
       }
     }
   }
@@ -812,30 +823,50 @@
   }
 
   async function handleRegistrationSubmit(e) {
-    e.preventDefault();
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+    }
     if (state.regDescriptors.length === 0) {
       captureForRegistration(false);
     }
 
+    const editingId = (el['reg-id'].value || '').trim();
     const stageItem = state.sourceMode === 'virtual'
       ? VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex]
       : null;
 
+    const fallbackName = stageItem
+      ? stageItem.name
+      : `實拍新商品 #${state.products.length + 1}`;
+    const prodName = el['reg-name'].value.trim() || fallbackName;
+    const rawPrice = el['reg-price'].value.trim();
+    const prodPrice = rawPrice !== '' ? Math.max(0, Number(rawPrice) || 0) : (stageItem ? stageItem.price : 199);
+    const rawStock = el['reg-stock'].value.trim();
+    const prodStock = rawStock !== '' ? Math.max(0, Number(rawStock) || 0) : (stageItem ? stageItem.stock : 20);
+    const prodSpec = el['reg-spec'].value.trim() || (stageItem ? stageItem.spec : '透過手機相機實拍建檔之庫存商品');
+
+    const now = Date.now();
+    const uniqueSku = editingId
+      ? (el['reg-sku'].value.trim() || ('SKU-' + now.toString().slice(-5)))
+      : (stageItem ? stageItem.sku : (el['reg-sku'].value.trim() || ('SKU-' + now.toString().slice(-5))));
+
     const payload = {
-      id: el['reg-id'].value || undefined,
-      name: el['reg-name'].value.trim(),
-      price: Number(el['reg-price'].value) || 0,
-      stock: Number(el['reg-stock'].value) ?? 10,
-      sku: el['reg-sku'].value.trim() || ('SKU-' + String(state.products.length + 101).padStart(4, '0')),
+      name: prodName,
+      price: prodPrice,
+      stock: prodStock,
+      sku: uniqueSku,
       barcode: el['reg-barcode'].value.trim(),
       category: el['reg-category'].value.trim() || '一般商品',
       unit: el['reg-unit'].value.trim() || '件',
       location: el['reg-location'].value.trim() || 'A-01',
-      spec: el['reg-spec'].value.trim(),
+      spec: prodSpec,
       thumbnail: state.regThumbnail,
       descriptors: state.regDescriptors,
       virtualPresetId: stageItem ? stageItem.presetId : null
     };
+    if (editingId) {
+      payload.id = editingId;
+    }
 
     let savedProduct = null;
     try {
@@ -851,16 +882,25 @@
     } catch (_) {}
 
     if (!savedProduct) {
-      // Fallback local upsert
-      const now = Date.now();
-      const existingIdx = state.products.findIndex((p) => p.id === payload.id || p.sku === payload.sku);
+      // Fallback local upsert (never match undefined IDs)
+      const existingIdx = state.products.findIndex(
+        (p) =>
+          (editingId && p.id === editingId) ||
+          (stageItem && stageItem.presetId && p.virtualPresetId === stageItem.presetId)
+      );
       if (existingIdx >= 0) {
-        savedProduct = { ...state.products[existingIdx], ...payload, updatedAt: now };
+        const existing = state.products[existingIdx];
+        savedProduct = {
+          ...existing,
+          ...payload,
+          id: existing.id,
+          updatedAt: now
+        };
         state.products[existingIdx] = savedProduct;
       } else {
         savedProduct = {
           ...payload,
-          id: 'prd-' + now.toString(36),
+          id: 'prd-' + now.toString(36) + '-' + Math.random().toString(36).slice(2, 5),
           createdAt: now,
           updatedAt: now
         };
@@ -876,16 +916,38 @@
     renderAll();
     resetRegistrationForm();
     switchTab('scan');
+
+    // Immediately lock onto the newly registered product in the Scan View
+    state.currentMatch = savedProduct;
+    state.currentSimilarity = 0.996;
+    state.topCandidates = [{ product: savedProduct, similarity: 0.996 }];
+    updateRecognitionUI({
+      matched: true,
+      product: savedProduct,
+      bestCandidate: savedProduct,
+      similarity: 0.996,
+      margin: 0.25,
+      topCandidates: state.topCandidates
+    });
+
     wakeFromEcoSleep();
     playTone(1320, 80, 'sine');
-    showToast(`✅ 拍照建檔完成：「${savedProduct.name}」已可透過相機即時掃描辨識！`);
+    showToast(`✅ 建檔成功！「${savedProduct.name}」(NT$ ${savedProduct.price.toLocaleString()}) 已加入庫存並立即啟用掃描辨識！`);
+    if (el['recognized-product-card']) {
+      el['recognized-product-card'].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
   }
 
   function resetRegistrationForm() {
     el['register-product-form'].reset();
     el['reg-id'].value = '';
+    el['reg-name'].value = '';
+    el['reg-price'].value = '199';
+    el['reg-stock'].value = '20';
+    el['reg-sku'].value = '';
+    el['reg-barcode'].value = '';
+    el['reg-spec'].value = '';
     state.regDescriptors = [];
-    captureForRegistration(false);
   }
 
   // ==========================================================================
@@ -1254,7 +1316,12 @@
   function setupEvents() {
     // Mode Navigation Tabs
     ['scan', 'register', 'inventory', 'devices'].forEach((t) => {
-      el[`tab-btn-${t}`].addEventListener('click', () => switchTab(t));
+      el[`tab-btn-${t}`].addEventListener('click', () => {
+        switchTab(t);
+        if (t === 'register' && el['view-register']) {
+          el['view-register'].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      });
     });
 
     // Source Mode Switcher
@@ -1264,10 +1331,28 @@
       }
     });
 
-    // Jump to register from Unregistered Prompt Card
+    // One-tap Instant Registration from Unregistered Prompt Card
+    if (el['btn-instant-register']) {
+      el['btn-instant-register'].addEventListener('click', () => {
+        el['reg-id'].value = '';
+        el['reg-name'].value = '';
+        captureForRegistration(false);
+        handleRegistrationSubmit(null);
+      });
+    }
+
+    // Jump to register form from Unregistered Prompt Card
     el['btn-jump-register'].addEventListener('click', () => {
-      switchTab('register');
+      el['reg-id'].value = '';
+      el['reg-name'].value = '';
+      switchTab('register', true);
       captureForRegistration(false);
+      if (el['view-register']) {
+        el['view-register'].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      if (el['reg-name']) {
+        setTimeout(() => el['reg-name'].select(), 150);
+      }
     });
 
     // 1. Mobile Native Camera SCAN Input (Customer Photo Scan -> Immediate Recognition)
@@ -1293,7 +1378,7 @@
             }
           } else {
             playTone(440, 90, 'sawtooth');
-            showToast('⚠️ 未建檔：未掃描到庫存中的商品', 'warn');
+            showToast('⚠️ 未建檔：未掃描到庫存中的商品（可點擊下方「⚡ 一鍵立即建檔」）', 'warn');
             if (el['unregistered-prompt-card']) {
               el['unregistered-prompt-card'].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
@@ -1303,7 +1388,7 @@
       });
     }
 
-    // 2. Mobile Native Camera REGISTER Input (Backend Photo Registration -> 5-Scale Descriptor Extraction)
+    // 2. Mobile Native Camera REGISTER Input (Backend Photo Registration -> 7-Crop Descriptor Extraction)
     if (el['native-camera-input']) {
       el['native-camera-input'].addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
@@ -1311,12 +1396,19 @@
         const isAppend = state.pendingAngleAppend;
         state.pendingAngleAppend = false;
         loadMobilePhotoToBuffer(file, () => {
+          if (!isAppend) {
+            el['reg-id'].value = '';
+            el['reg-name'].value = '';
+          }
           switchTab('register', true);
           captureForRegistration(isAppend);
           if (!isAppend) {
-            showToast('📸 已擷取手機實拍 5 組多尺度特徵！請輸入產品名稱與價格後完成建檔');
-            if (el['reg-name'] && !el['reg-name'].value) {
-              el['reg-name'].focus();
+            showToast('📸 已擷取實拍特徵並帶入預設值！可直接點「✅ 完成拍照建檔」或修改名稱價格');
+            if (el['view-register']) {
+              el['view-register'].scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            if (el['reg-name']) {
+              setTimeout(() => el['reg-name'].select(), 200);
             }
           }
         });

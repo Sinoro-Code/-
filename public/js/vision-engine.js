@@ -827,23 +827,25 @@
       snapshotCtx.drawImage(sourceElem, sx, sy, sw, sh, 0, 0, 160, 160);
       thumbnail = snapshotCtx.toDataURL('image/jpeg', 0.76);
 
-      // Generate 5 scale & angle augmented descriptors from this single shot
-      // so handheld Xiaomi 15 scans match reliably even with slight distance/angle shifts
+      // Generate 7 borderless multi-crop / scale / shift augmented descriptors directly from sourceElem
+      // so handheld Xiaomi 15 scans match reliably even with distance, framing, or angle shifts
       augmentedDescriptors = [descriptor];
-      const augConfigs = [
-        { scale: 0.88, angle: 0 },
-        { scale: 1.12, angle: 0 },
-        { scale: 0.96, angle: 0.08 },
-        { scale: 0.96, angle: -0.08 }
+      const fullW = sourceElem.width || 640;
+      const fullH = sourceElem.height || 480;
+      const augCrops = [
+        { scale: 0.84, dx: 0, dy: 0 },
+        { scale: 1.16, dx: 0, dy: 0 },
+        { scale: 0.95, dx: -0.07, dy: 0 },
+        { scale: 0.95, dx: 0.07, dy: 0 },
+        { scale: 0.95, dx: 0, dy: -0.07 },
+        { scale: 0.95, dx: 0, dy: 0.07 }
       ];
-      for (const cfg of augConfigs) {
-        roiCtx.save();
-        roiCtx.clearRect(0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
-        roiCtx.translate(SAMPLE_SIZE * 0.5, SAMPLE_SIZE * 0.5);
-        roiCtx.rotate(cfg.angle);
-        const s = SAMPLE_SIZE * cfg.scale;
-        roiCtx.drawImage(snapshotCanvas, 0, 0, 160, 160, -s * 0.5, -s * 0.5, s, s);
-        roiCtx.restore();
+      for (const crop of augCrops) {
+        const cw = Math.min(fullW, Math.round(sw * crop.scale));
+        const ch = Math.min(fullH, Math.round(sh * crop.scale));
+        const cx = Math.max(0, Math.min(fullW - cw, Math.round(sx + (sw - cw) * 0.5 + sw * crop.dx)));
+        const cy = Math.max(0, Math.min(fullH - ch, Math.round(sy + (sh - ch) * 0.5 + sh * crop.dy)));
+        roiCtx.drawImage(sourceElem, cx, cy, cw, ch, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
         const augRgba = roiCtx.getImageData(0, 0, SAMPLE_SIZE, SAMPLE_SIZE).data;
         augmentedDescriptors.push(extractCCVD144(augRgba, true));
       }
