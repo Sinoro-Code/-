@@ -981,7 +981,7 @@
 
     if (cloneDescriptor) {
       snapshotCtx.drawImage(sourceElem, sx, sy, sw, sh, 0, 0, 160, 160);
-      thumbnail = snapshotCtx.toDataURL('image/jpeg', 0.78);
+      thumbnail = snapshotCanvas.toDataURL('image/jpeg', 0.78);
 
       // Generate 11 borderless multi-crop / scale / shift augmented descriptors directly from sourceElem
       // so handheld Xiaomi 15 re-scans match reliably even with 35% distance, framing, or angle shifts
