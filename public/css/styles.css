@@ -344,6 +344,7 @@ button {
   overflow: hidden;
   border: 1px solid var(--border-strong);
   user-select: none;
+  contain: layout paint;
 }
 
 .viewport-video, .viewport-canvas {
@@ -377,11 +378,10 @@ button {
 }
 
 .hud-pill {
-  background: rgba(8, 12, 18, 0.78);
-  backdrop-filter: blur(6px);
+  background: rgba(8, 12, 18, 0.90);
   padding: 4px 9px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-primary);
@@ -406,7 +406,7 @@ button {
 .roi-reticle.matched {
   border-color: var(--accent-primary);
   border-style: solid;
-  box-shadow: 0 0 0 9999px rgba(4, 9, 14, 0.32);
+  box-shadow: 0 0 0 2px hsla(158, 78%, 42%, 0.35), inset 0 0 18px hsla(158, 78%, 42%, 0.16);
 }
 
 .roi-corner {
@@ -424,8 +424,7 @@ button {
 
 /* Instant Matched Product Floating HUD Card inside Viewport */
 .hud-match-banner {
-  background: rgba(9, 14, 20, 0.92);
-  backdrop-filter: blur(10px);
+  background: rgba(9, 14, 20, 0.95);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   padding: 10px 12px;
@@ -712,6 +711,8 @@ button {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   transition: border-color 0.14s ease;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 68px;
 }
 
 .inv-item:hover {

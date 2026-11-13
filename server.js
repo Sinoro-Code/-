@@ -14,6 +14,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -95,21 +96,51 @@ const MIME_TYPES = {
   '.js': 'application/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
+  '.webp': 'image/webp',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.ico': 'image/x-icon'
 };
 
+const COMPRESSIBLE_EXTS = new Set(['.html', '.css', '.js', '.json', '.svg']);
+const staticAssetCache = new Map();
+
 function sendJSON(res, statusCode, data) {
-  const body = JSON.stringify(data);
-  res.writeHead(statusCode, {
+  const rawBuf = Buffer.from(JSON.stringify(data), 'utf8');
+  const headers = {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
+    'Vary': 'Accept-Encoding',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type'
-  });
-  res.end(body);
+  };
+
+  const acceptEnc = (res.req && res.req.headers && res.req.headers['accept-encoding']) || '';
+  if (rawBuf.length > 1024) {
+    if (acceptEnc.includes('br')) {
+      const br = zlib.brotliCompressSync(rawBuf, {
+        params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 }
+      });
+      headers['Content-Encoding'] = 'br';
+      headers['Content-Length'] = br.length;
+      res.writeHead(statusCode, headers);
+      res.end(br);
+      return;
+    }
+    if (acceptEnc.includes('gzip')) {
+      const gz = zlib.gzipSync(rawBuf, { level: 6 });
+      headers['Content-Encoding'] = 'gzip';
+      headers['Content-Length'] = gz.length;
+      res.writeHead(statusCode, headers);
+      res.end(gz);
+      return;
+    }
+  }
+
+  headers['Content-Length'] = rawBuf.length;
+  res.writeHead(statusCode, headers);
+  res.end(rawBuf);
 }
 
 function parseBody(req) {
@@ -153,6 +184,9 @@ const server = http.createServer(async (req, res) => {
 
   // 1. Server-Sent Events (SSE) Real-Time Stream
   if (pathname === '/api/events' && req.method === 'GET') {
+    if (req.socket && typeof req.socket.setNoDelay === 'function') {
+      req.socket.setNoDelay(true);
+    }
     const deviceId = urlObj.searchParams.get('deviceId') || ('node-' + crypto.randomBytes(3).toString('hex'));
     const deviceType = urlObj.searchParams.get('deviceType') || 'Unknown Device';
 
@@ -160,6 +194,7 @@ const server = http.createServer(async (req, res) => {
       'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-cache, no-transform',
       'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
       'Access-Control-Allow-Origin': '*'
     });
 
@@ -319,10 +354,15 @@ const server = http.createServer(async (req, res) => {
       if (typeof body.name === 'string' && body.name.trim()) product.name = body.name.trim();
       if (typeof body.location === 'string') product.location = body.location;
       if (typeof body.spec === 'string') product.spec = body.spec;
-      if (Array.isArray(body.newDescriptor)) {
+      if (
+        Array.isArray(body.newDescriptor) ||
+        (typeof body.newDescriptor === 'string' && body.newDescriptor.startsWith('q1:'))
+      ) {
         product.descriptors = product.descriptors || [];
         product.descriptors.push(body.newDescriptor);
-        if (product.descriptors.length > 6) product.descriptors.shift();
+        if (product.descriptors.length > 24) {
+          product.descriptors = product.descriptors.slice(-24);
+        }
       }
       if (body.thumbnail) product.thumbnail = body.thumbnail;
       product.updatedAt = Date.now();
@@ -434,7 +474,7 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // 9. Static File Serving
+  // 9. Static File Serving with In-Memory Brotli/Gzip Pre-Compression & ETag 304 Revalidation
   let safePath = path.normalize(pathname).replace(/^(\.\.[/\\])+/, '');
   if (safePath === '/' || safePath === '\\') safePath = '/index.html';
   const filePath = path.join(PUBLIC_DIR, safePath);
@@ -451,11 +491,69 @@ const server = http.createServer(async (req, res) => {
       res.end('404 Not Found');
       return;
     }
+
     const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+    const etag = `W/"${stats.size.toString(16)}-${Math.floor(stats.mtimeMs).toString(16)}"`;
+
+    if (req.headers['if-none-match'] === etag) {
+      res.writeHead(304, {
+        ETag: etag,
+        'Cache-Control': 'public, max-age=0, must-revalidate'
+      });
+      res.end();
+      return;
+    }
+
+    if (COMPRESSIBLE_EXTS.has(ext) && stats.size <= 2 * 1024 * 1024) {
+      let cached = staticAssetCache.get(filePath);
+      if (!cached || cached.mtimeMs !== stats.mtimeMs || cached.size !== stats.size) {
+        try {
+          const rawBuf = fs.readFileSync(filePath);
+          const brBuf = zlib.brotliCompressSync(rawBuf, {
+            params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5 }
+          });
+          const gzBuf = zlib.gzipSync(rawBuf, { level: 6 });
+          cached = { mtimeMs: stats.mtimeMs, size: stats.size, etag, rawBuf, brBuf, gzBuf };
+          staticAssetCache.set(filePath, cached);
+        } catch (_) {
+          cached = null;
+        }
+      }
+
+      if (cached) {
+        const acceptEnc = req.headers['accept-encoding'] || '';
+        const headers = {
+          'Content-Type': contentType,
+          ETag: etag,
+          'Cache-Control': 'public, max-age=0, must-revalidate',
+          Vary: 'Accept-Encoding'
+        };
+        if (acceptEnc.includes('br')) {
+          headers['Content-Encoding'] = 'br';
+          headers['Content-Length'] = cached.brBuf.length;
+          res.writeHead(200, headers);
+          res.end(cached.brBuf);
+          return;
+        }
+        if (acceptEnc.includes('gzip')) {
+          headers['Content-Encoding'] = 'gzip';
+          headers['Content-Length'] = cached.gzBuf.length;
+          res.writeHead(200, headers);
+          res.end(cached.gzBuf);
+          return;
+        }
+        headers['Content-Length'] = cached.rawBuf.length;
+        res.writeHead(200, headers);
+        res.end(cached.rawBuf);
+        return;
+      }
+    }
+
     res.writeHead(200, {
       'Content-Type': contentType,
-      'Cache-Control': 'no-cache'
+      ETag: etag,
+      'Cache-Control': 'public, max-age=0, must-revalidate'
     });
     fs.createReadStream(filePath).pipe(res);
   });

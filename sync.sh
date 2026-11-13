@@ -9,23 +9,7 @@ STANDALONE_HTML="$PROJECT_DIR/VisionPOS-Xiaomi15.html"
 cd "$PROJECT_DIR"
 
 echo "[1/4] 正在重新封裝最新單檔版 VisionPOS-Xiaomi15.html ..."
-node -e '
-const fs = require("fs");
-const path = require("path");
-const pub = "/home/antigravity/vision-pos/public";
-let html = fs.readFileSync(path.join(pub, "index.html"), "utf8");
-const css = fs.readFileSync(path.join(pub, "css/styles.css"), "utf8");
-const engine = fs.readFileSync(path.join(pub, "js/vision-engine.js"), "utf8");
-const app = fs.readFileSync(path.join(pub, "js/app.js"), "utf8");
-
-html = html.replace("<link rel=\"manifest\" href=\"/manifest.json\" />", "");
-html = html.replace("<link rel=\"stylesheet\" href=\"/css/styles.css\" />", () => "<style>\n" + css + "\n</style>");
-html = html.replace("<script src=\"/js/vision-engine.js\"></script>", () => "<script>\n" + engine + "\n</script>");
-html = html.replace("<script src=\"/js/app.js\"></script>", () => "<script>\n" + app + "\n</script>");
-
-fs.writeFileSync("/home/antigravity/vision-pos/VisionPOS-Xiaomi15.html", html, "utf8");
-console.log("  -> 已生成最新 VisionPOS-Xiaomi15.html (" + html.length + " bytes)");
-'
+node "$PROJECT_DIR/build-standalone.js"
 
 echo "[2/4] 正在覆寫更新 Google 雲端硬碟檔案 (ID: $GDRIVE_FILE_ID) 並清理重複舊檔..."
 gdrive mutate update "$GDRIVE_FILE_ID" "$STANDALONE_HTML"

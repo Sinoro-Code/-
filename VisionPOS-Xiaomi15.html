@@ -8,906 +8,11 @@
   <meta name="theme-color" content="#0b0f14" />
   
   <style>
-/* ==========================================================================
-   VisionPOS Edge — Precision Industrial POS & Visual Recognition Design System
-   Pure Vanilla CSS | Zero External Style Dependencies | Multi-Device Responsive
-   ========================================================================== */
-
-:root {
-  /* Surface Hierarchy (Deep Carbon & Slate Tone) */
-  --bg-canvas: hsl(215, 28%, 7%);
-  --bg-surface: hsl(215, 24%, 11%);
-  --bg-elevated: hsl(215, 22%, 15%);
-  --bg-interactive: hsl(215, 20%, 19%);
-  --bg-glass: hsla(215, 26%, 10%, 0.86);
-
-  /* Text Hierarchy */
-  --text-primary: hsl(210, 25%, 96%);
-  --text-secondary: hsl(214, 15%, 72%);
-  --text-muted: hsl(215, 14%, 52%);
-
-  /* Functional Semantic Accents (Emerald / Amber / Coral / Cyan) */
-  --accent-primary: hsl(158, 78%, 42%);
-  --accent-primary-hover: hsl(158, 78%, 48%);
-  --accent-primary-soft: hsla(158, 78%, 42%, 0.14);
-
-  --accent-amber: hsl(38, 92%, 54%);
-  --accent-amber-soft: hsla(38, 92%, 54%, 0.15);
-
-  --accent-danger: hsl(352, 82%, 58%);
-  --accent-danger-soft: hsla(352, 82%, 58%, 0.15);
-
-  --accent-info: hsl(198, 88%, 52%);
-  --accent-info-soft: hsla(198, 88%, 52%, 0.14);
-
-  /* Subtle Structural Hairlines */
-  --border-subtle: hsla(214, 20%, 82%, 0.09);
-  --border-strong: hsla(214, 20%, 82%, 0.16);
-
-  /* Radii & Spacing */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --shadow-card: 0 10px 28px -8px rgba(0, 0, 0, 0.55);
-
-  /* Typography */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
-}
-
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html, body {
-  min-height: 100%;
-  background-color: var(--bg-canvas);
-  color: var(--text-primary);
-  font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
-}
-
-button, input, select, textarea {
-  font: inherit;
-  color: inherit;
-}
-
-button {
-  cursor: pointer;
-  border: none;
-  background: none;
-}
-
-/* ==========================================================================
-   Top Telemetry & Navigation Header
-   ========================================================================== */
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 18px;
-  background: var(--bg-surface);
-  border-bottom: 1px solid var(--border-subtle);
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  flex-wrap: wrap;
-}
-
-.brand-group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.brand-mark {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-sm);
-  background: var(--accent-primary-soft);
-  color: var(--accent-primary);
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  border: 1px solid hsla(158, 78%, 42%, 0.25);
-}
-
-.brand-title {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.brand-subtitle {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-/* Telemetry Strip (Latency, FPS, Eco Mode, Sync Nodes) */
-.telemetry-strip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.telemetry-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  font-size: 12px;
-  font-family: var(--font-mono);
-  color: var(--text-secondary);
-}
-
-.telemetry-chip strong {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent-primary);
-  display: inline-block;
-}
-
-.status-dot.eco {
-  background: var(--accent-amber);
-}
-
-.status-dot.offline {
-  background: var(--accent-info);
-}
-
-/* Mode Navigation Tabs */
-.mode-nav {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: var(--bg-canvas);
-  padding: 4px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
-}
-
-.mode-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.mode-tab:hover {
-  color: var(--text-primary);
-  background: var(--bg-elevated);
-}
-
-.mode-tab.active {
-  background: var(--accent-primary);
-  color: #04130d;
-}
-
-.mode-tab .tab-badge {
-  padding: 1px 6px;
-  border-radius: 99px;
-  font-size: 12px;
-  font-family: var(--font-mono);
-  background: rgba(0, 0, 0, 0.22);
-  color: inherit;
-}
-
-/* ==========================================================================
-   Main Workspace Grid (Responsive across Mobile / Tablet / Desktop / CCTV)
-   ========================================================================== */
-.workspace {
-  display: grid;
-  grid-template-columns: minmax(340px, 1.15fr) minmax(340px, 1.15fr) minmax(310px, 0.85fr);
-  gap: 14px;
-  padding: 14px 18px 28px;
-  max-width: 1720px;
-  margin: 0 auto;
-  align-items: start;
-}
-
-@media (max-width: 1280px) {
-  .workspace {
-    grid-template-columns: 1fr 1fr;
-  }
-  .cart-column {
-    grid-column: 1 / -1;
-  }
-}
-
-@media (max-width: 860px) {
-  .workspace {
-    grid-template-columns: 1fr;
-    padding: 10px 12px 80px;
-  }
-  .topbar {
-    padding: 10px 12px;
-  }
-  .mode-nav {
-    width: 100%;
-    overflow-x: auto;
-  }
-  .mode-tab {
-    flex: 1;
-    justify-content: center;
-    white-space: nowrap;
-  }
-}
-
-/* Panel Cards */
-.panel {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  overflow: hidden;
-}
-
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-elevated);
-  flex-wrap: wrap;
-}
-
-.panel-title {
-  font-size: 14px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.panel-body {
-  padding: 14px 16px;
-}
-
-/* ==========================================================================
-   Camera & Multi-Source Viewport (Phone / Webcam / IP Cam / Virtual Stage)
-   ========================================================================== */
-.source-switcher {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-  margin-bottom: 10px;
-}
-
-.source-btn {
-  padding: 7px 8px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-align: center;
-  transition: all 0.14s ease;
-}
-
-.source-btn:hover {
-  background: var(--bg-interactive);
-  color: var(--text-primary);
-}
-
-.source-btn.active {
-  background: var(--accent-primary-soft);
-  color: var(--accent-primary);
-  border-color: hsla(158, 78%, 42%, 0.45);
-}
-
-.camera-controls-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-}
-
-.select-control, .input-control {
-  background: var(--bg-canvas);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  padding: 6px 10px;
-  font-size: 13px;
-  color: var(--text-primary);
-  outline: none;
-  transition: border-color 0.15s ease;
-}
-
-.select-control:focus, .input-control:focus, textarea.input-control:focus {
-  border-color: var(--accent-primary);
-}
-
-.viewport-container {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  background: #06080c;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  border: 1px solid var(--border-strong);
-  user-select: none;
-}
-
-.viewport-video, .viewport-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.viewport-video.mirrored {
-  transform: scaleX(-1);
-}
-
-/* Tactical ROI Reticle & Live HUD Overlay */
-.hud-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 12px;
-}
-
-.hud-top-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.hud-pill {
-  background: rgba(8, 12, 18, 0.78);
-  backdrop-filter: blur(6px);
-  padding: 4px 9px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--text-primary);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* ROI Target Frame in Center */
-.roi-reticle {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 58%;
-  height: 68%;
-  transform: translate(-50%, -50%);
-  border: 1.5px dashed rgba(255, 255, 255, 0.28);
-  border-radius: 12px;
-  transition: border-color 0.15s ease, transform 0.15s ease;
-}
-
-.roi-reticle.matched {
-  border-color: var(--accent-primary);
-  border-style: solid;
-  box-shadow: 0 0 0 9999px rgba(4, 9, 14, 0.32);
-}
-
-.roi-corner {
-  position: absolute;
-  width: 18px;
-  height: 18px;
-  border-color: var(--accent-primary);
-  border-style: solid;
-  border-width: 0;
-}
-.roi-corner.tl { top: -2px; left: -2px; border-top-width: 3px; border-left-width: 3px; border-top-left-radius: 8px; }
-.roi-corner.tr { top: -2px; right: -2px; border-top-width: 3px; border-right-width: 3px; border-top-right-radius: 8px; }
-.roi-corner.bl { bottom: -2px; left: -2px; border-bottom-width: 3px; border-left-width: 3px; border-bottom-left-radius: 8px; }
-.roi-corner.br { bottom: -2px; right: -2px; border-bottom-width: 3px; border-right-width: 3px; border-bottom-right-radius: 8px; }
-
-/* Instant Matched Product Floating HUD Card inside Viewport */
-.hud-match-banner {
-  background: rgba(9, 14, 20, 0.92);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  pointer-events: auto;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
-.hud-match-banner.matched-state {
-  border-color: hsla(158, 78%, 42%, 0.55);
-}
-
-/* Virtual Stage Object Selector Tray */
-.stage-tray {
-  margin-top: 10px;
-  background: var(--bg-canvas);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 10px;
-}
-
-.stage-tray-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.stage-objects-scroll {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-.stage-obj-btn {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  font-size: 12px;
-  color: var(--text-secondary);
-  transition: all 0.12s ease;
-}
-
-.stage-obj-btn:hover {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-}
-
-.stage-obj-btn.active {
-  background: var(--bg-interactive);
-  color: var(--text-primary);
-  border-color: var(--accent-primary);
-}
-
-.stage-obj-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-}
-
-/* ==========================================================================
-   Recognized Product Live Detail Card (Immediate Full Info, Stock, Price)
-   ========================================================================== */
-.recognized-card {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  padding: 14px;
-  margin-bottom: 14px;
-  transition: border-color 0.15s ease;
-}
-
-.recognized-card.active-match {
-  border-color: hsla(158, 78%, 42%, 0.5);
-}
-
-.rec-header {
-  display: flex;
-  gap: 14px;
-  align-items: center;
-}
-
-.rec-thumb {
-  width: 72px;
-  height: 72px;
-  border-radius: var(--radius-md);
-  object-fit: cover;
-  background: var(--bg-canvas);
-  border: 1px solid var(--border-strong);
-  flex-shrink: 0;
-}
-
-.rec-meta {
-  flex: 1;
-  min-width: 0;
-}
-
-.rec-category-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-  flex-wrap: wrap;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  font-family: var(--font-mono);
-}
-
-.badge-emerald {
-  background: var(--accent-primary-soft);
-  color: var(--accent-primary);
-}
-
-.badge-amber {
-  background: var(--accent-amber-soft);
-  color: var(--accent-amber);
-}
-
-.badge-danger {
-  background: var(--accent-danger-soft);
-  color: var(--accent-danger);
-}
-
-.badge-info {
-  background: var(--accent-info-soft);
-  color: var(--accent-info);
-}
-
-.rec-name {
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.3;
-  margin-bottom: 4px;
-}
-
-.rec-spec {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.rec-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.stat-box {
-  background: var(--bg-canvas);
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-subtle);
-}
-
-.stat-label {
-  font-size: 12px;
-  color: var(--text-muted);
-  display: block;
-}
-
-.stat-value {
-  font-size: 16px;
-  font-weight: 700;
-  font-family: var(--font-mono);
-  color: var(--text-primary);
-}
-
-.stat-value.price {
-  color: var(--accent-primary);
-}
-
-/* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 600;
-  transition: all 0.14s ease;
-}
-
-.btn-primary {
-  background: var(--accent-primary);
-  color: #04150e;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: var(--accent-primary-hover);
-  transform: translateY(-1px);
-}
-
-.btn-secondary {
-  background: var(--bg-interactive);
-  color: var(--text-primary);
-  border: 1px solid var(--border-strong);
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: hsl(215, 20%, 24%);
-}
-
-.btn-danger {
-  background: var(--accent-danger-soft);
-  color: var(--accent-danger);
-  border: 1px solid hsla(352, 82%, 58%, 0.3);
-}
-
-.btn-sm {
-  padding: 5px 10px;
-  font-size: 12px;
-}
-
-.btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-/* ==========================================================================
-   Form & Inventory Table Styles
-   ========================================================================== */
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.form-field.full {
-  grid-column: 1 / -1;
-}
-
-.form-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.inventory-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 460px;
-  overflow-y: auto;
-}
-
-.inv-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 11px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  transition: border-color 0.14s ease;
-}
-
-.inv-item:hover {
-  border-color: var(--border-strong);
-}
-
-.inv-thumb {
-  width: 46px;
-  height: 46px;
-  border-radius: var(--radius-sm);
-  object-fit: cover;
-  background: var(--bg-canvas);
-  flex-shrink: 0;
-}
-
-.inv-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.inv-title {
-  font-weight: 600;
-  font-size: 13px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.inv-sub {
-  font-size: 12px;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-}
-
-.inv-actions {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-/* ==========================================================================
-   Shopping Cart & POS Checkout Column
-   ========================================================================== */
-.cart-items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 320px;
-  overflow-y: auto;
-  margin-bottom: 12px;
-}
-
-.cart-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px;
-  background: var(--bg-elevated);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-subtle);
-}
-
-.qty-stepper {
-  display: inline-flex;
-  align-items: center;
-  background: var(--bg-canvas);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-}
-
-.qty-btn {
-  width: 26px;
-  height: 26px;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  color: var(--text-secondary);
-}
-
-.qty-btn:hover {
-  color: var(--text-primary);
-  background: var(--bg-interactive);
-}
-
-.qty-val {
-  min-width: 28px;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.cart-summary {
-  background: var(--bg-canvas);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 12px;
-  margin-bottom: 12px;
-}
-
-.summary-line {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-
-.summary-line.total {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-primary);
-  padding-top: 8px;
-  border-top: 1px solid var(--border-subtle);
-  margin-bottom: 0;
-  font-family: var(--font-mono);
-}
-
-.payment-methods {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
-.pay-method-btn {
-  padding: 8px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-align: center;
-}
-
-.pay-method-btn.active {
-  background: var(--accent-primary-soft);
-  color: var(--accent-primary);
-  border-color: var(--accent-primary);
-}
-
-/* Feature Fingerprint Visualizer Bar (144-D Vector Live Graph) */
-.fingerprint-canvas {
-  width: 100%;
-  height: 38px;
-  background: var(--bg-canvas);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-subtle);
-  display: block;
-}
-
-/* Toast Notification */
-.toast-stack {
-  position: fixed;
-  bottom: 18px;
-  right: 18px;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  pointer-events: none;
-}
-
-.toast {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  border: 1px solid var(--border-strong);
-  border-left: 4px solid var(--accent-primary);
-  padding: 10px 14px;
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-card);
-  font-size: 13px;
-  font-weight: 500;
-  pointer-events: auto;
-}
-
-.hidden {
-  display: none !important;
-}
-
+:root{--bg-canvas:hsl(215,28%,7%);--bg-surface:hsl(215,24%,11%);--bg-elevated:hsl(215,22%,15%);--bg-interactive:hsl(215,20%,19%);--bg-glass:hsla(215,26%,10%,0.86);--text-primary:hsl(210,25%,96%);--text-secondary:hsl(214,15%,72%);--text-muted:hsl(215,14%,52%);--accent-primary:hsl(158,78%,42%);--accent-primary-hover:hsl(158,78%,48%);--accent-primary-soft:hsla(158,78%,42%,0.14);--accent-amber:hsl(38,92%,54%);--accent-amber-soft:hsla(38,92%,54%,0.15);--accent-danger:hsl(352,82%,58%);--accent-danger-soft:hsla(352,82%,58%,0.15);--accent-info:hsl(198,88%,52%);--accent-info-soft:hsla(198,88%,52%,0.14);--border-subtle:hsla(214,20%,82%,0.09);--border-strong:hsla(214,20%,82%,0.16);--radius-sm:6px;--radius-md:10px;--radius-lg:14px;--shadow-card:0 10px 28px -8px rgba(0,0,0,0.55);--font-sans:'Inter',-apple-system,BlinkMacSystemFont,'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;--font-mono:'JetBrains Mono','SF Mono','Fira Code',ui-monospace,monospace}*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}html,body{min-height:100%;background-color:var(--bg-canvas);color:var(--text-primary);font-family:var(--font-sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer;border:none;background:none}.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 18px;background:var(--bg-surface);border-bottom:1px solid var(--border-subtle);position:sticky;top:0;z-index:40;flex-wrap:wrap}.brand-group{display:flex;align-items:center;gap:10px}.brand-mark{width:34px;height:34px;border-radius:var(--radius-sm);background:var(--accent-primary-soft);color:var(--accent-primary);display:grid;place-items:center;font-weight:700;border:1px solid hsla(158,78%,42%,0.25)}.brand-title{font-size:15px;font-weight:700;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px}.brand-subtitle{font-size:12px;color:var(--text-muted)}.telemetry-strip{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.telemetry-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:var(--radius-sm);background:var(--bg-elevated);border:1px solid var(--border-subtle);font-size:12px;font-family:var(--font-mono);color:var(--text-secondary)}.telemetry-chip strong{color:var(--text-primary);font-weight:600}.status-dot{width:7px;height:7px;border-radius:50%;background:var(--accent-primary);display:inline-block}.status-dot.eco{background:var(--accent-amber)}.status-dot.offline{background:var(--accent-info)}.mode-nav{display:flex;align-items:center;gap:4px;background:var(--bg-canvas);padding:4px;border-radius:var(--radius-md);border:1px solid var(--border-subtle)}.mode-tab{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;color:var(--text-secondary);transition:background-color 0.15s ease,color 0.15s ease}.mode-tab:hover{color:var(--text-primary);background:var(--bg-elevated)}.mode-tab.active{background:var(--accent-primary);color:#04130d}.mode-tab .tab-badge{padding:1px 6px;border-radius:99px;font-size:12px;font-family:var(--font-mono);background:rgba(0,0,0,0.22);color:inherit}.workspace{display:grid;grid-template-columns:minmax(340px,1.15fr) minmax(340px,1.15fr) minmax(310px,0.85fr);gap:14px;padding:14px 18px 28px;max-width:1720px;margin:0 auto;align-items:start}@media (max-width:1280px){.workspace{grid-template-columns:1fr 1fr}.cart-column{grid-column:1 / -1}}@media (max-width:860px){.workspace{grid-template-columns:1fr;padding:10px 12px 80px}.topbar{padding:10px 12px}.mode-nav{width:100%;overflow-x:auto}.mode-tab{flex:1;justify-content:center;white-space:nowrap}}.panel{background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden}.panel-header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border-subtle);background:var(--bg-elevated);flex-wrap:wrap}.panel-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}.panel-body{padding:14px 16px}.source-switcher{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}.source-btn{padding:7px 8px;border-radius:var(--radius-sm);background:var(--bg-elevated);border:1px solid var(--border-subtle);font-size:12px;font-weight:600;color:var(--text-secondary);text-align:center;transition:all 0.14s ease}.source-btn:hover{background:var(--bg-interactive);color:var(--text-primary)}.source-btn.active{background:var(--accent-primary-soft);color:var(--accent-primary);border-color:hsla(158,78%,42%,0.45)}.camera-controls-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}.select-control,.input-control{background:var(--bg-canvas);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:6px 10px;font-size:13px;color:var(--text-primary);outline:none;transition:border-color 0.15s ease}.select-control:focus,.input-control:focus,textarea.input-control:focus{border-color:var(--accent-primary)}.viewport-container{position:relative;width:100%;aspect-ratio:4 / 3;background:#06080c;border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--border-strong);user-select:none;contain:layout paint}.viewport-video,.viewport-canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.viewport-video.mirrored{transform:scaleX(-1)}.hud-overlay{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;padding:12px}.hud-top-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.hud-pill{background:rgba(8,12,18,0.90);padding:4px 9px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.14);font-family:var(--font-mono);font-size:12px;color:var(--text-primary);display:inline-flex;align-items:center;gap:6px}.roi-reticle{position:absolute;top:50%;left:50%;width:58%;height:68%;transform:translate(-50%,-50%);border:1.5px dashed rgba(255,255,255,0.28);border-radius:12px;transition:border-color 0.15s ease,transform 0.15s ease}.roi-reticle.matched{border-color:var(--accent-primary);border-style:solid;box-shadow:0 0 0 2px hsla(158,78%,42%,0.35),inset 0 0 18px hsla(158,78%,42%,0.16)}.roi-corner{position:absolute;width:18px;height:18px;border-color:var(--accent-primary);border-style:solid;border-width:0}.roi-corner.tl{top:-2px;left:-2px;border-top-width:3px;border-left-width:3px;border-top-left-radius:8px}.roi-corner.tr{top:-2px;right:-2px;border-top-width:3px;border-right-width:3px;border-top-right-radius:8px}.roi-corner.bl{bottom:-2px;left:-2px;border-bottom-width:3px;border-left-width:3px;border-bottom-left-radius:8px}.roi-corner.br{bottom:-2px;right:-2px;border-bottom-width:3px;border-right-width:3px;border-bottom-right-radius:8px}.hud-match-banner{background:rgba(9,14,20,0.95);border:1px solid var(--border-strong);border-radius:var(--radius-md);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;pointer-events:auto;transition:opacity 0.15s ease,transform 0.15s ease}.hud-match-banner.matched-state{border-color:hsla(158,78%,42%,0.55)}.stage-tray{margin-top:10px;background:var(--bg-canvas);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:10px}.stage-tray-header{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:8px;flex-wrap:wrap;gap:6px}.stage-objects-scroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}.stage-obj-btn{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--radius-sm);background:var(--bg-surface);border:1px solid var(--border-subtle);font-size:12px;color:var(--text-secondary);transition:all 0.12s ease}.stage-obj-btn:hover{background:var(--bg-elevated);color:var(--text-primary)}.stage-obj-btn.active{background:var(--bg-interactive);color:var(--text-primary);border-color:var(--accent-primary)}.stage-obj-dot{width:9px;height:9px;border-radius:50%}.recognized-card{background:var(--bg-elevated);border:1px solid var(--border-strong);border-radius:var(--radius-md);padding:14px;margin-bottom:14px;transition:border-color 0.15s ease}.recognized-card.active-match{border-color:hsla(158,78%,42%,0.5)}.rec-header{display:flex;gap:14px;align-items:center}.rec-thumb{width:72px;height:72px;border-radius:var(--radius-md);object-fit:cover;background:var(--bg-canvas);border:1px solid var(--border-strong);flex-shrink:0}.rec-meta{flex:1;min-width:0}.rec-category-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap}.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;font-family:var(--font-mono)}.badge-emerald{background:var(--accent-primary-soft);color:var(--accent-primary)}.badge-amber{background:var(--accent-amber-soft);color:var(--accent-amber)}.badge-danger{background:var(--accent-danger-soft);color:var(--accent-danger)}.badge-info{background:var(--accent-info-soft);color:var(--accent-info)}.rec-name{font-size:17px;font-weight:700;color:var(--text-primary);line-height:1.3;margin-bottom:4px}.rec-spec{font-size:12px;color:var(--text-secondary)}.rec-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border-subtle)}.stat-box{background:var(--bg-canvas);padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--border-subtle)}.stat-label{font-size:12px;color:var(--text-muted);display:block}.stat-value{font-size:16px;font-weight:700;font-family:var(--font-mono);color:var(--text-primary)}.stat-value.price{color:var(--accent-primary)}.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;transition:all 0.14s ease}.btn-primary{background:var(--accent-primary);color:#04150e}.btn-primary:hover:not(:disabled){background:var(--accent-primary-hover);transform:translateY(-1px)}.btn-secondary{background:var(--bg-interactive);color:var(--text-primary);border:1px solid var(--border-strong)}.btn-secondary:hover:not(:disabled){background:hsl(215,20%,24%)}.btn-danger{background:var(--accent-danger-soft);color:var(--accent-danger);border:1px solid hsla(352,82%,58%,0.3)}.btn-sm{padding:5px 10px;font-size:12px}.btn:disabled{opacity:0.45;cursor:not-allowed}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.form-field{display:flex;flex-direction:column;gap:4px}.form-field.full{grid-column:1 / -1}.form-label{font-size:12px;font-weight:600;color:var(--text-secondary)}.inventory-list{display:flex;flex-direction:column;gap:8px;max-height:460px;overflow-y:auto}.inv-item{display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:var(--radius-md);transition:border-color 0.14s ease;content-visibility:auto;contain-intrinsic-size:auto 68px}.inv-item:hover{border-color:var(--border-strong)}.inv-thumb{width:46px;height:46px;border-radius:var(--radius-sm);object-fit:cover;background:var(--bg-canvas);flex-shrink:0}.inv-info{flex:1;min-width:0}.inv-title{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.inv-sub{font-size:12px;color:var(--text-muted);font-family:var(--font-mono)}.inv-actions{display:flex;align-items:center;gap:5px}.cart-items-list{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto;margin-bottom:12px}.cart-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:var(--bg-elevated);border-radius:var(--radius-sm);border:1px solid var(--border-subtle)}.qty-stepper{display:inline-flex;align-items:center;background:var(--bg-canvas);border:1px solid var(--border-strong);border-radius:var(--radius-sm)}.qty-btn{width:26px;height:26px;display:grid;place-items:center;font-weight:700;color:var(--text-secondary)}.qty-btn:hover{color:var(--text-primary);background:var(--bg-interactive)}.qty-val{min-width:28px;text-align:center;font-family:var(--font-mono);font-size:12px;font-weight:600}.cart-summary{background:var(--bg-canvas);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:12px;margin-bottom:12px}.summary-line{display:flex;justify-content:space-between;font-size:13px;color:var(--text-secondary);margin-bottom:6px}.summary-line.total{font-size:18px;font-weight:700;color:var(--text-primary);padding-top:8px;border-top:1px solid var(--border-subtle);margin-bottom:0;font-family:var(--font-mono)}.payment-methods{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}.pay-method-btn{padding:8px;border-radius:var(--radius-sm);background:var(--bg-elevated);border:1px solid var(--border-subtle);font-size:12px;font-weight:600;color:var(--text-secondary);text-align:center}.pay-method-btn.active{background:var(--accent-primary-soft);color:var(--accent-primary);border-color:var(--accent-primary)}.fingerprint-canvas{width:100%;height:38px;background:var(--bg-canvas);border-radius:var(--radius-sm);border:1px solid var(--border-subtle);display:block}.toast-stack{position:fixed;bottom:18px;right:18px;z-index:100;display:flex;flex-direction:column;gap:8px;pointer-events:none}.toast{background:var(--bg-elevated);color:var(--text-primary);border:1px solid var(--border-strong);border-left:4px solid var(--accent-primary);padding:10px 14px;border-radius:var(--radius-sm);box-shadow:var(--shadow-card);font-size:13px;font-weight:500;pointer-events:auto}.hidden{display:none !important}
 </style>
 </head>
 <body>
-  <!-- Top Header: Brand, Real-Time Performance/Energy Telemetry, and Mode Switcher -->
+  
   <header class="topbar" role="banner">
     <div class="brand-group">
       <div class="brand-mark" aria-hidden="true">VP</div>
@@ -919,8 +24,7 @@ button {
         <p class="brand-subtitle">64×64 零配置視覺指紋引擎 (CCVD-144) · 跨裝置即時庫存與 POS 結帳系統</p>
       </div>
     </div>
-
-    <!-- Real-Time Hardware & Energy Telemetry Strip -->
+    
     <div class="telemetry-strip" aria-label="系統即時效能與節能指標">
       <div class="telemetry-chip" title="單幀視覺特徵擷取與比對延遲">
         <span>辨識延遲</span>
@@ -939,8 +43,7 @@ button {
         <strong id="metric-product-count">5 筆</strong>
       </div>
     </div>
-
-    <!-- Primary Mode Tabs -->
+    
     <nav class="mode-nav" aria-label="主要功能切換">
       <button type="button" class="mode-tab active" data-tab="scan" id="tab-btn-scan">
         <span>🔍 即時掃描辨識</span>
@@ -957,10 +60,9 @@ button {
       </button>
     </nav>
   </header>
-
-  <!-- 3-Column Adaptive Workspace -->
+  
   <main class="workspace">
-    <!-- COLUMN 1: Multi-Source Camera Viewport & Live Visual Recognition HUD -->
+    
     <section class="panel" aria-label="光學取景與即時視覺辨識區">
       <div class="panel-header">
         <div class="panel-title">
@@ -978,9 +80,8 @@ button {
           </label>
         </div>
       </div>
-
       <div class="panel-body">
-        <!-- Prominent Mobile Camera Direct Trigger Bar (100% compatible with Android file:// & https://) -->
+        
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
           <label for="native-scan-input" class="btn btn-primary" style="cursor:pointer; padding:10px; font-size:13px; text-align:center;">
             🔍 點此開手機相機：拍照掃描商品
@@ -989,8 +90,7 @@ button {
             📸 點此開手機相機：拍照建檔新商品
           </label>
         </div>
-
-        <!-- 4 Video Source Modes: Virtual Stage, Live Camera (WebRTC), IP Cam / CCTV, Photo -->
+        
         <div class="source-switcher" role="group" aria-label="影像輸入來源選擇">
           <button type="button" class="source-btn active" data-source="virtual" id="src-btn-virtual">
             🎭 擬真鏡頭舞台
@@ -1005,8 +105,7 @@ button {
             🖼️ 相機拍照辨識
           </label>
         </div>
-
-        <!-- Hardware Camera Controls (Shown when Real Camera is active) -->
+        
         <div class="camera-controls-bar hidden" id="webcam-controls-bar">
           <select id="camera-device-select" class="select-control" style="flex:1; min-width:140px;" aria-label="選擇攝影機鏡頭">
             <option value="">自動偵測鏡頭 (後置優先)</option>
@@ -1023,8 +122,7 @@ button {
             🔦 補光
           </button>
         </div>
-
-        <!-- IP Camera / CCTV Stream Controls (Shown when IP Cam is active) -->
+        
         <div class="camera-controls-bar hidden" id="ipcam-controls-bar">
           <select id="cctv-channel-select" class="select-control" aria-label="選擇監控通道">
             <option value="ch1">CH-01 收銀台俯視監控鏡頭 (自動巡檢)</option>
@@ -1035,13 +133,11 @@ button {
           <input type="url" id="ipcam-url-input" class="input-control hidden" placeholder="輸入 http://192.168.1.100:8080/video" style="flex:1;" />
           <button type="button" class="btn btn-secondary btn-sm hidden" id="btn-connect-ipcam">連線</button>
         </div>
-
-        <!-- Main Optical Viewport -->
+        
         <div class="viewport-container" id="viewport-container">
           <video id="camera-video" class="viewport-video hidden" playsinline muted autoplay></video>
           <canvas id="stage-canvas" class="viewport-canvas" width="640" height="480"></canvas>
-
-          <!-- Tactical HUD Overlay -->
+          
           <div class="hud-overlay">
             <div class="hud-top-row">
               <div class="hud-pill">
@@ -1052,16 +148,14 @@ button {
                 <span>信心度: <strong id="hud-confidence-val">--%</strong></span>
               </div>
             </div>
-
-            <!-- ROI Target Reticle -->
+            
             <div class="roi-reticle" id="roi-reticle">
               <span class="roi-corner tl"></span>
               <span class="roi-corner tr"></span>
               <span class="roi-corner bl"></span>
               <span class="roi-corner br"></span>
             </div>
-
-            <!-- Instant Bottom HUD Match Bar (Customer View: Name, Price, Intro, Add to Cart ONLY) -->
+            
             <div class="hud-match-banner" id="hud-match-banner">
               <div style="min-width:0; flex:1;">
                 <div style="font-size:15px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="hud-match-title">
@@ -1083,8 +177,7 @@ button {
             </div>
           </div>
         </div>
-
-        <!-- Interactive Virtual Stage Controls (Allows instant testing of existing + unregistered new items) -->
+        
         <div class="stage-tray" id="virtual-stage-tray">
           <div class="stage-tray-header">
             <span>🎯 <strong>切換鏡頭前商品測試</strong>：</span>
@@ -1100,8 +193,7 @@ button {
           </div>
           <div class="stage-objects-scroll" id="stage-objects-list"></div>
         </div>
-
-        <!-- Hidden Backend Telemetry & Controls (Preserved for DOM bindings without cluttering Customer Scan View) -->
+        
         <div class="hidden">
           <span id="motion-delta-text"></span>
           <canvas id="fingerprint-canvas" width="420" height="38"></canvas>
@@ -1112,10 +204,9 @@ button {
         </div>
       </div>
     </section>
-
-    <!-- COLUMN 2: Customer Scan Product Card (Strictly Name, Price, Intro, Add to Cart) & Backend Tabs -->
+    
     <section class="panel" aria-label="即時產品資訊與後台建檔管理">
-      <!-- TAB VIEW 1: CUSTOMER SCAN VIEW (ONLY Product Name, Product Price, Product Intro, Add to Cart) -->
+      
       <div id="view-scan" class="tab-view">
         <div class="panel-header">
           <div class="panel-title">
@@ -1124,38 +215,34 @@ button {
           <span class="hidden" id="scan-match-badge"></span>
           <button type="button" class="hidden" id="btn-train-extra-angle"></button>
         </div>
-
         <div class="panel-body">
-          <!-- Customer Streamlined Product Card: ONLY Name, Price, Description, Add to Cart -->
+          
           <div class="recognized-card active-match" id="recognized-product-card">
             <div class="rec-header">
               <img id="rec-img" class="rec-thumb" src="" alt="產品縮圖" />
               <div class="rec-meta">
-                <!-- 1. 產品名稱 -->
+                
                 <h2 class="rec-name" id="rec-name" style="font-size:19px; margin-bottom:6px;">衣索比亞 耶加雪菲 精品咖啡豆 (250g)</h2>
-                <!-- 2. 產品價格 -->
+                
                 <div style="font-size:22px; font-weight:800; color:var(--accent-primary); font-family:var(--font-mono); margin-bottom:8px;" id="rec-price">
                   NT$ 480
                 </div>
               </div>
             </div>
-
-            <!-- 3. 產品介紹 -->
+            
             <div style="margin-top:12px; padding:12px; background:var(--bg-canvas); border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
               <div style="font-size:12px; color:var(--text-muted); margin-bottom:4px;">產品介紹</div>
               <p class="rec-spec" id="rec-spec" style="font-size:14px; color:var(--text-primary); line-height:1.6;">
                 250g / 水洗淺焙 / 柑橘茉莉花香 / 單向排氣閥鋁箔袋
               </p>
             </div>
-
-            <!-- 4. 加入購物車 -->
+            
             <div style="margin-top:14px;">
               <button type="button" class="btn btn-primary" style="width:100%; padding:12px; font-size:15px;" id="btn-rec-add-cart">
                 🛒 加入購物車
               </button>
             </div>
-
-            <!-- Hidden elements preserved for backend state sync -->
+            
             <div class="hidden">
               <span id="rec-category"></span>
               <span id="rec-sku"></span>
@@ -1167,8 +254,7 @@ button {
               <button type="button" id="btn-rec-edit"></button>
             </div>
           </div>
-
-          <!-- Unregistered Product Prompt Banner (Displays 未建檔 when not found in inventory) -->
+          
           <div class="recognized-card hidden" id="unregistered-prompt-card" style="border-color: var(--accent-amber); text-align:center; padding:24px 16px;">
             <span class="badge badge-amber" style="font-size:14px; padding:4px 12px; margin-bottom:10px;">⚠️ 未建檔</span>
             <h3 style="font-size:20px; font-weight:800; color:var(--accent-amber); margin-top:4px;">未建檔</h3>
@@ -1184,12 +270,10 @@ button {
               </button>
             </div>
           </div>
-
           <div id="top-candidates-list" class="hidden"></div>
         </div>
       </div>
-
-      <!-- TAB VIEW 2: CAMERA PHOTO BACKEND REGISTRATION (手機拍照後台建檔) -->
+      
       <div id="view-register" class="tab-view hidden">
         <div class="panel-header">
           <div class="panel-title">
@@ -1199,9 +283,8 @@ button {
             ✨ 自動帶入鏡頭前新商品資訊
           </button>
         </div>
-
         <div class="panel-body">
-          <!-- Captured Snapshot & Visual Descriptor Status -->
+          
           <div style="display:flex; gap:12px; align-items:center; background:var(--bg-elevated); padding:12px; border-radius:var(--radius-md); border:1px solid var(--border-subtle); margin-bottom:12px;">
             <img id="reg-preview-img" class="rec-thumb" src="" alt="建檔預覽圖" />
             <div style="flex:1;">
@@ -1225,40 +308,33 @@ button {
               </div>
             </div>
           </div>
-
-          <!-- Registration Form -->
+          
           <form id="register-product-form" class="form-grid" novalidate>
             <input type="hidden" id="reg-id" value="" />
             <div class="form-field full">
               <label class="form-label" for="reg-name">產品名稱 *</label>
               <input type="text" id="reg-name" class="input-control" placeholder="例如：LumixPocket 4K 口袋運動攝影機" />
             </div>
-
             <div class="form-field">
               <label class="form-label" for="reg-price">銷售單價 (NT$) *</label>
               <input type="number" id="reg-price" class="input-control" placeholder="例如：5490" value="199" min="0" step="1" />
             </div>
-
             <div class="form-field">
               <label class="form-label" for="reg-stock">初始庫存數量 *</label>
               <input type="number" id="reg-stock" class="input-control" placeholder="例如：15" value="20" min="0" step="1" />
             </div>
-
             <div class="form-field">
               <label class="form-label" for="reg-sku">產品編號 (SKU)</label>
               <input type="text" id="reg-sku" class="input-control" placeholder="自動產生或手動輸入" />
             </div>
-
             <div class="form-field">
               <label class="form-label" for="reg-barcode">國際條碼 / QR Code (選填)</label>
               <input type="text" id="reg-barcode" class="input-control" placeholder="例如：4710982009011" />
             </div>
-
             <div class="form-field">
               <label class="form-label" for="reg-category">產品分類</label>
               <input type="text" id="reg-category" class="input-control" placeholder="例如：攝影器材 / 精品咖啡" value="精選商品" />
             </div>
-
             <div class="form-field">
               <label class="form-label" for="reg-unit">計量單位 / 儲位</label>
               <div style="display:flex; gap:6px;">
@@ -1266,12 +342,10 @@ button {
                 <input type="text" id="reg-location" class="input-control" placeholder="儲位(如 B-04)" value="B-04" style="flex:1;" />
               </div>
             </div>
-
             <div class="form-field full">
               <label class="form-label" for="reg-spec">完整產品資訊與規格描述</label>
               <textarea id="reg-spec" class="input-control" rows="2" placeholder="輸入產品特色、容量、產地、保固或成分等詳細資訊..."></textarea>
             </div>
-
             <div class="form-field full" style="display:flex; flex-direction:row; gap:8px; margin-top:4px;">
               <button type="submit" class="btn btn-primary" style="flex:2;">
                 ✅ 完成拍照建檔並立即啟用掃描辨識
@@ -1283,8 +357,7 @@ button {
           </form>
         </div>
       </div>
-
-      <!-- TAB VIEW 3: REAL-TIME INVENTORY MANAGEMENT (即時庫存管理) -->
+      
       <div id="view-inventory" class="tab-view hidden">
         <div class="panel-header">
           <div class="panel-title">
@@ -1299,7 +372,6 @@ button {
             </button>
           </div>
         </div>
-
         <div class="panel-body">
           <div style="display:flex; gap:8px; margin-bottom:10px;">
             <input type="search" id="inv-search-input" class="input-control" placeholder="🔍 搜尋產品名稱、SKU、條碼或分類..." style="flex:1;" />
@@ -1308,19 +380,16 @@ button {
               <option value="low">⚠️ 低庫存預警</option>
             </select>
           </div>
-
           <div class="inventory-list" id="inventory-list-container"></div>
         </div>
       </div>
-
-      <!-- TAB VIEW 4: MULTI-DEVICE & CCTV CAMERA ARCHITECTURE (跨設備與監控支援) -->
+      
       <div id="view-devices" class="tab-view hidden">
         <div class="panel-header">
           <div class="panel-title">
             <span>📹 跨平台設備、監控串流與極致節能架構</span>
           </div>
         </div>
-
         <div class="panel-body" style="display:flex; flex-direction:column; gap:12px;">
           <div style="background:var(--bg-elevated); padding:12px; border-radius:var(--radius-md); border:1px solid var(--border-subtle);">
             <h3 style="font-size:14px; font-weight:700; margin-bottom:6px; color:var(--accent-primary);">
@@ -1348,7 +417,6 @@ button {
               </div>
             </div>
           </div>
-
           <div style="background:var(--bg-elevated); padding:12px; border-radius:var(--radius-md); border:1px solid var(--border-subtle);">
             <h3 style="font-size:14px; font-weight:700; margin-bottom:6px; color:var(--accent-amber);">
               🌱 極致效能與硬體節能引擎控制 (Eco-Performance Engine)
@@ -1362,8 +430,7 @@ button {
         </div>
       </div>
     </section>
-
-    <!-- COLUMN 3: Real-Time Shopping Cart, Instant Checkout & Receipt History -->
+    
     <aside class="panel cart-column" aria-label="即時購物車與結帳系統">
       <div class="panel-header">
         <div class="panel-title">
@@ -1374,12 +441,10 @@ button {
           清空
         </button>
       </div>
-
       <div class="panel-body">
-        <!-- Cart Items List -->
+        
         <div class="cart-items-list" id="cart-items-container"></div>
-
-        <!-- Totals & Discount -->
+        
         <div class="cart-summary">
           <div class="summary-line">
             <span>商品小計 (<span id="summary-qty">0</span> 件)</span>
@@ -1394,19 +459,16 @@ button {
             <span style="color:var(--accent-primary);" id="summary-total">NT$ 0</span>
           </div>
         </div>
-
-        <!-- Payment Method Selector -->
+        
         <div class="payment-methods" role="radiogroup" aria-label="付款方式">
           <button type="button" class="pay-method-btn active" data-pay="cash">💵 現金結帳</button>
           <button type="button" class="pay-method-btn" data-pay="card">💳 感應刷卡</button>
           <button type="button" class="pay-method-btn" data-pay="mobile">📱 行動支付</button>
         </div>
-
         <button type="button" class="btn btn-primary" style="width:100%; padding:11px; font-size:14px;" id="btn-checkout-submit" disabled>
           ⚡ 立即結帳並同步扣減庫存
         </button>
-
-        <!-- Recent Order / Receipt History -->
+        
         <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border-subtle);">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
             <h3 style="font-size:13px; font-weight:700; color:var(--text-secondary);">🧾 即時結帳明細紀錄</h3>
@@ -1417,78 +479,121 @@ button {
       </div>
     </aside>
   </main>
-
-  <!-- Toast Notifications Container -->
+  
   <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
-
   <script>
-/**
- * VisionEngine — Ultra-Low-Latency, Zero-Allocation Visual Feature & Hybrid Recognition Engine
- *
- * Key Engineering Optimizations for Speed, Low Latency, and Energy Efficiency:
- * 1. 64x64 Hardware-Accelerated Offscreen Downsampling (only 4,096 pixels per frame).
- * 2. Pre-allocated TypedArray Arena (Zero GC pressure during real-time scanning loop).
- * 3. 16x16 Motion-Gated Energy Saver: detects static scenes in <0.02ms and throttles
- *    scanning from 20 FPS (Active Burst) down to 2.5 FPS (Eco Sleep), saving ~90% CPU/Battery.
- * 4. 144-D Compact Composite Visual Descriptor (CCVD-144):
- *    - [0..47]   Dual-Zone Center-Weighted HSV Histogram (Color Distribution)
- *    - [48..95]  4x4 Spatial Opponent Chrominance & Normalized Luminance Grid (Spatial Layout)
- *    - [96..127] 2x2 Quadrant Sobel Edge Orientation Histogram (Shape & Packaging Texture)
- *    - [128..143] Radial Symmetry & Perceptual Gradient Profile
- * 5. Native Hardware BarcodeDetector API integration when supported by the device OS.
- */
-
 (function (global) {
   'use strict';
-
   const SAMPLE_SIZE = 64;
   const PIXEL_COUNT = SAMPLE_SIZE * SAMPLE_SIZE; // 4096
+  const ATLAS_SIZE = 88; // Single GPU readback atlas covering up to 1.34x outer multi-crop
+  const THUMB_SIZE = 128; // 128x128 crisp Retina WebP/JPEG thumbnail
   const DESCRIPTOR_DIM = 144;
   const MOTION_GRID_SIZE = 16;
   const MOTION_POINTS = MOTION_GRID_SIZE * MOTION_GRID_SIZE; // 256
-
-  // Pre-allocated TypedArray Arena (Zero heap allocation inside scan loop)
+  const _btoa = typeof btoa === 'function'
+    ? btoa
+    : (str) => Buffer.from(str, 'binary').toString('base64');
+  const _atob = typeof atob === 'function'
+    ? atob
+    : (b64) => Buffer.from(b64, 'base64').toString('binary');
   const arena = {
     workDescriptor: new Float32Array(DESCRIPTOR_DIM),
+    queryPool: [
+      new Float32Array(DESCRIPTOR_DIM),
+      new Float32Array(DESCRIPTOR_DIM),
+      new Float32Array(DESCRIPTOR_DIM),
+      new Float32Array(DESCRIPTOR_DIM),
+      new Float32Array(DESCRIPTOR_DIM)
+    ],
+    subCropRgba: new Uint8ClampedArray(PIXEL_COUNT * 4),
+    xSrcOffset: new Int32Array(SAMPLE_SIZE),
     lumGrid: new Float32Array(PIXEL_COUNT),
     centerWeights: new Float32Array(PIXEL_COUNT),
+    innerCoreMask: new Uint8Array(PIXEL_COUNT),
+    zoneBaseLUT: new Uint8Array(PIXEL_COUNT),
+    ringIdxLUT: new Uint8Array(PIXEL_COUNT),
+    edgeZoneLUT: new Uint8Array(PIXEL_COUNT),
+    edgeRingLUT: new Uint8Array(PIXEL_COUNT),
+    quadWeightsLUT: new Float32Array(PIXEL_COUNT * 4),
+    invTotalWeight: 1,
+    invInnerWeight: 1,
+    invRingWeights: new Float32Array(3),
+    invQuadWeights: new Float32Array(4),
+    invEdgeRingCounts: new Float32Array(8),
     prevMotionGrid: new Uint8Array(MOTION_POINTS),
     currMotionGrid: new Uint8Array(MOTION_POINTS),
     motionInitialized: false
   };
-
-  // Precompute Gaussian-like center vignette weights for 64x64 grid
-  (function initCenterWeights() {
-    const half = (SAMPLE_SIZE - 1) * 0.5;
+  (function initSpatialLUTs() {
+    const half = (SAMPLE_SIZE - 1) * 0.5; // 31.5
     const invRadiusSq = 1 / (half * half * 1.35);
+    let totalW = 0;
+    let innerW = 0;
+    const ringSums = new Float32Array(3);
+    const quadSums = new Float32Array(4);
+    const edgeRingCounts = new Float32Array(8);
     for (let y = 0; y < SAMPLE_SIZE; y++) {
       const dy = y - half;
+      const fy = y / 63.0;
+      const rowOffset = y * SAMPLE_SIZE;
       for (let x = 0; x < SAMPLE_SIZE; x++) {
         const dx = x - half;
-        const d2 = (dx * dx + dy * dy) * invRadiusSq;
-        // Weight ranges from 1.0 at center to ~0.25 at corners
-        arena.centerWeights[y * SAMPLE_SIZE + x] = Math.max(0.22, Math.exp(-d2 * 1.25));
+        const fx = x / 63.0;
+        const i = rowOffset + x;
+        const distSq = dx * dx + dy * dy;
+        const dist = Math.sqrt(distSq);
+        const w = Math.max(0.22, Math.exp(-(distSq * invRadiusSq) * 1.25));
+        arena.centerWeights[i] = w;
+        totalW += w;
+        if (distSq <= 440) {
+          arena.innerCoreMask[i] = 1;
+          innerW += w;
+        }
+        arena.zoneBaseLUT[i] = dist <= 21.0 ? 0 : 24;
+        const rIdx = dist < 14.5 ? 0 : (dist < 27.5 ? 1 : 2);
+        arena.ringIdxLUT[i] = rIdx;
+        ringSums[rIdx] += w;
+        arena.edgeZoneLUT[i] = dist <= 22.0 ? 96 : 104;
+        const eRing = Math.min(7, Math.floor((dist / 45.0) * 8));
+        arena.edgeRingLUT[i] = eRing;
+        if (x >= 2 && x < SAMPLE_SIZE - 2 && y >= 2 && y < SAMPLE_SIZE - 2) {
+          edgeRingCounts[eRing] += 1;
+        }
+        const qBase = i << 2;
+        const w00 = (1.0 - fx) * (1.0 - fy) * w;
+        const w10 = fx * (1.0 - fy) * w;
+        const w01 = (1.0 - fx) * fy * w;
+        const w11 = fx * fy * w;
+        arena.quadWeightsLUT[qBase] = w00;
+        arena.quadWeightsLUT[qBase + 1] = w10;
+        arena.quadWeightsLUT[qBase + 2] = w01;
+        arena.quadWeightsLUT[qBase + 3] = w11;
+        quadSums[0] += w00;
+        quadSums[1] += w10;
+        quadSums[2] += w01;
+        quadSums[3] += w11;
       }
     }
+    arena.invTotalWeight = 1.0 / (totalW || 1);
+    arena.invInnerWeight = 1.0 / (innerW || 1);
+    for (let r = 0; r < 3; r++) arena.invRingWeights[r] = 1.0 / (ringSums[r] || 1);
+    for (let q = 0; q < 4; q++) arena.invQuadWeights[q] = 1.0 / (quadSums[q] || 1);
+    for (let e = 0; e < 8; e++) arena.invEdgeRingCounts[e] = 1.0 / (edgeRingCounts[e] || 1);
   })();
-
-  /**
-   * Fast 16x16 Frame-Difference Motion Gate (< 0.02 ms)
-   * Returns Mean Absolute Difference (0..255) between current 64x64 RGBA buffer and previous frame.
-   */
-  function computeMotionDelta(rgbaData) {
+  function computeMotionDelta(rgbaData, bufSize = SAMPLE_SIZE) {
     let diffSum = 0;
     let idx = 0;
     const prev = arena.prevMotionGrid;
     const curr = arena.currMotionGrid;
-
+    const margin = bufSize === ATLAS_SIZE ? 12 : 0;
+    const span = bufSize - margin * 2;
     for (let gy = 0; gy < MOTION_GRID_SIZE; gy++) {
-      const py = (gy << 2) + 2; // stride 4
-      const rowOffset = py * SAMPLE_SIZE;
+      const py = margin + (((gy * span + (span >> 1)) / MOTION_GRID_SIZE) | 0);
+      const rowOffset = py * bufSize;
       for (let gx = 0; gx < MOTION_GRID_SIZE; gx++) {
-        const px = (gx << 2) + 2;
+        const px = margin + (((gx * span + (span >> 1)) / MOTION_GRID_SIZE) | 0);
         const pIdx = (rowOffset + px) << 2;
-        // Fast integer luminance approximation: (R + 2*G + B) >> 2
         const lum = (rgbaData[pIdx] + (rgbaData[pIdx + 1] << 1) + rgbaData[pIdx + 2]) >> 2;
         curr[idx] = lum;
         if (arena.motionInitialized) {
@@ -1499,17 +604,15 @@ button {
         idx++;
       }
     }
-
     if (!arena.motionInitialized) {
       arena.motionInitialized = true;
-      return 255; // Force full processing on first frame
+      return 255;
     }
     return diffSum / MOTION_POINTS;
   }
-
-  /**
-   * L2-normalize a slice of a Float32Array in-place
-   */
+  function resetMotionGate() {
+    arena.motionInitialized = false;
+  }
   function normalizeSlice(vec, start, length, weight) {
     let sumSq = 0;
     const end = start + length;
@@ -1523,261 +626,259 @@ button {
       }
     }
   }
-
-  /**
-   * Extract 144-Dimensional Compact Composite Visual Descriptor (CCVD-144)
-   * from a 64x64 RGBA Uint8ClampedArray.
-   * Execution time: ~0.25 - 0.45 ms on mobile/desktop CPU.
-   *
-   * @param {Uint8ClampedArray} rgba - 64x64x4 RGBA pixel buffer
-   * @param {boolean} cloneOutput - true when saving to database, false during live scan
-   * @returns {Float32Array|Array<number>}
-   */
-  function extractCCVD144(rgba, cloneOutput = false) {
-    const vec = arena.workDescriptor;
-    vec.fill(0);
-
-    const lumGrid = arena.lumGrid;
-    const weights = arena.centerWeights;
-
-    // 1. Global & Inner Core color/luminance statistics for illumination & white-balance invariance
-    let meanR = 0, meanG = 0, meanB = 0, meanLum = 0, meanSat = 0;
-    let innerR = 0, innerG = 0, innerB = 0, innerLum = 0, innerSat = 0;
-    let weightSum = 0, innerWeightSum = 0;
-    const half = 31.5;
-
-    for (let y = 0; y < SAMPLE_SIZE; y++) {
-      const dy = y - half;
-      const rowOffset = y * SAMPLE_SIZE;
-      for (let x = 0; x < SAMPLE_SIZE; x++) {
-        const dx = x - half;
-        const i = rowOffset + x;
-        const p = i << 2;
-        const r = rgba[p] / 255.0;
-        const g = rgba[p + 1] / 255.0;
-        const b = rgba[p + 2] / 255.0;
-        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-        lumGrid[i] = lum;
-
-        const maxC = r > g ? (r > b ? r : b) : (g > b ? g : b);
-        const minC = r < g ? (r < b ? r : b) : (g < b ? g : b);
-        const sat = maxC > 0.02 ? (maxC - minC) / maxC : 0;
-
-        const w = weights[i];
-        meanR += r * w;
-        meanG += g * w;
-        meanB += b * w;
-        meanLum += lum * w;
-        meanSat += sat * w;
-        weightSum += w;
-
-        if (dx * dx + dy * dy <= 440) {
-          innerR += r * w;
-          innerG += g * w;
-          innerB += b * w;
-          innerLum += lum * w;
-          innerSat += sat * w;
-          innerWeightSum += w;
+  function packDescriptorInt8(vec) {
+    let maxAbs = 0;
+    for (let i = 0; i < DESCRIPTOR_DIM; i++) {
+      const a = vec[i] < 0 ? -vec[i] : vec[i];
+      if (a > maxAbs) maxAbs = a;
+    }
+    const scale = maxAbs > 1e-8 ? 127.0 / maxAbs : 1.0;
+    const headerInt = Math.min(65535, Math.round(maxAbs * 65535));
+    let bin = String.fromCharCode(headerInt & 255, (headerInt >> 8) & 255);
+    for (let i = 0; i < DESCRIPTOR_DIM; i++) {
+      const q = Math.max(-127, Math.min(127, Math.round(vec[i] * scale)));
+      bin += String.fromCharCode(q & 255);
+    }
+    return 'q1:' + _btoa(bin);
+  }
+  function unpackDescriptor(raw) {
+    if (!raw) return null;
+    if (raw instanceof Float32Array && raw.length >= DESCRIPTOR_DIM) return raw;
+    if (Array.isArray(raw) && raw.length >= DESCRIPTOR_DIM) return Float32Array.from(raw);
+    if (typeof raw === 'string' && raw.startsWith('q1:')) {
+      try {
+        const bin = _atob(raw.slice(3));
+        if (bin.length < 2 + DESCRIPTOR_DIM) return null;
+        const headerInt = bin.charCodeAt(0) | (bin.charCodeAt(1) << 8);
+        const maxAbs = (headerInt / 65535.0) || (1.0 / 127.0);
+        const invScale = maxAbs / 127.0;
+        const out = new Float32Array(DESCRIPTOR_DIM);
+        for (let i = 0; i < DESCRIPTOR_DIM; i++) {
+          let b = bin.charCodeAt(2 + i);
+          if (b > 127) b -= 256;
+          out[i] = b * invScale;
         }
+        normalizeSlice(out, 0, DESCRIPTOR_DIM, 1.0);
+        return out;
+      } catch (_) {
+        return null;
       }
     }
-    const invW = 1.0 / (weightSum || 1);
+    return null;
+  }
+  function ensureProductCache(product) {
+    if (!product || !Array.isArray(product.descriptors) || product.descriptors.length === 0) {
+      return null;
+    }
+    if (
+      product._f32Descs &&
+      product._f32Source === product.descriptors &&
+      product._f32Len === product.descriptors.length
+    ) {
+      return product._f32Descs;
+    }
+    const decoded = [];
+    const centroid = new Float32Array(DESCRIPTOR_DIM);
+    for (let i = 0; i < product.descriptors.length; i++) {
+      const f32 = unpackDescriptor(product.descriptors[i]);
+      if (f32) {
+        decoded.push(f32);
+        for (let k = 0; k < DESCRIPTOR_DIM; k++) centroid[k] += f32[k];
+      }
+    }
+    if (decoded.length > 0) {
+      normalizeSlice(centroid, 0, DESCRIPTOR_DIM, 1.0);
+    }
+    Object.defineProperty(product, '_f32Descs', { value: decoded, writable: true, configurable: true });
+    Object.defineProperty(product, '_centroid', { value: centroid, writable: true, configurable: true });
+    Object.defineProperty(product, '_f32Source', { value: product.descriptors, writable: true, configurable: true });
+    Object.defineProperty(product, '_f32Len', { value: product.descriptors.length, writable: true, configurable: true });
+    return decoded;
+  }
+  function extractCCVD144(rgba, outputMode = false) {
+    const vec = outputMode instanceof Float32Array ? outputMode : arena.workDescriptor;
+    vec.fill(0);
+    const lumGrid = arena.lumGrid;
+    const weights = arena.centerWeights;
+    const innerMask = arena.innerCoreMask;
+    const zoneLUT = arena.zoneBaseLUT;
+    const ringLUT = arena.ringIdxLUT;
+    const quadLUT = arena.quadWeightsLUT;
+    const inv255 = 1.0 / 255.0;
+    let meanR = 0, meanG = 0, meanB = 0, meanLum = 0, meanSat = 0;
+    let innerR = 0, innerG = 0, innerB = 0, innerLum = 0, innerSat = 0;
+    for (let i = 0; i < PIXEL_COUNT; i++) {
+      const p = i << 2;
+      const r = rgba[p] * inv255;
+      const g = rgba[p + 1] * inv255;
+      const b = rgba[p + 2] * inv255;
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      lumGrid[i] = lum;
+      const maxC = r > g ? (r > b ? r : b) : (g > b ? g : b);
+      const minC = r < g ? (r < b ? r : b) : (g < b ? g : b);
+      const sat = maxC > 0.02 ? (maxC - minC) / maxC : 0;
+      const w = weights[i];
+      meanR += r * w;
+      meanG += g * w;
+      meanB += b * w;
+      meanLum += lum * w;
+      meanSat += sat * w;
+      if (innerMask[i]) {
+        innerR += r * w;
+        innerG += g * w;
+        innerB += b * w;
+        innerLum += lum * w;
+        innerSat += sat * w;
+      }
+    }
+    const invW = arena.invTotalWeight;
     meanR *= invW;
     meanG *= invW;
     meanB *= invW;
     meanLum *= invW;
     meanSat *= invW;
-
-    const invInnerW = 1.0 / (innerWeightSum || 1);
+    const invInnerW = arena.invInnerWeight;
     innerR *= invInnerW;
     innerG *= invInnerW;
     innerB *= invInnerW;
     innerLum *= invInnerW;
     innerSat *= invInnerW;
-
-    // 2. Part A [0..47]: Gaussian Soft-Binned Dual-Zone HSV & Tone Histogram
-    //    Zone 0 [0..23]: Circular Inner Core (r <= 21), Zone 1 [24..47]: Outer Ring (r > 21)
-    // 3. Part B [48..95]:
-    //    - [48..71]: 3 Concentric Radial Rings x 8 Opponent/Relative Channels (100% Rotation-Invariant)
-    //    - [72..95]: 2x2 Bilinearly-Smoothed Overlapping Quadrants x 6 Opponent Channels (Shift-Tolerant)
-    const ringWeights = new Float32Array(3);
-    const quadWeights = new Float32Array(4);
     let varRG = 0, varYB = 0, varLum = 0, varSat = 0;
-
-    for (let y = 0; y < SAMPLE_SIZE; y++) {
-      const dy = y - half;
-      const fy = Math.max(0, Math.min(1, y / 63.0));
-      const rowOffset = y * SAMPLE_SIZE;
-
-      for (let x = 0; x < SAMPLE_SIZE; x++) {
-        const dx = x - half;
-        const fx = Math.max(0, Math.min(1, x / 63.0));
-        const i = rowOffset + x;
-        const p = i << 2;
-        const r = rgba[p] / 255.0;
-        const g = rgba[p + 1] / 255.0;
-        const b = rgba[p + 2] / 255.0;
-        const lum = lumGrid[i];
-        const w = weights[i];
-
-        const maxC = r > g ? (r > b ? r : b) : (g > b ? g : b);
-        const minC = r < g ? (r < b ? r : b) : (g < b ? g : b);
-        const delta = maxC - minC;
-        const sat = maxC > 0.02 ? delta / maxC : 0;
-
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const zoneBase = dist <= 21.0 ? 0 : 24;
-
-        // Soft Circular Hue Binning (0..15) — immune to Xiaomi 15 auto-white-balance shifts
-        if (sat > 0.05 && maxC > 0.04) {
-          let hue = 0;
-          if (maxC === r) {
-            hue = ((g - b) / delta) % 6;
-          } else if (maxC === g) {
-            hue = (b - r) / delta + 2;
-          } else {
-            hue = (r - g) / delta + 4;
-          }
-          if (hue < 0) hue += 6;
-          const hContinuous = (hue / 6.0) * 16.0;
-          const h0 = Math.floor(hContinuous) & 15;
-          const hPrev = (h0 + 15) & 15;
-          const hNext = (h0 + 1) & 15;
-          const hw = w * (0.35 + 0.65 * sat);
-          vec[zoneBase + hPrev] += hw * 0.25;
-          vec[zoneBase + h0] += hw * 0.50;
-          vec[zoneBase + hNext] += hw * 0.25;
+    for (let i = 0; i < PIXEL_COUNT; i++) {
+      const p = i << 2;
+      const r = rgba[p] * inv255;
+      const g = rgba[p + 1] * inv255;
+      const b = rgba[p + 2] * inv255;
+      const lum = lumGrid[i];
+      const w = weights[i];
+      const maxC = r > g ? (r > b ? r : b) : (g > b ? g : b);
+      const minC = r < g ? (r < b ? r : b) : (g < b ? g : b);
+      const delta = maxC - minC;
+      const sat = maxC > 0.02 ? delta / maxC : 0;
+      const zoneBase = zoneLUT[i];
+      if (sat > 0.05 && maxC > 0.04) {
+        let hue = 0;
+        if (maxC === r) {
+          hue = ((g - b) / delta) % 6;
+        } else if (maxC === g) {
+          hue = (b - r) / delta + 2;
+        } else {
+          hue = (r - g) / delta + 4;
         }
-
-        // Soft Saturation Binning (16..19 in zone)
-        const sPos = Math.min(2.999, sat * 3.0);
-        const s0 = Math.floor(sPos);
-        const sf = sPos - s0;
-        vec[zoneBase + 16 + s0] += w * (1.0 - sf);
-        vec[zoneBase + 16 + s0 + 1] += w * sf;
-
-        // Soft Illumination-Normalized Value/Tone Binning (20..23 in zone)
-        // Achromatic pixels (white/black/gray/silver products) receive higher tone weight
-        const normVal = Math.max(0, Math.min(0.999, (lum - meanLum) * 1.35 + 0.5));
-        const vPos = normVal * 2.999;
-        const v0 = Math.floor(vPos);
-        const vf = vPos - v0;
-        const vw = sat <= 0.12 ? w * 1.45 : w;
-        vec[zoneBase + 20 + v0] += vw * (1.0 - vf);
-        vec[zoneBase + 20 + v0 + 1] += vw * vf;
-
-        // Opponent & relative color channels (zero-centered for high discrimination)
-        const rg = r - g;
-        const yb = 0.5 * (r + g) - b;
-        const relR = r - meanR;
-        const relG = g - meanG;
-        const relB = b - meanB;
-        const relL = lum - meanLum;
-        const relS = sat - meanSat;
-        const absL = Math.abs(relL);
-
-        varRG += rg * rg * w;
-        varYB += yb * yb * w;
-        varLum += relL * relL * w;
-        varSat += relS * relS * w;
-
-        // Part B1 [48..71]: 3 Concentric Radial Rings (Ring 0: r<14, Ring 1: 14<=r<27, Ring 2: r>=27)
-        const rIdx = dist < 14.5 ? 0 : (dist < 27.5 ? 1 : 2);
-        const baseRing = 48 + rIdx * 8;
-        vec[baseRing] += relR * w;
-        vec[baseRing + 1] += relG * w;
-        vec[baseRing + 2] += relB * w;
-        vec[baseRing + 3] += rg * w;
-        vec[baseRing + 4] += yb * w;
-        vec[baseRing + 5] += relL * w;
-        vec[baseRing + 6] += relS * w;
-        vec[baseRing + 7] += absL * w;
-        ringWeights[rIdx] += w;
-
-        // Part B2 [72..95]: Bilinearly-Interpolated 2x2 Overlapping Quadrants (Shift-Tolerant)
-        const w00 = (1.0 - fx) * (1.0 - fy) * w;
-        const w10 = fx * (1.0 - fy) * w;
-        const w01 = (1.0 - fx) * fy * w;
-        const w11 = fx * fy * w;
-        const qw = [w00, w10, w01, w11];
-        for (let q = 0; q < 4; q++) {
-          const qWeight = qw[q];
-          const baseQ = 72 + q * 6;
-          vec[baseQ] += rg * qWeight;
-          vec[baseQ + 1] += yb * qWeight;
-          vec[baseQ + 2] += relR * qWeight;
-          vec[baseQ + 3] += relG * qWeight;
-          vec[baseQ + 4] += relB * qWeight;
-          vec[baseQ + 5] += relL * qWeight;
-          quadWeights[q] += qWeight;
-        }
+        if (hue < 0) hue += 6;
+        const h0 = Math.floor((hue / 6.0) * 16.0) & 15;
+        const hw = w * (0.35 + 0.65 * sat);
+        vec[zoneBase + ((h0 + 15) & 15)] += hw * 0.25;
+        vec[zoneBase + h0] += hw * 0.50;
+        vec[zoneBase + ((h0 + 1) & 15)] += hw * 0.25;
       }
+      const sPos = sat < 0.999 ? sat * 3.0 : 2.999;
+      const s0 = sPos | 0;
+      const sf = sPos - s0;
+      vec[zoneBase + 16 + s0] += w * (1.0 - sf);
+      vec[zoneBase + 17 + s0] += w * sf;
+      let normVal = (lum - meanLum) * 1.35 + 0.5;
+      if (normVal < 0) normVal = 0;
+      else if (normVal > 0.999) normVal = 0.999;
+      const vPos = normVal * 2.999;
+      const v0 = vPos | 0;
+      const vf = vPos - v0;
+      const vw = sat <= 0.12 ? w * 1.45 : w;
+      vec[zoneBase + 20 + v0] += vw * (1.0 - vf);
+      vec[zoneBase + 21 + v0] += vw * vf;
+      const rg = r - g;
+      const yb = 0.5 * (r + g) - b;
+      const relR = r - meanR;
+      const relG = g - meanG;
+      const relB = b - meanB;
+      const relL = lum - meanLum;
+      const relS = sat - meanSat;
+      const absL = relL < 0 ? -relL : relL;
+      varRG += rg * rg * w;
+      varYB += yb * yb * w;
+      varLum += relL * relL * w;
+      varSat += relS * relS * w;
+      const baseRing = 48 + (ringLUT[i] << 3);
+      vec[baseRing] += relR * w;
+      vec[baseRing + 1] += relG * w;
+      vec[baseRing + 2] += relB * w;
+      vec[baseRing + 3] += rg * w;
+      vec[baseRing + 4] += yb * w;
+      vec[baseRing + 5] += relL * w;
+      vec[baseRing + 6] += relS * w;
+      vec[baseRing + 7] += absL * w;
+      const qIdx = i << 2;
+      const qw0 = quadLUT[qIdx];
+      const qw1 = quadLUT[qIdx + 1];
+      const qw2 = quadLUT[qIdx + 2];
+      const qw3 = quadLUT[qIdx + 3];
+      vec[72] += rg * qw0; vec[73] += yb * qw0; vec[74] += relR * qw0; vec[75] += relG * qw0; vec[76] += relB * qw0; vec[77] += relL * qw0;
+      vec[78] += rg * qw1; vec[79] += yb * qw1; vec[80] += relR * qw1; vec[81] += relG * qw1; vec[82] += relB * qw1; vec[83] += relL * qw1;
+      vec[84] += rg * qw2; vec[85] += yb * qw2; vec[86] += relR * qw2; vec[87] += relG * qw2; vec[88] += relB * qw2; vec[89] += relL * qw2;
+      vec[90] += rg * qw3; vec[91] += yb * qw3; vec[92] += relR * qw3; vec[93] += relG * qw3; vec[94] += relB * qw3; vec[95] += relL * qw3;
     }
-
     for (let rIdx = 0; rIdx < 3; rIdx++) {
-      const invR = 1.0 / (ringWeights[rIdx] || 1);
-      const baseRing = 48 + rIdx * 8;
+      const invR = arena.invRingWeights[rIdx];
+      const baseRing = 48 + (rIdx << 3);
       for (let k = 0; k < 8; k++) vec[baseRing + k] *= invR;
     }
-
     for (let q = 0; q < 4; q++) {
-      const invQ = 1.0 / (quadWeights[q] || 1);
+      const invQ = arena.invQuadWeights[q];
       const baseQ = 72 + q * 6;
       for (let k = 0; k < 6; k++) vec[baseQ + k] *= invQ;
     }
-
-    // 4. Part C [96..127]:
-    //    - [96..111]: Soft-Binned Unsigned Edge Orientation Histogram (Inner Core [96..103] + Outer [104..111])
-    //    - [112..127]: 8 Radial Gradient Energy Rings [112..119] + 8 Illumination-Invariant Chromaticity Bins [120..127]
-    const edgeRingCounts = new Float32Array(8);
+    const edgeZoneLUT = arena.edgeZoneLUT;
+    const edgeRingLUT = arena.edgeRingLUT;
     for (let y = 2; y < SAMPLE_SIZE - 2; y++) {
-      const dy = y - half;
       const row = y * SAMPLE_SIZE;
       for (let x = 2; x < SAMPLE_SIZE - 2; x++) {
-        const dx = x - half;
         const idx = row + x;
-        const gx = lumGrid[idx + 1] - lumGrid[idx - 1];
-        const gy = lumGrid[idx + SAMPLE_SIZE] - lumGrid[idx - SAMPLE_SIZE];
+        let gx = lumGrid[idx + 1] - lumGrid[idx - 1];
+        let gy = lumGrid[idx + SAMPLE_SIZE] - lumGrid[idx - SAMPLE_SIZE];
         const mag = Math.sqrt(gx * gx + gy * gy);
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const rBin = Math.min(7, Math.floor((dist / 45.0) * 8));
-        vec[112 + rBin] += mag;
-        edgeRingCounts[rBin] += 1;
-
+        vec[112 + edgeRingLUT[idx]] += mag;
         if (mag > 0.02) {
-          const eZone = dist <= 22.0 ? 96 : 104;
-          // Unsigned orientation in [0, PI) for lighting polarity invariance
-          let angle = Math.atan2(gy, gx);
-          if (angle < 0) angle += Math.PI;
-          const aPos = (angle / Math.PI) * 8.0;
-          const a0 = Math.floor(aPos) & 7;
-          const aPrev = (a0 + 7) & 7;
-          const aNext = (a0 + 1) & 7;
+          if (gy < 0 || (gy === 0 && gx < 0)) {
+            gx = -gx;
+            gy = -gy;
+          }
+          let a0 = 0;
+          if (gx >= 0) {
+            if (gy < gx * 0.41421356) a0 = 0;
+            else if (gy < gx) a0 = 1;
+            else if (gy < gx * 2.41421356) a0 = 2;
+            else a0 = 3;
+          } else {
+            const ax = -gx;
+            if (gy >= ax * 2.41421356) a0 = 4;
+            else if (gy >= ax) a0 = 5;
+            else if (gy >= ax * 0.41421356) a0 = 6;
+            else a0 = 7;
+          }
+          const eZone = edgeZoneLUT[idx];
           const ew = mag * weights[idx];
-          vec[eZone + aPrev] += ew * 0.25;
+          vec[eZone + ((a0 + 7) & 7)] += ew * 0.25;
           vec[eZone + a0] += ew * 0.50;
-          vec[eZone + aNext] += ew * 0.25;
+          vec[eZone + ((a0 + 1) & 7)] += ew * 0.25;
         }
       }
     }
     for (let r = 0; r < 8; r++) {
-      vec[112 + r] /= (edgeRingCounts[r] || 1);
+      vec[112 + r] *= arena.invEdgeRingCounts[r];
     }
-
-    // Horizontal & Vertical structural contrast bands in [120..127]
+    const invBand = 1.0 / (8 * 48);
     for (let b = 0; b < 8; b++) {
       let bandEnergy = 0;
-      const startRow = b * 8;
+      const startRow = b << 3;
       for (let y = startRow; y < startRow + 8; y++) {
         const row = y * SAMPLE_SIZE;
         for (let x = 8; x < 56; x++) {
-          bandEnergy += Math.abs(lumGrid[row + x] - lumGrid[row + x - 1]);
+          const d = lumGrid[row + x] - lumGrid[row + x - 1];
+          bandEnergy += d < 0 ? -d : d;
         }
       }
-      vec[120 + b] = bandEnergy / (8 * 48);
+      vec[120 + b] = bandEnergy * invBand;
     }
-
-    // 5. Part D [128..143]: Exposure-Invariant Chromaticity Ratios & Foreground-vs-Background Contrast
     const sumGlobalRGB = meanR + meanG + meanB + 0.03;
     const sumInnerRGB = innerR + innerG + innerB + 0.03;
     vec[128] = innerR / sumInnerRGB - 0.333;
@@ -1796,108 +897,137 @@ button {
     vec[141] = Math.sqrt(varRG * invW);
     vec[142] = Math.sqrt(varYB * invW);
     vec[143] = Math.sqrt(varLum * invW) - Math.sqrt(varSat * invW);
-
-    // Normalize each semantic sub-block with balanced perceptual weights
-    // Separating Hue [0..15] from Sat/Tone [16..23] prevents shared brightness from inflating similarity of different objects
-    normalizeSlice(vec, 0, 16, 0.34);   // Inner core 16-bin soft Hue histogram
-    normalizeSlice(vec, 16, 8, 0.08);   // Inner core Sat & Tone histogram
-    normalizeSlice(vec, 24, 16, 0.12);  // Outer zone 16-bin soft Hue histogram
-    normalizeSlice(vec, 40, 8, 0.04);   // Outer zone Sat & Tone histogram
-    normalizeSlice(vec, 48, 24, 0.20);  // 3 Concentric rotation-invariant radial opponent color rings
-    normalizeSlice(vec, 72, 24, 0.10);  // Bilinearly smoothed 2x2 shift-tolerant opponent layout
-    normalizeSlice(vec, 96, 16, 0.05);  // Soft-binned unsigned edge orientation histogram
-    normalizeSlice(vec, 112, 16, 0.03); // Radial edge energy & structural bands
-    normalizeSlice(vec, 128, 16, 0.14); // Exposure-invariant chromaticity & foreground contrast
-
-    // Final global L2 normalization so Cosine Similarity === Dot Product
+    normalizeSlice(vec, 0, 16, 0.34);
+    normalizeSlice(vec, 16, 8, 0.08);
+    normalizeSlice(vec, 24, 16, 0.12);
+    normalizeSlice(vec, 40, 8, 0.04);
+    normalizeSlice(vec, 48, 24, 0.20);
+    normalizeSlice(vec, 72, 24, 0.10);
+    normalizeSlice(vec, 96, 16, 0.05);
+    normalizeSlice(vec, 112, 16, 0.03);
+    normalizeSlice(vec, 128, 16, 0.14);
     normalizeSlice(vec, 0, DESCRIPTOR_DIM, 1.0);
-
-    if (cloneOutput) {
-      // Round to 4 decimals for compact JSON storage (< 600 bytes per descriptor)
-      const out = new Array(DESCRIPTOR_DIM);
-      for (let i = 0; i < DESCRIPTOR_DIM; i++) {
-        out[i] = Math.round(vec[i] * 10000) / 10000;
-      }
-      return out;
+    if (outputMode === true) {
+      return packDescriptorInt8(vec);
     }
     return vec;
   }
-
-  /**
-   * Ultra-fast Dot Product (Cosine Similarity) between two 144-D unit vectors
-   */
   function cosineSimilarity144(vecA, vecB) {
-    if (!vecA || !vecB || vecA.length < DESCRIPTOR_DIM || vecB.length < DESCRIPTOR_DIM) {
+    const a = typeof vecA === 'string' ? unpackDescriptor(vecA) : vecA;
+    const b = typeof vecB === 'string' ? unpackDescriptor(vecB) : vecB;
+    if (!a || !b || a.length < DESCRIPTOR_DIM || b.length < DESCRIPTOR_DIM) {
       return 0;
     }
     let dot = 0;
     for (let i = 0; i < DESCRIPTOR_DIM; i++) {
-      dot += vecA[i] * vecB[i];
+      dot += a[i] * b[i];
     }
-    return Math.max(0, Math.min(1, dot));
+    return dot > 1 ? 1 : (dot < 0 ? 0 : dot);
   }
-
-  /**
-   * Match live 144-D descriptor(s) against all registered products in memory.
-   * Supports multi-crop query descriptors and handheld camera adaptation.
-   */
-  function matchProducts(liveDescriptor, products, threshold = 0.80, queryDescriptors = null, options = {}) {
+  function deduplicateDescriptors(packedOrFloatList, maxKeep = 24) {
+    if (!Array.isArray(packedOrFloatList) || packedOrFloatList.length <= 1) {
+      return packedOrFloatList || [];
+    }
+    const keptRaw = [];
+    const keptF32 = [];
+    for (let i = 0; i < packedOrFloatList.length; i++) {
+      const raw = packedOrFloatList[i];
+      const f32 = unpackDescriptor(raw);
+      if (!f32) continue;
+      let isDup = false;
+      for (let j = 0; j < keptF32.length; j++) {
+        let dot = 0;
+        const ref = keptF32[j];
+        for (let k = 0; k < DESCRIPTOR_DIM; k++) dot += f32[k] * ref[k];
+        if (dot > 0.993) {
+          isDup = true;
+          break;
+        }
+      }
+      if (!isDup) {
+        keptRaw.push(typeof raw === 'string' ? raw : packDescriptorInt8(f32));
+        keptF32.push(f32);
+        if (keptRaw.length >= maxKeep) break;
+      }
+    }
+    return keptRaw;
+  }
+  function matchProducts(liveDescriptor, products, threshold = 0.80, queryDescriptorsOrGetter = null, options = {}) {
     let bestProduct = null;
     let bestScore = -1;
     let secondBestScore = -1;
     const candidates = [];
-    const queries = Array.isArray(queryDescriptors) && queryDescriptors.length > 0
-      ? queryDescriptors
-      : [liveDescriptor];
     const sourceMode = options.sourceMode || 'virtual';
     const activeVirtualPresetId = options.virtualPresetId || null;
     const isRealCameraMode = sourceMode === 'photo' || sourceMode === 'webcam';
-
+    const primaryVec = typeof liveDescriptor === 'string' ? unpackDescriptor(liveDescriptor) : liveDescriptor;
     for (let i = 0; i < products.length; i++) {
       const p = products[i];
-      const descs = p.descriptors;
-      if (!descs || descs.length === 0) continue;
-
-      // In real camera mode (photo / webcam), prevent synthetic virtual stage drawings from false-matching real photos
       const isSyntheticPresetOnly = Boolean(p.virtualPresetId && !p.isCameraRegistered);
-      if (isRealCameraMode && isSyntheticPresetOnly) {
+      if (isRealCameraMode && isSyntheticPresetOnly) continue;
+      if (sourceMode === 'virtual' && activeVirtualPresetId && p.virtualPresetId === activeVirtualPresetId) {
+        ensureProductCache(p);
+        candidates.push({ product: p, similarity: 0.994 });
         continue;
       }
-
-      let maxProductSim = -1;
-      for (let q = 0; q < queries.length; q++) {
-        const qVec = queries[q];
-        for (let d = 0; d < descs.length; d++) {
-          const sim = cosineSimilarity144(qVec, descs[d]);
-          if (sim > maxProductSim) maxProductSim = sim;
+      const f32List = ensureProductCache(p);
+      if (!f32List || f32List.length === 0 || !primaryVec) continue;
+      let maxSim = -1;
+      if (f32List.length >= 4 && p._centroid) {
+        let cDot = 0;
+        const cVec = p._centroid;
+        for (let k = 0; k < DESCRIPTOR_DIM; k++) cDot += primaryVec[k] * cVec[k];
+        if (cDot < 0.14) {
+          if (cDot > 0) candidates.push({ product: p, similarity: cDot });
+          continue;
         }
       }
-
-      // If on the Virtual Stage and this product is the registered entry for the active stage object,
-      // guarantee recognition even under extreme 360-degree virtual rotation
-      if (sourceMode === 'virtual' && activeVirtualPresetId && p.virtualPresetId === activeVirtualPresetId) {
-        maxProductSim = Math.max(maxProductSim, 0.992);
+      for (let d = 0; d < f32List.length; d++) {
+        const ref = f32List[d];
+        let dot = 0;
+        for (let k = 0; k < DESCRIPTOR_DIM; k++) dot += primaryVec[k] * ref[k];
+        if (dot > maxSim) maxSim = dot;
       }
-
-      if (maxProductSim > 0) {
-        candidates.push({ product: p, similarity: maxProductSim });
-        if (maxProductSim > bestScore) {
-          secondBestScore = bestScore;
-          bestScore = maxProductSim;
-          bestProduct = p;
-        } else if (maxProductSim > secondBestScore) {
-          secondBestScore = maxProductSim;
-        }
+      if (maxSim > 0) {
+        candidates.push({ product: p, similarity: maxSim });
       }
     }
-
     candidates.sort((a, b) => b.similarity - a.similarity);
-
-    // Use handheld-tolerant threshold (0.64) for real camera/photo scans so angle/distance/lighting shifts still match reliably
+    const coarseBest = candidates.length > 0 ? candidates[0].similarity : -1;
+    if (candidates.length > 0 && coarseBest >= 0.20 && coarseBest < 0.82 && queryDescriptorsOrGetter) {
+      const extraQueries = typeof queryDescriptorsOrGetter === 'function'
+        ? queryDescriptorsOrGetter()
+        : (Array.isArray(queryDescriptorsOrGetter) ? queryDescriptorsOrGetter.slice(1) : null);
+      if (extraQueries && extraQueries.length > 0) {
+        const topLimit = Math.min(candidates.length, 8);
+        for (let c = 0; c < topLimit; c++) {
+          const entry = candidates[c];
+          const f32List = entry.product._f32Descs;
+          if (!f32List) continue;
+          let maxSim = entry.similarity;
+          for (let q = 0; q < extraQueries.length; q++) {
+            const qVec = typeof extraQueries[q] === 'string' ? unpackDescriptor(extraQueries[q]) : extraQueries[q];
+            if (!qVec) continue;
+            for (let d = 0; d < f32List.length; d++) {
+              const ref = f32List[d];
+              let dot = 0;
+              for (let k = 0; k < DESCRIPTOR_DIM; k++) dot += qVec[k] * ref[k];
+              if (dot > maxSim) maxSim = dot;
+            }
+          }
+          entry.similarity = maxSim > 1 ? 1 : maxSim;
+        }
+        candidates.sort((a, b) => b.similarity - a.similarity);
+      }
+    }
+    if (candidates.length > 0) {
+      bestProduct = candidates[0].product;
+      bestScore = Math.min(1, candidates[0].similarity);
+      secondBestScore = candidates.length > 1 ? Math.min(1, candidates[1].similarity) : 0;
+    }
     const effectiveThreshold = isRealCameraMode
       ? Math.min(threshold, 0.64)
       : (bestProduct && (bestProduct.isCameraRegistered || !bestProduct.virtualPresetId) ? Math.min(threshold, 0.68) : threshold);
-
     const isMatched = bestProduct !== null && bestScore >= effectiveThreshold;
     return {
       matched: isMatched,
@@ -1908,13 +1038,6 @@ button {
       topCandidates: candidates.slice(0, 3)
     };
   }
-
-  /**
-   * Built-in Realistic Product Renderer for:
-   * 1. Pre-generating accurate reference visual descriptors for the default catalog
-   * 2. Driving the Interactive Virtual Camera Stage (so users on ANY device can test camera
-   *    registration & instant scanning even without holding physical products)
-   */
   const VIRTUAL_STAGE_ITEMS = [
     {
       presetId: 'preset-coffee',
@@ -2011,7 +1134,6 @@ button {
       shape: 'bar',
       badge: 'CACAO 85%'
     },
-    // Unregistered New Products for instant live Camera Registration Demo!
     {
       presetId: 'preset-new-camera',
       name: 'LumixPocket 4K 口袋運動攝影機',
@@ -2051,26 +1173,17 @@ button {
       badge: 'HYDRA B5'
     }
   ];
-
-  /**
-   * Draw a realistic product onto a 2D canvas context so both the Virtual Camera Stage
-   * and Reference Thumbnail/Descriptor Generator produce genuine, pixel-accurate visuals.
-   */
   function drawVirtualProduct(ctx, width, height, item, options = {}) {
     const cx = width * 0.5 + (options.offsetX || 0);
     const cy = height * 0.5 + (options.offsetY || 0);
     const scale = (options.scale || 1.0) * (Math.min(width, height) / 300);
     const angle = options.angle || 0;
     const light = options.lighting || 1.0;
-
-    // 1. Studio / Countertop Background
     const bgGrad = ctx.createRadialGradient(width * 0.5, height * 0.45, 20, width * 0.5, height * 0.5, width * 0.75);
     bgGrad.addColorStop(0, `rgb(${Math.round(34 * light)}, ${Math.round(42 * light)}, ${Math.round(54 * light)})`);
     bgGrad.addColorStop(1, `rgb(${Math.round(14 * light)}, ${Math.round(18 * light)}, ${Math.round(24 * light)})`);
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, width, height);
-
-    // Subtle tabletop perspective grid
     ctx.strokeStyle = 'rgba(148, 163, 184, 0.07)';
     ctx.lineWidth = 1;
     const step = Math.round(36 * scale);
@@ -2088,28 +1201,20 @@ button {
         ctx.stroke();
       }
     }
-
     if (!item) return;
-
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(angle);
     ctx.scale(scale, scale);
-
-    // Drop shadow on counter
     ctx.fillStyle = 'rgba(0, 0, 0, 0.42)';
     ctx.beginPath();
     ctx.ellipse(6, 92, 68, 18, 0, 0, Math.PI * 2);
     ctx.fill();
-
     const pal = item.palette;
     const bodyGrad = ctx.createLinearGradient(-65, -90, 65, 90);
     bodyGrad.addColorStop(0, pal.bg1);
     bodyGrad.addColorStop(1, pal.bg2);
-
-    // Draw distinct product silhouette & details based on shape
     if (item.shape === 'pouch') {
-      // Coffee Gusset Pouch
       ctx.fillStyle = bodyGrad;
       ctx.beginPath();
       ctx.moveTo(-58, -88);
@@ -2119,22 +1224,14 @@ button {
       ctx.quadraticCurveTo(-68, 0, -58, -88);
       ctx.closePath();
       ctx.fill();
-
-      // Top heat-seal crimp
       ctx.fillStyle = pal.accent;
       ctx.fillRect(-59, -88, 118, 12);
-
-      // Degassing valve circle
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
       ctx.beginPath();
       ctx.arc(0, -56, 7, 0, Math.PI * 2);
       ctx.fill();
-
-      // Front Art Label
       ctx.fillStyle = pal.label;
       ctx.fillRect(-46, -34, 92, 82);
-
-      // Decorative diagonal stripe inside label
       ctx.fillStyle = pal.bg1;
       ctx.beginPath();
       ctx.moveTo(-46, 18);
@@ -2144,19 +1241,14 @@ button {
       ctx.closePath();
       ctx.fill();
     } else if (item.shape === 'canister') {
-      // Cylindrical Matcha Tin Canister
       ctx.fillStyle = bodyGrad;
       ctx.beginPath();
       ctx.roundRect(-56, -78, 112, 158, 14);
       ctx.fill();
-
-      // Metallic Gold/Green Lid
       ctx.fillStyle = pal.accent;
       ctx.beginPath();
       ctx.roundRect(-58, -86, 116, 22, 6);
       ctx.fill();
-
-      // Traditional Diamond Emblem Label
       ctx.fillStyle = pal.label;
       ctx.beginPath();
       ctx.moveTo(0, -48);
@@ -2165,69 +1257,49 @@ button {
       ctx.lineTo(-48, 4);
       ctx.closePath();
       ctx.fill();
-
       ctx.strokeStyle = pal.bg1;
       ctx.lineWidth = 3;
       ctx.stroke();
     } else if (item.shape === 'techbox') {
-      // Sleek Tech Box with Circular Headphone Graphic
       ctx.fillStyle = bodyGrad;
       ctx.beginPath();
       ctx.roundRect(-68, -76, 136, 152, 16);
       ctx.fill();
-
-      // Glowing Cyan Ring Graphic
       ctx.strokeStyle = pal.accent;
       ctx.lineWidth = 8;
       ctx.beginPath();
       ctx.arc(0, -14, 34, 0, Math.PI * 2);
       ctx.stroke();
-
       ctx.fillStyle = pal.label;
       ctx.beginPath();
       ctx.arc(0, -14, 18, 0, Math.PI * 2);
       ctx.fill();
-
-      // Bottom spec bar
       ctx.fillStyle = pal.label;
       ctx.fillRect(-54, 34, 108, 28);
     } else if (item.shape === 'bottle') {
-      // Vacuum Insulated Flask
       ctx.fillStyle = '#334155';
       ctx.beginPath();
       ctx.roundRect(-24, -104, 48, 26, 6);
       ctx.fill();
-
-      // Neck ring
       ctx.fillStyle = pal.accent;
       ctx.fillRect(-26, -80, 52, 8);
-
-      // Bottle Body
       ctx.fillStyle = bodyGrad;
       ctx.beginPath();
       ctx.roundRect(-42, -72, 84, 166, 20);
       ctx.fill();
-
-      // Vertical Metallic Highlight & Label Band
       ctx.fillStyle = pal.label;
       ctx.fillRect(-42, -16, 84, 54);
       ctx.fillStyle = pal.accent;
       ctx.fillRect(-12, -72, 10, 166);
     } else if (item.shape === 'bar') {
-      // Luxury Chocolate Bar Packaging
       ctx.fillStyle = bodyGrad;
       ctx.beginPath();
       ctx.roundRect(-52, -88, 104, 176, 8);
       ctx.fill();
-
-      // Gold foil top peek
       ctx.fillStyle = '#facc15';
       ctx.fillRect(-48, -84, 96, 18);
-
-      // Geometric Cacao Pod Polygon
       ctx.fillStyle = pal.label;
       ctx.fillRect(-42, -52, 84, 102);
-
       ctx.fillStyle = pal.bg2;
       ctx.beginPath();
       ctx.arc(0, -12, 22, 0, Math.PI * 2);
@@ -2237,114 +1309,112 @@ button {
       ctx.arc(0, -12, 10, 0, Math.PI * 2);
       ctx.fill();
     } else if (item.shape === 'camera') {
-      // Action Camera Module
       ctx.fillStyle = bodyGrad;
       ctx.beginPath();
       ctx.roundRect(-64, -64, 128, 134, 18);
       ctx.fill();
-
-      // Camera Lens Housing (Distinct Dark Octagon/Circle)
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
       ctx.arc(0, -12, 38, 0, Math.PI * 2);
       ctx.fill();
-
       ctx.strokeStyle = pal.accent;
       ctx.lineWidth = 4;
       ctx.stroke();
-
-      // Lens Glass Reflection
       ctx.fillStyle = '#38bdf8';
       ctx.beginPath();
       ctx.arc(-8, -20, 12, 0, Math.PI * 2);
       ctx.fill();
-
-      // Bottom Orange/Cream Grip Strip
       ctx.fillStyle = pal.label;
       ctx.fillRect(-52, 36, 104, 24);
     } else {
-      // Cosmetic Serum Dropper Bottle
-      // Rubber Bulb + Collar
       ctx.fillStyle = '#f8fafc';
       ctx.beginPath();
       ctx.roundRect(-16, -102, 32, 28, 12);
       ctx.fill();
       ctx.fillStyle = '#fbbf24';
       ctx.fillRect(-24, -76, 48, 12);
-
-      // Teal Glass Bottle
       ctx.fillStyle = bodyGrad;
       ctx.beginPath();
       ctx.roundRect(-46, -64, 92, 152, 22);
       ctx.fill();
-
-      // Clean Clinical White Label
       ctx.fillStyle = pal.label;
       ctx.fillRect(-38, -28, 76, 86);
-
-      // Teal Cross / Dropper Icon
       ctx.fillStyle = pal.bg1;
       ctx.beginPath();
       ctx.arc(0, 2, 16, 0, Math.PI * 2);
       ctx.fill();
     }
-
-    // Badge Text & Mini Barcode on Product
     ctx.fillStyle = pal.text;
     ctx.font = 'bold 11px system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(item.badge || item.sku, 0, 44);
-
-    // Simulated Barcode Stripes
     ctx.fillStyle = '#1e293b';
     const bcStart = -26;
     for (let b = 0; b < 18; b++) {
       const w = ((b * 7 + item.sku.charCodeAt(b % item.sku.length)) % 3) + 1;
       ctx.fillRect(bcStart + b * 3, 52, w * 0.75, 10);
     }
-
     ctx.restore();
   }
-
-  /**
-   * Generate initial seed catalog with REAL computed CCVD-144 descriptors & JPEG data-URL thumbnails!
-   */
-  function buildDefaultCatalog() {
+  let _webpSupported = null;
+  function supportsWebP() {
+    if (_webpSupported !== null) return _webpSupported;
+    try {
+      if (typeof document === 'undefined') return (_webpSupported = false);
+      const c = document.createElement('canvas');
+      c.width = 2;
+      c.height = 2;
+      const url = c.toDataURL('image/webp', 0.60);
+      _webpSupported = typeof url === 'string' && url.startsWith('data:image/webp');
+    } catch (_) {
+      _webpSupported = false;
+    }
+    return _webpSupported;
+  }
+  function encodeThumbnail128(canvas) {
+    if (supportsWebP()) {
+      return canvas.toDataURL('image/webp', 0.60);
+    }
+    return canvas.toDataURL('image/jpeg', 0.68);
+  }
+  let _cachedDefaultCatalog = null;
+  function buildDefaultCatalog(forceRebuild = false) {
+    if (_cachedDefaultCatalog && !forceRebuild) {
+      return _cachedDefaultCatalog.map((p) => ({
+        ...p,
+        descriptors: [...p.descriptors]
+      }));
+    }
     const thumbCanvas = document.createElement('canvas');
-    thumbCanvas.width = 160;
-    thumbCanvas.height = 160;
-    const thumbCtx = thumbCanvas.getContext('2d');
-
+    thumbCanvas.width = THUMB_SIZE;
+    thumbCanvas.height = THUMB_SIZE;
+    const thumbCtx = thumbCanvas.getContext('2d', { alpha: false });
     const sampleCanvas = document.createElement('canvas');
     sampleCanvas.width = SAMPLE_SIZE;
     sampleCanvas.height = SAMPLE_SIZE;
-    const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
-
+    const sampleCtx = sampleCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
     const registeredProducts = [];
-
+    const margin = Math.round(THUMB_SIZE * 0.125); // 16px on 128x128
+    const cropSpan = THUMB_SIZE - margin * 2;     // 96px on 128x128
     for (const item of VIRTUAL_STAGE_ITEMS) {
       if (!item.registeredByDefault) continue;
-
-      // Render front view and 2 slight variations (scale/angle) for multi-angle robustness
-      const descriptors = [];
+      const rawDescriptors = [];
       const variations = [
         { scale: 1.0, angle: 0, lighting: 1.0 },
         { scale: 0.92, angle: 0.06, lighting: 0.95 },
         { scale: 1.08, angle: -0.06, lighting: 1.05 }
       ];
-
       let thumbnailDataUrl = '';
       variations.forEach((v, idx) => {
-        drawVirtualProduct(thumbCtx, 160, 160, item, v);
+        drawVirtualProduct(thumbCtx, THUMB_SIZE, THUMB_SIZE, item, v);
         if (idx === 0) {
-          thumbnailDataUrl = thumbCanvas.toDataURL('image/jpeg', 0.78);
+          thumbnailDataUrl = encodeThumbnail128(thumbCanvas);
         }
-        // Extract center ROI (same proportion as live scanner) into 64x64
-        sampleCtx.drawImage(thumbCanvas, 20, 20, 120, 120, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
+        sampleCtx.drawImage(thumbCanvas, margin, margin, cropSpan, cropSpan, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
         const imgData = sampleCtx.getImageData(0, 0, SAMPLE_SIZE, SAMPLE_SIZE).data;
-        descriptors.push(extractCCVD144(imgData, true));
+        rawDescriptors.push(extractCCVD144(imgData, true));
       });
-
+      const descriptors = deduplicateDescriptors(rawDescriptors, 6);
       registeredProducts.push({
         id: 'prd-' + item.presetId,
         virtualPresetId: item.presetId,
@@ -2367,143 +1437,215 @@ button {
         updatedAt: Date.now()
       });
     }
-
-    return registeredProducts;
+    _cachedDefaultCatalog = registeredProducts;
+    return registeredProducts.map((p) => ({
+      ...p,
+      descriptors: [...p.descriptors]
+    }));
   }
-
-  /**
-   * Capture current ROI from any source canvas/video/image and return:
-   * - 144-D descriptor
-   * - 11 multi-scale/shift registration descriptors (when cloneDescriptor === true)
-   * - 5 multi-scale/shift query descriptors (when cloneDescriptor === false)
-   * - 160x160 compressed thumbnail dataURL
-   */
-  const snapshotCanvas = document.createElement('canvas');
-  snapshotCanvas.width = 160;
-  snapshotCanvas.height = 160;
-  const snapshotCtx = snapshotCanvas.getContext('2d');
-
-  const roiCanvas = document.createElement('canvas');
-  roiCanvas.width = SAMPLE_SIZE;
-  roiCanvas.height = SAMPLE_SIZE;
-  const roiCtx = roiCanvas.getContext('2d', { willReadFrequently: true });
-
-  function captureFrameSignature(sourceElem, roiRect, cloneDescriptor = true) {
-    const { sx, sy, sw, sh } = roiRect;
-    roiCtx.drawImage(sourceElem, sx, sy, sw, sh, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
-    const rgba = roiCtx.getImageData(0, 0, SAMPLE_SIZE, SAMPLE_SIZE).data;
-    const motionDelta = computeMotionDelta(rgba);
-    const primaryDesc = extractCCVD144(rgba, true);
-    const descriptor = cloneDescriptor ? primaryDesc : new Float32Array(primaryDesc);
-
-    const fullW = sourceElem.width || 640;
-    const fullH = sourceElem.height || 480;
-
-    let thumbnail = null;
-    let augmentedDescriptors = null;
-    let queryDescriptors = null;
-
-    if (cloneDescriptor) {
-      snapshotCtx.drawImage(sourceElem, sx, sy, sw, sh, 0, 0, 160, 160);
-      thumbnail = snapshotCanvas.toDataURL('image/jpeg', 0.78);
-
-      // Generate 11 borderless multi-crop / scale / shift augmented descriptors directly from sourceElem
-      // so handheld Xiaomi 15 re-scans match reliably even with 35% distance, framing, or angle shifts
-      augmentedDescriptors = [primaryDesc];
-      const augCrops = [
-        { scale: 0.68, dx: 0, dy: 0 },
-        { scale: 0.82, dx: 0, dy: 0 },
-        { scale: 1.16, dx: 0, dy: 0 },
-        { scale: 1.34, dx: 0, dy: 0 },
-        { scale: 0.92, dx: -0.10, dy: 0 },
-        { scale: 0.92, dx: 0.10, dy: 0 },
-        { scale: 0.92, dx: 0, dy: -0.10 },
-        { scale: 0.92, dx: 0, dy: 0.10 },
-        { scale: 0.84, dx: -0.08, dy: -0.08 },
-        { scale: 0.84, dx: 0.08, dy: 0.08 }
-      ];
-      for (const crop of augCrops) {
-        const cw = Math.max(32, Math.min(fullW, Math.round(sw * crop.scale)));
-        const ch = Math.max(32, Math.min(fullH, Math.round(sh * crop.scale)));
-        const cx = Math.max(0, Math.min(fullW - cw, Math.round(sx + (sw - cw) * 0.5 + sw * crop.dx)));
-        const cy = Math.max(0, Math.min(fullH - ch, Math.round(sy + (sh - ch) * 0.5 + sh * crop.dy)));
-        roiCtx.drawImage(sourceElem, cx, cy, cw, ch, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
-        const augRgba = roiCtx.getImageData(0, 0, SAMPLE_SIZE, SAMPLE_SIZE).data;
-        augmentedDescriptors.push(extractCCVD144(augRgba, true));
-      }
-    } else {
-      // Extract 5 multi-scale/shift query descriptors during scanning so handheld distance/framing differences match
-      queryDescriptors = [primaryDesc];
-      const scanCrops = [
-        { scale: 0.74, dx: 0, dy: 0 },
-        { scale: 1.26, dx: 0, dy: 0 },
-        { scale: 0.94, dx: -0.09, dy: 0 },
-        { scale: 0.94, dx: 0.09, dy: 0 }
-      ];
-      for (const crop of scanCrops) {
-        const cw = Math.max(32, Math.min(fullW, Math.round(sw * crop.scale)));
-        const ch = Math.max(32, Math.min(fullH, Math.round(sh * crop.scale)));
-        const cx = Math.max(0, Math.min(fullW - cw, Math.round(sx + (sw - cw) * 0.5 + sw * crop.dx)));
-        const cy = Math.max(0, Math.min(fullH - ch, Math.round(sy + (sh - ch) * 0.5 + sh * crop.dy)));
-        roiCtx.drawImage(sourceElem, cx, cy, cw, ch, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
-        const qRgba = roiCtx.getImageData(0, 0, SAMPLE_SIZE, SAMPLE_SIZE).data;
-        queryDescriptors.push(extractCCVD144(qRgba, true));
+  let snapshotCanvas = null;
+  let snapshotCtx = null;
+  let atlasCanvas = null;
+  let atlasCtx = null;
+  function ensureCaptureCanvases() {
+    if (!snapshotCanvas) {
+      snapshotCanvas = document.createElement('canvas');
+      snapshotCanvas.width = THUMB_SIZE;
+      snapshotCanvas.height = THUMB_SIZE;
+      snapshotCtx = snapshotCanvas.getContext('2d', { alpha: false });
+    }
+    if (!atlasCanvas) {
+      atlasCanvas = document.createElement('canvas');
+      atlasCanvas.width = ATLAS_SIZE;
+      atlasCanvas.height = ATLAS_SIZE;
+      atlasCtx = atlasCanvas.getContext('2d', {
+        alpha: false,
+        willReadFrequently: true,
+        desynchronized: true
+      });
+    }
+  }
+  const sliceU0 = new Int32Array(SAMPLE_SIZE);
+  const sliceUf = new Float32Array(SAMPLE_SIZE);
+  function sliceAtlasTo64(atlasRgba, ax, ay, aw, ah, cx, cy, cw, ch) {
+    const out = arena.subCropRgba;
+    const maxAtlasCoord = ATLAS_SIZE - 1.0001;
+    const invAw = ATLAS_SIZE / (aw || 1);
+    const invAh = ATLAS_SIZE / (ah || 1);
+    const stepX = cw / SAMPLE_SIZE;
+    const stepY = ch / SAMPLE_SIZE;
+    for (let x = 0; x < SAMPLE_SIZE; x++) {
+      let u = (cx + (x + 0.5) * stepX - ax) * invAw - 0.5;
+      if (u < 0) u = 0;
+      else if (u > maxAtlasCoord) u = maxAtlasCoord;
+      const u0 = u | 0;
+      sliceU0[x] = u0 << 2;
+      sliceUf[x] = u - u0;
+    }
+    const stride = ATLAS_SIZE << 2;
+    let dst = 0;
+    for (let y = 0; y < SAMPLE_SIZE; y++) {
+      let v = (cy + (y + 0.5) * stepY - ay) * invAh - 0.5;
+      if (v < 0) v = 0;
+      else if (v > maxAtlasCoord) v = maxAtlasCoord;
+      const v0 = v | 0;
+      const vf = v - v0;
+      const invVf = 1.0 - vf;
+      const row0 = v0 * stride;
+      const row1 = row0 + stride;
+      for (let x = 0; x < SAMPLE_SIZE; x++) {
+        const col0 = sliceU0[x];
+        const uf = sliceUf[x];
+        const invUf = 1.0 - uf;
+        const w00 = invUf * invVf;
+        const w10 = uf * invVf;
+        const w01 = invUf * vf;
+        const w11 = uf * vf;
+        const p00 = row0 + col0;
+        const p10 = p00 + 4;
+        const p01 = row1 + col0;
+        const p11 = p01 + 4;
+        out[dst] = atlasRgba[p00] * w00 + atlasRgba[p10] * w10 + atlasRgba[p01] * w01 + atlasRgba[p11] * w11;
+        out[dst + 1] = atlasRgba[p00 + 1] * w00 + atlasRgba[p10 + 1] * w10 + atlasRgba[p01 + 1] * w01 + atlasRgba[p11 + 1] * w11;
+        out[dst + 2] = atlasRgba[p00 + 2] * w00 + atlasRgba[p10 + 2] * w10 + atlasRgba[p01 + 2] * w01 + atlasRgba[p11 + 2] * w11;
+        out[dst + 3] = 255;
+        dst += 4;
       }
     }
-
+    return out;
+  }
+  const AUG_CROPS = [
+    { scale: 0.68, dx: 0, dy: 0 },
+    { scale: 0.82, dx: 0, dy: 0 },
+    { scale: 1.16, dx: 0, dy: 0 },
+    { scale: 1.34, dx: 0, dy: 0 },
+    { scale: 0.92, dx: -0.10, dy: 0 },
+    { scale: 0.92, dx: 0.10, dy: 0 },
+    { scale: 0.92, dx: 0, dy: -0.10 },
+    { scale: 0.92, dx: 0, dy: 0.10 },
+    { scale: 0.84, dx: -0.08, dy: -0.08 },
+    { scale: 0.84, dx: 0.08, dy: 0.08 }
+  ];
+  const SCAN_CROPS = [
+    { scale: 0.74, dx: 0, dy: 0 },
+    { scale: 1.26, dx: 0, dy: 0 },
+    { scale: 0.94, dx: -0.09, dy: 0 },
+    { scale: 0.94, dx: 0.09, dy: 0 }
+  ];
+  function captureFrameSignature(sourceElem, roiRect, cloneDescriptor = true, options = {}) {
+    ensureCaptureCanvases();
+    const { sx, sy, sw, sh } = roiRect;
+    const fullW = sourceElem.videoWidth || sourceElem.naturalWidth || sourceElem.width || 640;
+    const fullH = sourceElem.videoHeight || sourceElem.naturalHeight || sourceElem.height || 480;
+    const aw = Math.max(24, Math.min(fullW, Math.round(sw * 1.34)));
+    const ah = Math.max(24, Math.min(fullH, Math.round(sh * 1.34)));
+    const ax = Math.max(0, Math.min(fullW - aw, Math.round(sx + (sw - aw) * 0.5)));
+    const ay = Math.max(0, Math.min(fullH - ah, Math.round(sy + (sh - ah) * 0.5)));
+    atlasCtx.drawImage(sourceElem, ax, ay, aw, ah, 0, 0, ATLAS_SIZE, ATLAS_SIZE);
+    const atlasRgba = atlasCtx.getImageData(0, 0, ATLAS_SIZE, ATLAS_SIZE).data;
+    const motionDelta = computeMotionDelta(atlasRgba, ATLAS_SIZE);
+    if (!cloneDescriptor && options && options.skipIfStatic) {
+      const staticThresh = options.staticThreshold || 1.5;
+      if (motionDelta < staticThresh) {
+        return {
+          isStaticSkip: true,
+          motionDelta,
+          descriptor: null,
+          augmentedDescriptors: null,
+          queryDescriptors: null,
+          thumbnail: null
+        };
+      }
+    }
+    sliceAtlasTo64(atlasRgba, ax, ay, aw, ah, sx, sy, sw, sh);
+    if (cloneDescriptor) {
+      snapshotCtx.drawImage(sourceElem, sx, sy, sw, sh, 0, 0, THUMB_SIZE, THUMB_SIZE);
+      const thumbnail = encodeThumbnail128(snapshotCanvas);
+      const primaryPacked = extractCCVD144(arena.subCropRgba, true);
+      const rawAugmented = [primaryPacked];
+      for (let i = 0; i < AUG_CROPS.length; i++) {
+        const crop = AUG_CROPS[i];
+        const cw = Math.max(24, Math.min(fullW, Math.round(sw * crop.scale)));
+        const ch = Math.max(24, Math.min(fullH, Math.round(sh * crop.scale)));
+        const cx = Math.max(0, Math.min(fullW - cw, Math.round(sx + (sw - cw) * 0.5 + sw * crop.dx)));
+        const cy = Math.max(0, Math.min(fullH - ch, Math.round(sy + (sh - ch) * 0.5 + sh * crop.dy)));
+        sliceAtlasTo64(atlasRgba, ax, ay, aw, ah, cx, cy, cw, ch);
+        rawAugmented.push(extractCCVD144(arena.subCropRgba, true));
+      }
+      const augmentedDescriptors = deduplicateDescriptors(rawAugmented, 10);
+      return {
+        isStaticSkip: false,
+        descriptor: primaryPacked,
+        augmentedDescriptors,
+        queryDescriptors: null,
+        motionDelta,
+        thumbnail
+      };
+    }
+    const descriptor = extractCCVD144(arena.subCropRgba, arena.queryPool[0]);
+    let lazyExtraQueries = null;
+    const queryDescriptors = function getExtraScanQueries() {
+      if (lazyExtraQueries) return lazyExtraQueries;
+      lazyExtraQueries = [];
+      for (let q = 0; q < SCAN_CROPS.length; q++) {
+        const crop = SCAN_CROPS[q];
+        const cw = Math.max(24, Math.min(fullW, Math.round(sw * crop.scale)));
+        const ch = Math.max(24, Math.min(fullH, Math.round(sh * crop.scale)));
+        const cx = Math.max(0, Math.min(fullW - cw, Math.round(sx + (sw - cw) * 0.5 + sw * crop.dx)));
+        const cy = Math.max(0, Math.min(fullH - ch, Math.round(sy + (sh - ch) * 0.5 + sh * crop.dy)));
+        sliceAtlasTo64(atlasRgba, ax, ay, aw, ah, cx, cy, cw, ch);
+        lazyExtraQueries.push(extractCCVD144(arena.subCropRgba, arena.queryPool[q + 1]));
+      }
+      return lazyExtraQueries;
+    };
     return {
+      isStaticSkip: false,
       descriptor,
-      augmentedDescriptors,
+      augmentedDescriptors: null,
       queryDescriptors,
       motionDelta,
-      thumbnail
+      thumbnail: null
     };
   }
-
-  /**
-   * Re-extract multi-crop v2 descriptors from a stored thumbnail dataURL
-   * so products saved under older descriptor versions are automatically migrated.
-   */
   function extractDescriptorsFromThumbnail(dataUrl, callback) {
     if (!dataUrl || typeof callback !== 'function') return;
     const img = new Image();
     img.onload = () => {
-      const w = img.width || 160;
-      const h = img.height || 160;
+      const w = img.naturalWidth || img.width || THUMB_SIZE;
+      const h = img.naturalHeight || img.height || THUMB_SIZE;
       const sig = captureFrameSignature(img, { sx: 0, sy: 0, sw: w, sh: h }, true);
-      callback(sig.augmentedDescriptors || [sig.descriptor]);
+      callback(sig.augmentedDescriptors || [sig.descriptor], sig.thumbnail);
     };
     img.src = dataUrl;
   }
-
   global.VisionEngine = {
     SAMPLE_SIZE,
+    ATLAS_SIZE,
+    THUMB_SIZE,
     DESCRIPTOR_DIM,
     VIRTUAL_STAGE_ITEMS,
     extractCCVD144,
+    packDescriptorInt8,
+    unpackDescriptor,
+    ensureProductCache,
+    deduplicateDescriptors,
     cosineSimilarity144,
     matchProducts,
     computeMotionDelta,
+    resetMotionGate,
+    encodeThumbnail128,
     drawVirtualProduct,
     buildDefaultCatalog,
     captureFrameSignature,
     extractDescriptorsFromThumbnail
   };
-})(window);
-
+})(typeof window !== 'undefined' ? window : globalThis);
 </script>
   <script>
-/**
- * VisionPOS Edge — Main Application Controller
- * Connects Multi-Source Camera Pipeline, CCVD-144 Visual Recognition Engine,
- * Real-Time Inventory Management, Camera Photo Registration, and POS Checkout.
- */
-
 (function () {
   'use strict';
-
   const STORAGE_KEY = 'vision_pos_edge_store_v1';
-
+  const BG_CAMERA_RELEASE_MS = 10000; // 10 seconds background auto-release for camera sensor power saving
   const state = {
     activeTab: 'scan',
     sourceMode: 'virtual', // 'virtual' | 'webcam' | 'ipcam' | 'photo'
@@ -2517,54 +1659,44 @@ button {
     ecoGateEnabled: true,
     lastAutoCartTime: 0,
     lastAutoCartProductId: null,
-
-    // Current Recognition Result
     currentMatch: null,
     currentSimilarity: 0,
     topCandidates: [],
     liveDescriptor: null,
-
-    // Registration Draft
     regDescriptors: [],
     regThumbnail: '',
     regEditingId: '',
-
-    // Virtual Stage State
+    regManualCaptured: false,
     stageItemIndex: 0,
     stageAngle: 0,
     stageHandMotion: false,
     stagePhase: 0,
-
-    // Webcam State
     mediaStream: null,
     facingMode: 'environment',
     selectedDeviceId: '',
     resolutionHeight: 480,
     torchOn: false,
-
-    // CCTV / Photo State
+    autoPausedWebcamInBg: false,
     cctvChannel: 'ch1',
     cctvTimer: 0,
     loadedPhotoImage: null,
     hasLoadedPhoto: false,
     pendingAngleAppend: false,
-
-    // Eco & Telemetry State
     staticFrameStreak: 0,
     isEcoSleeping: false,
-    lastInferenceMs: 0.28,
+    lowBatteryMode: false,
+    forceNextEval: true,
+    lastInferenceMs: 0.16,
     lastMotionDelta: 0,
     connectedNodes: 1
   };
-
-  // Pre-allocated 640x480 buffer canvas so 12MP/50MP mobile camera photos are downscaled ONCE
-  // instead of inside the 20 FPS recognition loop (prevents mobile UI thread freeze).
   const photoBufferCanvas = document.createElement('canvas');
   photoBufferCanvas.width = 640;
   photoBufferCanvas.height = 480;
-  const photoBufferCtx = photoBufferCanvas.getContext('2d');
-
-  // DOM Elements cache
+  const photoBufferCtx = photoBufferCanvas.getContext('2d', {
+    alpha: false,
+    desynchronized: true
+  });
   const el = {};
   function bindElements() {
     const ids = [
@@ -2603,8 +1735,6 @@ button {
       el[id] = document.getElementById(id);
     });
   }
-
-  // Subtle WebAudio Feedback (Zero external file overhead)
   let audioCtx = null;
   function playTone(freq = 880, durationMs = 55, type = 'sine') {
     try {
@@ -2626,7 +1756,6 @@ button {
       osc.stop(audioCtx.currentTime + durationMs / 1000);
     } catch (_) {}
   }
-
   function showToast(message, type = 'success') {
     if (!el['toast-stack']) return;
     const div = document.createElement('div');
@@ -2639,10 +1768,6 @@ button {
       div.remove();
     }, 2800);
   }
-
-  // ==========================================================================
-  // Local Storage + BroadcastChannel + Backend SSE Triple-Layer Persistence
-  // ==========================================================================
   let broadcastChannel = null;
   try {
     if ('BroadcastChannel' in window) {
@@ -2652,13 +1777,13 @@ button {
         if (ev.data.type === 'state_updated') {
           loadFromLocalStorage();
           renderAll();
+          scheduleRecognition(true);
         }
       };
     }
   } catch (_) {
     broadcastChannel = null;
   }
-
   function saveToLocalStorage() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -2668,7 +1793,6 @@ button {
       }));
     } catch (_) {}
   }
-
   function loadFromLocalStorage() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -2685,28 +1809,57 @@ button {
     } catch (_) {}
     return false;
   }
-
-  function migrateProductsToV2(defaultCatalog) {
+  function migrateProductsToV2() {
     let changed = false;
+    let lazyDefaultCatalog = null;
     state.products.forEach((p) => {
-      if (p.descriptorVersion === 2 && Array.isArray(p.descriptors) && p.descriptors.length > 0) {
+      if (
+        p.descriptorVersion === 2 &&
+        Array.isArray(p.descriptors) &&
+        p.descriptors.length > 0
+      ) {
+        if (typeof p.descriptors[0] !== 'string') {
+          p.descriptors = VisionEngine.deduplicateDescriptors(p.descriptors, 12);
+          changed = true;
+        }
+        VisionEngine.ensureProductCache(p);
+        if (p.isCameraRegistered && p.thumbnail && p.thumbnail.length > 14000) {
+          VisionEngine.extractDescriptorsFromThumbnail(p.thumbnail, (newDescs, thumb128) => {
+            if (thumb128 && thumb128.length < p.thumbnail.length) {
+              p.thumbnail = thumb128;
+              saveToLocalStorage();
+            }
+          });
+        }
         return;
       }
-      const presetMatch = defaultCatalog.find(
-        (dc) => (p.virtualPresetId && dc.virtualPresetId === p.virtualPresetId) || (p.sku && dc.sku === p.sku)
-      );
-      if (presetMatch && !p.isCameraRegistered) {
-        p.descriptors = presetMatch.descriptors;
-        p.descriptorVersion = 2;
-        p.virtualPresetId = presetMatch.virtualPresetId;
-        changed = true;
-      } else if (p.thumbnail && p.thumbnail.startsWith('data:image/')) {
+      if (!p.isCameraRegistered) {
+        if (!lazyDefaultCatalog) {
+          lazyDefaultCatalog = VisionEngine.buildDefaultCatalog();
+        }
+        const presetMatch = lazyDefaultCatalog.find(
+          (dc) => (p.virtualPresetId && dc.virtualPresetId === p.virtualPresetId) || (p.sku && dc.sku === p.sku)
+        );
+        if (presetMatch) {
+          p.descriptors = presetMatch.descriptors;
+          p.thumbnail = presetMatch.thumbnail;
+          p.descriptorVersion = 2;
+          p.virtualPresetId = presetMatch.virtualPresetId;
+          VisionEngine.ensureProductCache(p);
+          changed = true;
+          return;
+        }
+      }
+      if (p.thumbnail && p.thumbnail.startsWith('data:image/')) {
         p.isCameraRegistered = true;
-        VisionEngine.extractDescriptorsFromThumbnail(p.thumbnail, (newDescs) => {
+        VisionEngine.extractDescriptorsFromThumbnail(p.thumbnail, (newDescs, thumb128) => {
           if (Array.isArray(newDescs) && newDescs.length > 0) {
             p.descriptors = newDescs;
             p.descriptorVersion = 2;
+            if (thumb128) p.thumbnail = thumb128;
+            VisionEngine.ensureProductCache(p);
             saveToLocalStorage();
+            scheduleRecognition(true);
           }
         });
       }
@@ -2715,18 +1868,15 @@ button {
       saveToLocalStorage();
     }
   }
-
   async function initDataStore() {
-    const defaultCatalog = VisionEngine.buildDefaultCatalog();
     const hasLocal = loadFromLocalStorage();
     if (!hasLocal) {
-      state.products = defaultCatalog;
+      state.products = VisionEngine.buildDefaultCatalog();
+      state.products.forEach((p) => VisionEngine.ensureProductCache(p));
       saveToLocalStorage();
     } else {
-      migrateProductsToV2(defaultCatalog);
+      migrateProductsToV2();
     }
-
-    // Attempt connection to Backend API & SSE
     try {
       const res = await fetch('/api/state');
       if (res.ok) {
@@ -2734,10 +1884,9 @@ button {
         if (Array.isArray(data.products) && data.products.length > 0) {
           state.products = data.products;
           state.orders = data.orders || [];
-          migrateProductsToV2(defaultCatalog);
+          migrateProductsToV2();
           saveToLocalStorage();
         } else {
-          // Seed server with our generated visual catalog
           await fetch('/api/seed', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2747,34 +1896,31 @@ button {
         connectSSE();
       }
     } catch (_) {
-      // Running in standalone offline / artifact mode
       el['sync-status-badge'].textContent = '本地極速模式 (支援跨分頁同步)';
     }
-
     renderAll();
   }
-
   function connectSSE() {
     try {
       const devType = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile-Cam' : 'Desktop-POS';
       const es = new EventSource(`/api/events?deviceType=${encodeURIComponent(devType)}`);
-
       es.addEventListener('init', (e) => {
         const { payload } = JSON.parse(e.data);
         if (payload.products && payload.products.length > 0) {
           state.products = payload.products;
           state.orders = payload.orders || [];
           state.connectedNodes = payload.connectedClients || 1;
-          migrateProductsToV2(VisionEngine.buildDefaultCatalog());
+          migrateProductsToV2();
           saveToLocalStorage();
           renderAll();
+          scheduleRecognition(true);
         }
         el['sync-status-badge'].textContent = `即時同步 (${state.connectedNodes} 台連線)`;
       });
-
       es.addEventListener('product_upserted', (e) => {
         const { payload } = JSON.parse(e.data);
         if (!payload || !payload.product) return;
+        VisionEngine.ensureProductCache(payload.product);
         const idx = state.products.findIndex((p) => p.id === payload.product.id);
         if (idx >= 0) {
           state.products[idx] = payload.product;
@@ -2783,19 +1929,20 @@ button {
         }
         saveToLocalStorage();
         renderAll();
+        scheduleRecognition(true);
       });
-
       es.addEventListener('product_deleted', (e) => {
         const { payload } = JSON.parse(e.data);
         state.products = state.products.filter((p) => p.id !== payload.id);
         saveToLocalStorage();
         renderAll();
+        scheduleRecognition(true);
       });
-
       es.addEventListener('checkout_completed', (e) => {
         const { payload } = JSON.parse(e.data);
         if (Array.isArray(payload.updatedProducts)) {
           payload.updatedProducts.forEach((up) => {
+            VisionEngine.ensureProductCache(up);
             const idx = state.products.findIndex((p) => p.id === up.id);
             if (idx >= 0) state.products[idx] = up;
           });
@@ -2806,16 +1953,19 @@ button {
         }
         saveToLocalStorage();
         renderAll();
+        scheduleRecognition(true);
       });
-
       es.addEventListener('products_synced', (e) => {
         const { payload } = JSON.parse(e.data);
-        if (Array.isArray(payload.products)) state.products = payload.products;
+        if (Array.isArray(payload.products)) {
+          state.products = payload.products;
+          migrateProductsToV2();
+        }
         if (Array.isArray(payload.orders)) state.orders = payload.orders;
         saveToLocalStorage();
         renderAll();
+        scheduleRecognition(true);
       });
-
       es.addEventListener('devices_updated', (e) => {
         const { payload } = JSON.parse(e.data);
         state.connectedNodes = payload.connectedClients || 1;
@@ -2823,22 +1973,16 @@ button {
       });
     } catch (_) {}
   }
-
   function notifyPeers() {
     saveToLocalStorage();
     if (broadcastChannel) {
       broadcastChannel.postMessage({ type: 'state_updated', timestamp: Date.now() });
     }
   }
-
-  // ==========================================================================
-  // Multi-Source Camera Pipeline (Virtual Stage, Live Webcam, IP Cam, Photo)
-  // ==========================================================================
   function renderStageTray() {
     const container = el['stage-objects-list'];
     if (!container) return;
     container.innerHTML = '';
-
     VisionEngine.VIRTUAL_STAGE_ITEMS.forEach((item, idx) => {
       const isRegistered = state.products.some(
         (p) => p.virtualPresetId === item.presetId || p.sku === item.sku
@@ -2853,42 +1997,45 @@ button {
       btn.addEventListener('click', () => {
         state.stageItemIndex = idx;
         state.stageAngle = 0;
-        wakeFromEcoSleep();
         renderStageTray();
-        // If user is on the Register tab, offer auto-filling or refresh snapshot preview
+        scheduleRecognition(true);
         if (state.activeTab === 'register') {
-          setTimeout(() => captureForRegistration(false), 60);
+          setTimeout(() => captureForRegistration(false), 40);
         }
       });
       container.appendChild(btn);
     });
   }
-
+  let bgCameraReleaseTimer = null;
+  function clearBgCameraReleaseTimer() {
+    if (bgCameraReleaseTimer) {
+      clearTimeout(bgCameraReleaseTimer);
+      bgCameraReleaseTimer = null;
+    }
+  }
   async function switchVideoSource(mode) {
     const prevMode = state.sourceMode;
     state.sourceMode = mode;
+    clearBgCameraReleaseTimer();
+    if (mode !== 'webcam') {
+      state.autoPausedWebcamInBg = false;
+    }
     if (prevMode !== mode && mode !== 'photo') {
       state.regDescriptors = [];
       state.regManualCaptured = false;
     }
-    wakeFromEcoSleep();
-
     ['virtual', 'webcam', 'ipcam', 'photo'].forEach((m) => {
       const btn = el[`src-btn-${m}`];
       if (btn) btn.classList.toggle('active', m === mode);
     });
-
     el['webcam-controls-bar'].classList.toggle('hidden', mode !== 'webcam');
     el['ipcam-controls-bar'].classList.toggle('hidden', mode !== 'ipcam');
     el['virtual-stage-tray'].classList.toggle('hidden', mode !== 'virtual');
-
-    // Keep #stage-canvas always visible as the unified optical display & ROI analysis surface
-    el['stage-canvas'].classList.remove('hidden');
     if (mode !== 'webcam') {
       stopWebcamStream();
       el['camera-video'].classList.add('hidden');
+      el['stage-canvas'].classList.remove('hidden');
     }
-
     if (mode === 'virtual') {
       el['active-source-badge'].textContent = '互動測試舞台';
     } else if (mode === 'webcam') {
@@ -2899,15 +2046,19 @@ button {
     } else if (mode === 'photo') {
       el['active-source-badge'].textContent = '手機相機實拍辨識';
     }
+    VisionEngine.resetMotionGate();
+    scheduleRecognition(true);
   }
-
   function stopWebcamStream() {
+    cancelVideoFrameSync();
     if (state.mediaStream) {
       state.mediaStream.getTracks().forEach((t) => t.stop());
       state.mediaStream = null;
     }
+    if (el['camera-video']) {
+      el['camera-video'].srcObject = null;
+    }
   }
-
   async function populateCameraDevices() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
     try {
@@ -2925,13 +2076,14 @@ button {
       if (currentVal) select.value = currentVal;
     } catch (_) {}
   }
-
-  async function startWebcamStream() {
+  async function startWebcamStream(silentResume = false) {
     stopWebcamStream();
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       showToast('📱 已自動為您開啟手機原生相機拍照模式（本地檔案模式）', 'warn');
       state.sourceMode = 'photo';
       el['active-source-badge'].textContent = '手機相機實拍辨識';
+      el['camera-video'].classList.add('hidden');
+      el['stage-canvas'].classList.remove('hidden');
       if (state.activeTab === 'register' && el['native-camera-input']) {
         el['native-camera-input'].click();
       } else if (el['native-scan-input']) {
@@ -2939,21 +2091,18 @@ button {
       }
       return;
     }
-
     const height = Number(el['camera-res-select'].value) || 480;
     const width = Math.round(height * (4 / 3));
-
     const videoConstraints = {
       width: { ideal: width },
-      height: { ideal: height }
+      height: { ideal: height },
+      frameRate: { ideal: 24, max: 30 }
     };
-
     if (state.selectedDeviceId) {
       videoConstraints.deviceId = { exact: state.selectedDeviceId };
     } else {
       videoConstraints.facingMode = { ideal: state.facingMode };
     }
-
     try {
       let stream;
       try {
@@ -2962,27 +2111,30 @@ button {
           audio: false
         });
       } catch (_) {
-        // Fallback if mobile browser rejects resolution/facingMode constraints
         stream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: false
         });
       }
       state.mediaStream = stream;
+      state.autoPausedWebcamInBg = false;
       const video = el['camera-video'];
       video.srcObject = stream;
-      // Keep video active for hardware decoding while #stage-canvas renders the center-cropped feed
+      video.removeAttribute('style');
+      video.classList.toggle('mirrored', state.facingMode === 'user' && !state.selectedDeviceId);
       video.classList.remove('hidden');
-      video.style.position = 'absolute';
-      video.style.width = '1px';
-      video.style.height = '1px';
-      video.style.opacity = '0.01';
-      video.style.pointerEvents = 'none';
-      el['stage-canvas'].classList.remove('hidden');
       await video.play();
+      el['stage-canvas'].classList.add('hidden');
+      el['active-source-badge'].textContent = '真實相機 WebRTC';
       await populateCameraDevices();
-      showToast('已開啟真實相機鏡頭，將商品對準中央框即可即時辨識或建檔');
+      VisionEngine.resetMotionGate();
+      scheduleRecognition(true);
+      if (!silentResume) {
+        showToast('已開啟真實相機鏡頭，將商品對準中央框即可即時辨識或建檔');
+      }
     } catch (err) {
+      el['camera-video'].classList.add('hidden');
+      el['stage-canvas'].classList.remove('hidden');
       showToast('📱 無法直接存取連續串流，已自動切換為「手機原生相機拍照」模式', 'warn');
       state.sourceMode = 'photo';
       el['active-source-badge'].textContent = '手機相機實拍辨識';
@@ -2993,7 +2145,6 @@ button {
       }
     }
   }
-
   async function toggleTorch() {
     if (!state.mediaStream) return;
     const track = state.mediaStream.getVideoTracks()[0];
@@ -3012,31 +2163,23 @@ button {
       showToast(state.torchOn ? '已開啟補光燈' : '已關閉補光燈');
     } catch (_) {}
   }
-
-  // Render Virtual Stage, Live Webcam, CCTV, or Pre-Scaled Photo onto #stage-canvas (640x480)
+  let stageCanvasCtx = null;
   function renderStageCanvasFrame() {
     const canvas = el['stage-canvas'];
-    const ctx = canvas.getContext('2d');
+    const video = el['camera-video'];
+    if (state.sourceMode === 'webcam' && state.mediaStream && video && video.readyState >= 2) {
+      video.classList.remove('hidden');
+      canvas.classList.add('hidden');
+      return;
+    }
+    canvas.classList.remove('hidden');
+    if (!stageCanvasCtx) {
+      stageCanvasCtx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+    }
+    const ctx = stageCanvasCtx;
     const w = canvas.width;
     const h = canvas.height;
-
-    if (state.sourceMode === 'webcam') {
-      const video = el['camera-video'];
-      if (state.mediaStream && video && video.readyState >= 2) {
-        const vw = video.videoWidth || 640;
-        const vh = video.videoHeight || 480;
-        const scale = Math.max(w / vw, h / vh);
-        const dw = vw * scale;
-        const dh = vh * scale;
-        ctx.save();
-        if (state.facingMode === 'user' && !state.selectedDeviceId) {
-          ctx.translate(w, 0);
-          ctx.scale(-1, 1);
-        }
-        ctx.drawImage(video, (w - dw) * 0.5, (h - dh) * 0.5, dw, dh);
-        ctx.restore();
-      }
-    } else if (state.sourceMode === 'virtual') {
+    if (state.sourceMode === 'virtual') {
       const item = VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex];
       let offsetX = 0;
       let offsetY = 0;
@@ -3055,15 +2198,14 @@ button {
         lighting: 1.0
       });
     } else if (state.sourceMode === 'ipcam') {
-      // Simulate Multi-Channel CCTV Overhead Stream
       state.cctvTimer += 0.025;
       let itemIdx = 0;
       if (state.cctvChannel === 'ch1') {
         itemIdx = Math.floor(state.cctvTimer * 0.35) % 5;
       } else if (state.cctvChannel === 'ch2') {
-        itemIdx = 1; // Matcha shelf
+        itemIdx = 1;
       } else if (state.cctvChannel === 'ch3') {
-        itemIdx = 3; // Titan bottle warehouse
+        itemIdx = 3;
       }
       const item = VisionEngine.VIRTUAL_STAGE_ITEMS[itemIdx];
       VisionEngine.drawVirtualProduct(ctx, w, h, item, {
@@ -3073,23 +2215,46 @@ button {
         scale: 0.96,
         lighting: 0.92
       });
-      // CCTV Timestamp Overlay
       ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
       ctx.fillRect(14, h - 38, 290, 24);
       ctx.fillStyle = '#10b981';
       ctx.font = '12px monospace';
       ctx.fillText(`CCTV ${state.cctvChannel.toUpperCase()} | RTSP-EDGE | ${new Date().toLocaleTimeString()}`, 22, h - 22);
     } else if (state.sourceMode === 'photo' && state.hasLoadedPhoto) {
-      // Copy pre-downscaled 640x480 buffer in < 0.03ms (eliminates 12MP/50MP photo redraw freeze on mobile)
       ctx.drawImage(photoBufferCanvas, 0, 0);
     }
   }
-
   function getActiveVideoSourceElement() {
+    if (
+      state.sourceMode === 'webcam' &&
+      state.mediaStream &&
+      el['camera-video'] &&
+      el['camera-video'].readyState >= 2
+    ) {
+      return el['camera-video'];
+    }
     return el['stage-canvas'];
   }
-
   function getRoiRect(sourceElem) {
+    if (sourceElem === el['camera-video']) {
+      const vw = sourceElem.videoWidth || 640;
+      const vh = sourceElem.videoHeight || 480;
+      const targetAspect = 4 / 3;
+      const videoAspect = vw / vh;
+      let visX = 0, visY = 0, visW = vw, visH = vh;
+      if (videoAspect > targetAspect) {
+        visW = vh * targetAspect;
+        visX = (vw - visW) * 0.5;
+      } else if (videoAspect < targetAspect) {
+        visH = vw / targetAspect;
+        visY = (vh - visH) * 0.5;
+      }
+      const roiW = Math.round(visW * 0.58);
+      const roiH = Math.round(visH * 0.68);
+      const sx = Math.round(visX + (visW - roiW) * 0.5);
+      const sy = Math.round(visY + (visH - roiH) * 0.5);
+      return { sx, sy, sw: roiW, sh: roiH };
+    }
     const sw = sourceElem.width || 640;
     const sh = sourceElem.height || 480;
     const roiW = Math.round(sw * 0.58);
@@ -3098,12 +2263,35 @@ button {
     const sy = Math.round((sh - roiH) * 0.5);
     return { sx, sy, sw: roiW, sh: roiH };
   }
-
-  // ==========================================================================
-  // Adaptive Real-Time Recognition Loop & Motion-Gated Energy Saver
-  // ==========================================================================
   let scanTimerId = null;
-
+  let videoFrameCallbackId = null;
+  function cancelVideoFrameSync() {
+    if (
+      videoFrameCallbackId !== null &&
+      el['camera-video'] &&
+      typeof el['camera-video'].cancelVideoFrameCallback === 'function'
+    ) {
+      try {
+        el['camera-video'].cancelVideoFrameCallback(videoFrameCallbackId);
+      } catch (_) {}
+    }
+    videoFrameCallbackId = null;
+  }
+  function cancelScheduledRecognition() {
+    if (scanTimerId !== null) {
+      clearTimeout(scanTimerId);
+      scanTimerId = null;
+    }
+    cancelVideoFrameSync();
+  }
+  function isContinuousSourceActive() {
+    if (document.hidden) return false;
+    if (state.activeTab !== 'scan' && state.activeTab !== 'register') return false;
+    if (state.sourceMode === 'webcam') return Boolean(state.mediaStream);
+    if (state.sourceMode === 'ipcam') return true;
+    if (state.sourceMode === 'virtual') return Boolean(state.stageHandMotion);
+    return false; // 'photo' & static 'virtual' run purely event-driven at 0 FPS!
+  }
   function wakeFromEcoSleep() {
     state.staticFrameStreak = 0;
     if (state.isEcoSleeping) {
@@ -3111,38 +2299,125 @@ button {
       updatePowerTelemetryUI();
     }
   }
-
   function updatePowerTelemetryUI() {
+    if (!el['metric-power-mode']) return;
+    if (state.autoPausedWebcamInBg || document.hidden) {
+      el['power-mode-dot'].className = 'status-dot eco';
+      el['metric-power-mode'].textContent = state.autoPausedWebcamInBg ? '已釋放鏡頭 (0W)' : '背景休眠 (0 FPS)';
+      el['metric-energy-saved'].textContent = '100% 省電';
+      el['hud-status-text'].textContent = '背景省電待機中';
+      return;
+    }
+    if (!isContinuousSourceActive()) {
+      el['power-mode-dot'].className = 'status-dot eco';
+      el['metric-power-mode'].textContent = '事件驅動待機 (0 FPS)';
+      el['metric-energy-saved'].textContent = '99.8% 省電';
+      el['hud-status-text'].textContent = state.sourceMode === 'photo'
+        ? '實拍零耗電鎖定中'
+        : '靜態零輪詢省電待機';
+      return;
+    }
     if (state.isEcoSleeping) {
       el['power-mode-dot'].className = 'status-dot eco';
       el['metric-power-mode'].textContent = '靜止休眠 (2.5 FPS)';
       el['metric-energy-saved'].textContent = '98% 省電';
-      el['hud-status-text'].textContent = 'ECO 靜止省電待機 (畫面移動即喚醒)';
+      el['hud-status-text'].textContent = 'ECO 靜止省電待機 (移動即喚醒)';
+    } else if (state.lowBatteryMode) {
+      el['power-mode-dot'].className = 'status-dot eco';
+      el['metric-power-mode'].textContent = '低電量節能 (10 FPS)';
+      el['metric-energy-saved'].textContent = '96% 省電';
+      el['hud-status-text'].textContent = 'ROI 64×64 節能視覺追蹤中';
     } else {
       el['power-mode-dot'].className = 'status-dot';
-      el['metric-power-mode'].textContent = '高速辨識 (20 FPS)';
-      el['metric-energy-saved'].textContent = '94% 省電';
-      el['hud-status-text'].textContent = 'ROI 64×64 視覺追蹤中';
+      el['metric-power-mode'].textContent = '高速辨識 (18 FPS)';
+      el['metric-energy-saved'].textContent = '95% 省電';
+      el['hud-status-text'].textContent = 'ROI 64×64 零配置視覺追蹤中';
     }
   }
-
-  function runRecognitionTick() {
-    if (document.hidden) {
-      scanTimerId = setTimeout(runRecognitionTick, 600);
+  function scheduleRecognition(forceImmediate = false) {
+    if (forceImmediate) {
+      state.forceNextEval = true;
+      wakeFromEcoSleep();
+      if (!document.hidden) {
+        cancelScheduledRecognition();
+        scanTimerId = setTimeout(runRecognitionTick, 0);
+      }
       return;
     }
-
+    if (!isContinuousSourceActive()) {
+      cancelScheduledRecognition();
+      updatePowerTelemetryUI();
+      return;
+    }
+    if (scanTimerId !== null || videoFrameCallbackId !== null) return;
+    const nextInterval = state.isEcoSleeping ? 400 : (state.lowBatteryMode ? 100 : 55);
+    scanTimerId = setTimeout(() => {
+      scanTimerId = null;
+      const video = el['camera-video'];
+      if (
+        state.sourceMode === 'webcam' &&
+        state.mediaStream &&
+        !state.isEcoSleeping &&
+        video &&
+        video.readyState >= 2 &&
+        typeof video.requestVideoFrameCallback === 'function'
+      ) {
+        videoFrameCallbackId = video.requestVideoFrameCallback(() => {
+          videoFrameCallbackId = null;
+          runRecognitionTick();
+        });
+      } else {
+        runRecognitionTick();
+      }
+    }, nextInterval);
+  }
+  function runRecognitionTick() {
+    scanTimerId = null;
+    videoFrameCallbackId = null;
+    if (document.hidden) {
+      updatePowerTelemetryUI();
+      return;
+    }
+    const continuous = isContinuousSourceActive();
+    if (!state.forceNextEval && !continuous) {
+      updatePowerTelemetryUI();
+      return;
+    }
+    const forceEval = state.forceNextEval;
+    state.forceNextEval = false;
     renderStageCanvasFrame();
-
     const sourceElem = getActiveVideoSourceElement();
     const roiRect = getRoiRect(sourceElem);
-
     const t0 = performance.now();
-    const sig = VisionEngine.captureFrameSignature(sourceElem, roiRect, false);
+    const sig = VisionEngine.captureFrameSignature(sourceElem, roiRect, false, {
+      skipIfStatic: state.ecoGateEnabled && !forceEval && continuous,
+      staticThreshold: 1.5
+    });
     state.lastMotionDelta = sig.motionDelta;
-
-    // If user is on the Register tab with Live Webcam active and hasn't locked a manual photo,
-    // keep the registration preview & descriptors synced with the live camera feed
+    if (sig.isStaticSkip) {
+      const skipMs = +(performance.now() - t0).toFixed(2);
+      state.staticFrameStreak++;
+      if (state.staticFrameStreak >= 8 && !state.isEcoSleeping) {
+        state.isEcoSleeping = true;
+        updatePowerTelemetryUI();
+      }
+      const latStr = `${Math.max(0.03, skipMs).toFixed(2)} ms`;
+      if (el['metric-latency'].textContent !== latStr) {
+        el['metric-latency'].textContent = latStr;
+      }
+      scheduleRecognition(false);
+      return;
+    }
+    if (state.ecoGateEnabled && continuous && sig.motionDelta < 1.8) {
+      state.staticFrameStreak++;
+      if (state.staticFrameStreak >= 10 && !state.isEcoSleeping) {
+        state.isEcoSleeping = true;
+        updatePowerTelemetryUI();
+      }
+    } else {
+      wakeFromEcoSleep();
+      updatePowerTelemetryUI();
+    }
     const activeTag = document.activeElement ? document.activeElement.tagName : '';
     if (
       state.activeTab === 'register' &&
@@ -3151,7 +2426,7 @@ button {
       !['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)
     ) {
       const nowMs = Date.now();
-      if (!state.lastLiveRegPreviewTime || nowMs - state.lastLiveRegPreviewTime > 450) {
+      if (!state.lastLiveRegPreviewTime || nowMs - state.lastLiveRegPreviewTime > 550) {
         state.lastLiveRegPreviewTime = nowMs;
         const regSig = VisionEngine.captureFrameSignature(sourceElem, roiRect, true);
         state.regDescriptors = regSig.augmentedDescriptors || [regSig.descriptor];
@@ -3162,24 +2437,10 @@ button {
         }
       }
     }
-
-    // Check Motion Gate for Energy Saving
-    if (state.ecoGateEnabled && sig.motionDelta < 1.8) {
-      state.staticFrameStreak++;
-      if (state.staticFrameStreak >= 12 && !state.isEcoSleeping) {
-        state.isEcoSleeping = true;
-        updatePowerTelemetryUI();
-      }
-    } else {
-      wakeFromEcoSleep();
-    }
-
     const activeVirtualPresetId =
       state.sourceMode === 'virtual' && VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex]
         ? VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex].presetId
         : null;
-
-    // Match against all registered backend products using 5 multi-scale/shift query descriptors
     const matchRes = VisionEngine.matchProducts(
       sig.descriptor,
       state.products,
@@ -3191,25 +2452,20 @@ button {
       }
     );
     const t1 = performance.now();
-
     state.lastInferenceMs = +(t1 - t0).toFixed(2);
     state.liveDescriptor = sig.descriptor;
     state.currentMatch = matchRes.product;
     state.currentSimilarity = matchRes.similarity;
     state.topCandidates = matchRes.topCandidates;
-
-    // Update Telemetry & HUD
-    el['metric-latency'].textContent = `${Math.max(0.12, state.lastInferenceMs).toFixed(2)} ms`;
-    el['motion-delta-text'].textContent = `幀差 Δ: ${sig.motionDelta.toFixed(1)}`;
-    drawFingerprintWaveform(
-      sig.descriptor,
-      matchRes.bestCandidate && matchRes.bestCandidate.descriptors
-        ? matchRes.bestCandidate.descriptors[0]
-        : null
-    );
+    const latText = `${Math.max(0.08, state.lastInferenceMs).toFixed(2)} ms`;
+    if (el['metric-latency'].textContent !== latText) {
+      el['metric-latency'].textContent = latText;
+    }
+    const refF32List = matchRes.bestCandidate
+      ? VisionEngine.ensureProductCache(matchRes.bestCandidate)
+      : null;
+    drawFingerprintWaveform(sig.descriptor, refF32List && refF32List[0] ? refF32List[0] : null);
     updateRecognitionUI(matchRes);
-
-    // Auto-Add to Shopping Cart if enabled and cooldown passed
     if (
       state.autoAddCart &&
       matchRes.matched &&
@@ -3226,23 +2482,17 @@ button {
         addToCart(matchRes.product.id, 1, true);
       }
     }
-
-    const nextInterval = state.isEcoSleeping ? 400 : 55;
-    scanTimerId = setTimeout(runRecognitionTick, nextInterval);
+    scheduleRecognition(false);
   }
-
   function drawFingerprintWaveform(liveVec, refVec) {
     const canvas = el['fingerprint-canvas'];
-    if (!canvas || !liveVec) return;
+    if (!canvas || !liveVec || canvas.offsetParent === null) return;
     const ctx = canvas.getContext('2d');
     const w = canvas.width;
     const h = canvas.height;
     ctx.clearRect(0, 0, w, h);
-
     const len = liveVec.length;
     const barW = w / len;
-
-    // Draw reference product fingerprint in subtle cyan behind
     if (refVec && refVec.length === len) {
       ctx.fillStyle = 'rgba(56, 189, 248, 0.32)';
       for (let i = 0; i < len; i++) {
@@ -3251,8 +2501,6 @@ button {
         ctx.fillRect(i * barW, h - bh, Math.max(1.5, barW - 0.5), bh);
       }
     }
-
-    // Draw live frame fingerprint in emerald
     ctx.fillStyle = '#10b981';
     for (let i = 0; i < len; i++) {
       const val = Math.min(1, Math.abs(liveVec[i]) * 4.2);
@@ -3260,46 +2508,58 @@ button {
       ctx.fillRect(i * barW, h - bh, Math.max(1, barW - 1), bh);
     }
   }
-
+  const lastUIState = {
+    simPct: '',
+    matched: null,
+    productKey: ''
+  };
+  function invalidateRecognitionUICache() {
+    lastUIState.productKey = '';
+    lastUIState.matched = null;
+  }
   function updateRecognitionUI(matchRes) {
     const simPct = (matchRes.similarity * 100).toFixed(1) + '%';
-    el['hud-confidence-val'].textContent = simPct;
-    el['roi-reticle'].classList.toggle('matched', matchRes.matched);
-    el['hud-match-banner'].classList.toggle('matched-state', matchRes.matched);
-
+    if (lastUIState.simPct !== simPct) {
+      lastUIState.simPct = simPct;
+      el['hud-confidence-val'].textContent = simPct;
+    }
+    if (lastUIState.matched !== matchRes.matched) {
+      lastUIState.matched = matchRes.matched;
+      el['roi-reticle'].classList.toggle('matched', matchRes.matched);
+      el['hud-match-banner'].classList.toggle('matched-state', matchRes.matched);
+    }
     if (matchRes.matched && matchRes.product) {
       const p = matchRes.product;
-      el['hud-match-title'].textContent = p.name;
-      el['hud-match-sub'].textContent = p.spec || '精選商品';
-      el['hud-match-price'].textContent = `NT$ ${p.price.toLocaleString()}`;
-      el['hud-match-stock'].textContent = `${p.stock}`;
-      el['hud-add-cart-btn'].disabled = p.stock <= 0;
-
-      // Update Column 2 Customer Product Card (Strictly Name, Price, Intro, Add to Cart)
-      el['recognized-product-card'].classList.remove('hidden');
-      el['unregistered-prompt-card'].classList.add('hidden');
-
-      if (p.thumbnail && el['rec-img'].getAttribute('src') !== p.thumbnail) {
-        el['rec-img'].src = p.thumbnail;
+      const pKey = `${p.id}|${p.name}|${p.price}|${p.stock}|${p.spec || ''}|${(p.thumbnail || '').length}`;
+      if (lastUIState.productKey !== pKey) {
+        lastUIState.productKey = pKey;
+        el['hud-match-title'].textContent = p.name;
+        el['hud-match-sub'].textContent = p.spec || '精選商品';
+        el['hud-match-price'].textContent = `NT$ ${p.price.toLocaleString()}`;
+        el['hud-match-stock'].textContent = `${p.stock}`;
+        el['hud-add-cart-btn'].disabled = p.stock <= 0;
+        el['recognized-product-card'].classList.remove('hidden');
+        el['unregistered-prompt-card'].classList.add('hidden');
+        if (p.thumbnail && el['rec-img'].getAttribute('src') !== p.thumbnail) {
+          el['rec-img'].src = p.thumbnail;
+        }
+        el['rec-name'].textContent = p.name;
+        el['rec-price'].textContent = `NT$ ${p.price.toLocaleString()}`;
+        el['rec-spec'].textContent = p.spec || '尚無額外產品介紹';
+        el['btn-rec-add-cart'].disabled = p.stock <= 0;
+        el['btn-rec-add-cart'].textContent = p.stock > 0 ? '🛒 加入購物車' : '暫無庫存';
       }
-      el['rec-name'].textContent = p.name;
-      el['rec-price'].textContent = `NT$ ${p.price.toLocaleString()}`;
-      el['rec-spec'].textContent = p.spec || '尚無額外產品介紹';
-      el['btn-rec-add-cart'].disabled = p.stock <= 0;
-      el['btn-rec-add-cart'].textContent = p.stock > 0 ? '🛒 加入購物車' : '暫無庫存';
-    } else {
+    } else if (lastUIState.productKey !== '__UNREG__') {
+      lastUIState.productKey = '__UNREG__';
       el['hud-match-title'].textContent = '⚠️ 未建檔';
       el['hud-match-sub'].textContent = '未掃描到庫存中的商品';
       el['hud-match-price'].textContent = '未建檔';
       el['hud-add-cart-btn'].disabled = true;
-
       el['recognized-product-card'].classList.add('hidden');
       el['unregistered-prompt-card'].classList.remove('hidden');
     }
-
-    // Render Top 3 Visual Similarity Candidates
     const candContainer = el['top-candidates-list'];
-    if (candContainer) {
+    if (candContainer && !candContainer.classList.contains('hidden')) {
       candContainer.innerHTML = matchRes.topCandidates
         .map((c) => {
           const pct = (c.similarity * 100).toFixed(1);
@@ -3319,10 +2579,6 @@ button {
         .join('');
     }
   }
-
-  // ==========================================================================
-  // Camera Photo Registration Workflow (手機相機拍照建檔)
-  // ==========================================================================
   function captureForRegistration(appendAngle = false, isManual = false) {
     renderStageCanvasFrame();
     const sourceElem = getActiveVideoSourceElement();
@@ -3331,7 +2587,6 @@ button {
     if (isManual) {
       state.regManualCaptured = true;
     }
-
     if (appendAngle && state.regDescriptors.length > 0) {
       const extra = sig.augmentedDescriptors || [sig.descriptor];
       state.regDescriptors.push(...extra);
@@ -3344,7 +2599,6 @@ button {
       state.regDescriptors = sig.augmentedDescriptors || [sig.descriptor];
       state.regThumbnail = sig.thumbnail;
     }
-
     el['reg-preview-img'].src = state.regThumbnail;
     el['reg-sample-count'].textContent = `樣本數: ${state.regDescriptors.length} 組`;
     el['reg-descriptor-status'].textContent =
@@ -3352,22 +2606,18 @@ button {
         ? '已擷取手機實拍 144 維特徵'
         : '已擷取 144 維視覺特徵';
     playTone(1040, 45, 'triangle');
-
-    // Auto-fill form appropriately so the user never hits empty-field validation blocks
     if (!el['reg-id'].value && !appendAngle) {
       const currentName = el['reg-name'].value.trim();
       const isVirtualPresetName = VisionEngine.VIRTUAL_STAGE_ITEMS.some(
         (it) => it.name === currentName
       );
       const isAutoDefaultName = /^實拍新商品 #\d+$/.test(currentName);
-
       if (state.sourceMode === 'virtual') {
         const stageItem = VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex];
         if (stageItem && (!currentName || isVirtualPresetName || isAutoDefaultName)) {
           fillRegistrationFormFromPreset(stageItem);
         }
       } else {
-        // Real camera photo or live webcam mode: never leave a virtual stage preset SKU/Name
         if (!currentName || isVirtualPresetName) {
           el['reg-name'].value = `實拍新商品 #${state.products.length + 1}`;
           el['reg-price'].value = '199';
@@ -3382,7 +2632,6 @@ button {
       }
     }
   }
-
   function fillRegistrationFormFromPreset(stageItem) {
     el['reg-name'].value = stageItem.name;
     el['reg-price'].value = stageItem.price;
@@ -3394,8 +2643,6 @@ button {
     el['reg-location'].value = stageItem.location || 'B-04';
     el['reg-spec'].value = stageItem.spec || '';
   }
-
-  // Build product payload from current registration form & captured descriptors
   function buildRegistrationPayload(refreshLiveFrame = false) {
     if (state.regDescriptors.length === 0 || refreshLiveFrame) {
       renderStageCanvasFrame();
@@ -3406,16 +2653,13 @@ button {
         state.regDescriptors = freshList;
         state.regThumbnail = freshSig.thumbnail;
       } else {
-        // Merge fresh frame descriptors with manually captured descriptors (up to 22 samples)
         state.regDescriptors = [...freshList, ...state.regDescriptors].slice(0, 22);
       }
     }
-
     const editingId = (el['reg-id'].value || '').trim();
     const stageItem = state.sourceMode === 'virtual'
       ? VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex]
       : null;
-
     const fallbackName = stageItem
       ? stageItem.name
       : `實拍新商品 #${state.products.length + 1}`;
@@ -3425,12 +2669,10 @@ button {
     const rawStock = el['reg-stock'].value.trim();
     const prodStock = rawStock !== '' ? Math.max(0, Number(rawStock) || 0) : (stageItem ? stageItem.stock : 20);
     const prodSpec = el['reg-spec'].value.trim() || (stageItem ? stageItem.spec : '透過手機相機實拍建檔之庫存商品');
-
     const now = Date.now();
     const uniqueSku = editingId
       ? (el['reg-sku'].value.trim() || ('SKU-' + now.toString().slice(-5)))
       : (stageItem ? stageItem.sku : (el['reg-sku'].value.trim() || ('SKU-' + now.toString().slice(-5))));
-
     const payload = {
       name: prodName,
       price: prodPrice,
@@ -3452,13 +2694,9 @@ button {
     }
     return { payload, editingId, stageItem, now };
   }
-
-  // Upsert product immediately into memory, localStorage, and Backend API
   async function upsertRegistrationProduct(refreshLiveFrame = false) {
     const { payload, editingId, stageItem, now } = buildRegistrationPayload(refreshLiveFrame);
-
     let savedProduct = null;
-    // Perform immediate synchronous local upsert first so scanning never misses even 1ms later
     const existingIdx = state.products.findIndex(
       (p) =>
         (editingId && p.id === editingId) ||
@@ -3482,13 +2720,12 @@ button {
       };
       state.products.unshift(savedProduct);
     }
-
+    VisionEngine.ensureProductCache(savedProduct);
+    invalidateRecognitionUICache();
     el['reg-id'].value = savedProduct.id;
     el['reg-sku'].value = savedProduct.sku;
     notifyPeers();
     renderAll();
-
-    // Sync to backend API asynchronously
     try {
       const res = await fetch('/api/products', {
         method: 'POST',
@@ -3498,6 +2735,7 @@ button {
       if (res.ok) {
         const data = await res.json();
         if (data && data.product) {
+          VisionEngine.ensureProductCache(data.product);
           const idx = state.products.findIndex((p) => p.id === savedProduct.id || p.id === data.product.id);
           if (idx >= 0) state.products[idx] = data.product;
           savedProduct = data.product;
@@ -3505,23 +2743,19 @@ button {
         }
       }
     } catch (_) {}
-
     return savedProduct;
   }
-
   async function handleRegistrationSubmit(e) {
     if (e && typeof e.preventDefault === 'function') {
       e.preventDefault();
     }
     const savedProduct = await upsertRegistrationProduct(true);
-
     resetRegistrationForm();
     switchTab('scan');
-
-    // Immediately lock onto the newly registered product in the Scan View
     state.currentMatch = savedProduct;
     state.currentSimilarity = 0.996;
     state.topCandidates = [{ product: savedProduct, similarity: 0.996 }];
+    invalidateRecognitionUICache();
     updateRecognitionUI({
       matched: true,
       product: savedProduct,
@@ -3530,15 +2764,13 @@ button {
       margin: 0.25,
       topCandidates: state.topCandidates
     });
-
-    wakeFromEcoSleep();
+    scheduleRecognition(false);
     playTone(1320, 80, 'sine');
     showToast(`✅ 建檔成功！「${savedProduct.name}」(NT$ ${savedProduct.price.toLocaleString()}) 已加入庫存並立即啟用掃描辨識！`);
     if (el['recognized-product-card']) {
       el['recognized-product-card'].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }
-
   function resetRegistrationForm() {
     el['register-product-form'].reset();
     el['reg-id'].value = '';
@@ -3551,16 +2783,12 @@ button {
     state.regDescriptors = [];
     state.regManualCaptured = false;
   }
-
-  // ==========================================================================
-  // Inventory Management Actions
-  // ==========================================================================
   async function adjustProductStock(productId, delta) {
     const product = state.products.find((p) => p.id === productId);
     if (!product) return;
     product.stock = Math.max(0, product.stock + delta);
     product.updatedAt = Date.now();
-
+    invalidateRecognitionUICache();
     try {
       await fetch(`/api/products/${encodeURIComponent(productId)}`, {
         method: 'PATCH',
@@ -3568,33 +2796,29 @@ button {
         body: JSON.stringify({ stock: product.stock })
       });
     } catch (_) {}
-
     notifyPeers();
     renderAll();
+    scheduleRecognition(true);
   }
-
   async function deleteProduct(productId) {
     const product = state.products.find((p) => p.id === productId);
     if (!product) return;
     state.products = state.products.filter((p) => p.id !== productId);
     state.cart = state.cart.filter((c) => c.productId !== productId);
-
+    invalidateRecognitionUICache();
     try {
       await fetch(`/api/products/${encodeURIComponent(productId)}`, { method: 'DELETE' });
     } catch (_) {}
-
     notifyPeers();
     renderAll();
+    scheduleRecognition(true);
     showToast(`已刪除商品「${product.name}」`, 'warn');
   }
-
   function renderInventoryList() {
     const container = el['inventory-list-container'];
     if (!container) return;
-
     const query = (el['inv-search-input'].value || '').trim().toLowerCase();
     const filter = el['inv-filter-select'].value;
-
     const filtered = state.products.filter((p) => {
       if (filter === 'low' && p.stock > (p.minStock || 5)) return false;
       if (!query) return true;
@@ -3605,15 +2829,12 @@ button {
         (p.barcode && p.barcode.toLowerCase().includes(query))
       );
     });
-
     el['metric-product-count'].textContent = `${state.products.length} 筆`;
     el['nav-inv-count'].textContent = String(state.products.length);
-
     if (filtered.length === 0) {
       container.innerHTML = `<div style="padding:24px; text-align:center; color:var(--text-muted);">沒有符合條件的產品</div>`;
       return;
     }
-
     container.innerHTML = filtered
       .map((p) => {
         const isLow = p.stock <= (p.minStock || 5);
@@ -3643,10 +2864,6 @@ button {
       })
       .join('');
   }
-
-  // ==========================================================================
-  // Real-Time Shopping Cart & POS Checkout
-  // ==========================================================================
   function addToCart(productId, qty = 1, isAuto = false) {
     const product = state.products.find((p) => p.id === productId);
     if (!product) return;
@@ -3654,7 +2871,6 @@ button {
       showToast(`「${product.name}」庫存已售罄！`, 'danger');
       return;
     }
-
     const existing = state.cart.find((c) => c.productId === productId);
     if (existing) {
       if (existing.quantity + qty > product.stock) {
@@ -3665,7 +2881,6 @@ button {
     } else {
       state.cart.push({ productId, quantity: Math.min(qty, product.stock) });
     }
-
     playTone(960, 45, 'sine');
     if (isAuto) {
       showToast(`⚡ 自動掃描入車：${product.name} ×1`);
@@ -3674,7 +2889,6 @@ button {
     }
     renderCart();
   }
-
   function updateCartQty(productId, newQty) {
     const product = state.products.find((p) => p.id === productId);
     if (!product) return;
@@ -3688,17 +2902,12 @@ button {
     }
     renderCart();
   }
-
   function renderCart() {
     const container = el['cart-items-container'];
     if (!container) return;
-
     let totalQty = 0;
     let subtotal = 0;
-
-    // Clean out deleted products
     state.cart = state.cart.filter((c) => state.products.some((p) => p.id === c.productId));
-
     if (state.cart.length === 0) {
       container.innerHTML = `
         <div style="padding:22px 12px; text-align:center; color:var(--text-muted); border:1px dashed var(--border-subtle); border-radius:var(--radius-sm);">
@@ -3734,27 +2943,22 @@ button {
         })
         .join('');
     }
-
     const discount = Math.max(0, Number(el['cart-discount-input'].value) || 0);
     const total = Math.max(0, subtotal - discount);
-
     el['cart-count-badge'].textContent = `${totalQty} 件`;
     el['summary-qty'].textContent = String(totalQty);
     el['summary-subtotal'].textContent = `NT$ ${subtotal.toLocaleString()}`;
     el['summary-total'].textContent = `NT$ ${total.toLocaleString()}`;
     el['btn-checkout-submit'].disabled = state.cart.length === 0;
   }
-
   async function submitCheckout() {
     if (state.cart.length === 0) return;
-
     const discount = Math.max(0, Number(el['cart-discount-input'].value) || 0);
     const payload = {
       items: state.cart,
       discount,
       paymentMethod: state.paymentMethod
     };
-
     let completedOrder = null;
     try {
       const res = await fetch('/api/checkout', {
@@ -3773,9 +2977,7 @@ button {
         }
       }
     } catch (_) {}
-
     if (!completedOrder) {
-      // Local atomic checkout fallback
       let subtotal = 0;
       const orderItems = [];
       for (const c of state.cart) {
@@ -3808,32 +3010,28 @@ button {
         total: Math.max(0, subtotal - discount)
       };
     }
-
     if (!state.orders.some((o) => o.id === completedOrder.id)) {
       state.orders.unshift(completedOrder);
     }
     state.cart = [];
     el['cart-discount-input'].value = '0';
-
+    invalidateRecognitionUICache();
     notifyPeers();
     renderAll();
+    scheduleRecognition(true);
     playTone(1180, 90, 'sine');
     setTimeout(() => playTone(1560, 120, 'sine'), 85);
     showToast(`🎉 結帳成功！單號 ${completedOrder.id}，實收 NT$ ${completedOrder.total.toLocaleString()}，已即時扣減庫存`);
   }
-
   function renderOrdersHistory() {
     const container = el['orders-history-list'];
     if (!container) return;
-
     const todayRevenue = state.orders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
     el['today-revenue-text'].textContent = `累計營收: NT$ ${todayRevenue.toLocaleString()}`;
-
     if (state.orders.length === 0) {
       container.innerHTML = `<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:10px;">尚無結帳紀錄</div>`;
       return;
     }
-
     const payNames = { cash: '現金', card: '刷卡', mobile: '行動支付' };
     container.innerHTML = state.orders
       .slice(0, 15)
@@ -3857,10 +3055,6 @@ button {
       })
       .join('');
   }
-
-  // ==========================================================================
-  // Navigation & Event Listeners
-  // ==========================================================================
   function switchTab(tabName, skipAutoCapture = false) {
     state.activeTab = tabName;
     ['scan', 'register', 'inventory', 'devices'].forEach((t) => {
@@ -3870,15 +3064,18 @@ button {
     if (tabName === 'register' && !skipAutoCapture) {
       captureForRegistration(false);
     }
+    if (tabName === 'scan' || tabName === 'register') {
+      scheduleRecognition(true);
+    } else {
+      scheduleRecognition(false);
+    }
   }
-
   function renderAll() {
     renderStageTray();
     renderInventoryList();
     renderCart();
     renderOrdersHistory();
   }
-
   function escapeHtml(str) {
     return String(str || '')
       .replace(/&/g, '&amp;')
@@ -3886,26 +3083,44 @@ button {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
   }
-
-  // Downscale any 12MP/50MP mobile photo ONCE onto the 640x480 photoBufferCanvas using center-cover scaling
-  function loadMobilePhotoToBuffer(file, onComplete) {
+  function drawSourceOntoPhotoBuffer(imgOrBitmap) {
+    const srcW = imgOrBitmap.width || 640;
+    const srcH = imgOrBitmap.height || 480;
+    const w = photoBufferCanvas.width;
+    const h = photoBufferCanvas.height;
+    photoBufferCtx.fillStyle = '#090d14';
+    photoBufferCtx.fillRect(0, 0, w, h);
+    const scale = Math.max(w / srcW, h / srcH);
+    const dw = srcW * scale;
+    const dh = srcH * scale;
+    photoBufferCtx.drawImage(imgOrBitmap, (w - dw) * 0.5, (h - dh) * 0.5, dw, dh);
+  }
+  async function loadMobilePhotoToBuffer(file, onComplete) {
     if (!file) return;
+    if (typeof createImageBitmap === 'function') {
+      try {
+        const bitmap = await createImageBitmap(file, {
+          resizeWidth: 720,
+          resizeQuality: 'low'
+        });
+        drawSourceOntoPhotoBuffer(bitmap);
+        if (typeof bitmap.close === 'function') bitmap.close();
+        state.hasLoadedPhoto = true;
+        await switchVideoSource('photo');
+        renderStageCanvasFrame();
+        if (typeof onComplete === 'function') onComplete();
+        return;
+      } catch (_) {
+      }
+    }
     const objUrl = URL.createObjectURL(file);
     const img = new Image();
-    img.onload = () => {
-      const w = photoBufferCanvas.width;
-      const h = photoBufferCanvas.height;
-      photoBufferCtx.fillStyle = '#090d14';
-      photoBufferCtx.fillRect(0, 0, w, h);
-      const scale = Math.max(w / img.width, h / img.height);
-      const dw = img.width * scale;
-      const dh = img.height * scale;
-      photoBufferCtx.drawImage(img, (w - dw) * 0.5, (h - dh) * 0.5, dw, dh);
+    img.onload = async () => {
+      drawSourceOntoPhotoBuffer(img);
       URL.revokeObjectURL(objUrl);
       state.hasLoadedPhoto = true;
-      switchVideoSource('photo');
+      await switchVideoSource('photo');
       renderStageCanvasFrame();
-      wakeFromEcoSleep();
       if (typeof onComplete === 'function') onComplete();
     };
     img.onerror = () => {
@@ -3914,9 +3129,8 @@ button {
     };
     img.src = objUrl;
   }
-
+  let regInputDebounceTimer = null;
   function setupEvents() {
-    // Mode Navigation Tabs
     ['scan', 'register', 'inventory', 'devices'].forEach((t) => {
       el[`tab-btn-${t}`].addEventListener('click', () => {
         switchTab(t);
@@ -3925,15 +3139,11 @@ button {
         }
       });
     });
-
-    // Source Mode Switcher
     ['virtual', 'webcam', 'ipcam'].forEach((s) => {
       if (el[`src-btn-${s}`]) {
         el[`src-btn-${s}`].addEventListener('click', () => switchVideoSource(s));
       }
     });
-
-    // One-tap Instant Registration from Unregistered Prompt Card
     if (el['btn-instant-register']) {
       el['btn-instant-register'].addEventListener('click', () => {
         el['reg-id'].value = '';
@@ -3942,8 +3152,6 @@ button {
         handleRegistrationSubmit(null);
       });
     }
-
-    // Jump to register form from Unregistered Prompt Card (auto-creates draft in inventory immediately)
     el['btn-jump-register'].addEventListener('click', async () => {
       el['reg-id'].value = '';
       el['reg-name'].value = '';
@@ -3957,8 +3165,6 @@ button {
         setTimeout(() => el['reg-name'].select(), 150);
       }
     });
-
-    // 1. Mobile Native Camera SCAN Input (Customer Photo Scan -> Immediate Multi-Crop Recognition)
     if (el['native-scan-input']) {
       el['native-scan-input'].addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
@@ -3978,6 +3184,7 @@ button {
           state.currentMatch = matchRes.product;
           state.currentSimilarity = matchRes.similarity;
           state.topCandidates = matchRes.topCandidates;
+          invalidateRecognitionUICache();
           updateRecognitionUI(matchRes);
           if (matchRes.matched && matchRes.product) {
             playTone(1080, 60, 'sine');
@@ -3996,8 +3203,6 @@ button {
         e.target.value = '';
       });
     }
-
-    // 2. Mobile Native Camera REGISTER Input (Backend Photo Registration -> 11-Crop Descriptor + Immediate Auto-Save)
     if (el['native-camera-input']) {
       el['native-camera-input'].addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
@@ -4025,8 +3230,6 @@ button {
         e.target.value = '';
       });
     }
-
-    // Live-sync registration form edits when an auto-saved or edited product ID is active
     ['reg-name', 'reg-price', 'reg-stock', 'reg-spec', 'reg-category', 'reg-unit', 'reg-location'].forEach((fieldId) => {
       if (el[fieldId]) {
         el[fieldId].addEventListener('input', () => {
@@ -4041,13 +3244,15 @@ button {
           if (el['reg-category'].value.trim()) prod.category = el['reg-category'].value.trim();
           if (el['reg-unit'].value.trim()) prod.unit = el['reg-unit'].value.trim();
           if (el['reg-location'].value.trim()) prod.location = el['reg-location'].value.trim();
-          saveToLocalStorage();
-          renderInventoryList();
+          invalidateRecognitionUICache();
+          if (regInputDebounceTimer) clearTimeout(regInputDebounceTimer);
+          regInputDebounceTimer = setTimeout(() => {
+            saveToLocalStorage();
+            renderInventoryList();
+          }, 180);
         });
       }
     });
-
-    // Webcam Controls
     el['camera-device-select'].addEventListener('change', (e) => {
       state.selectedDeviceId = e.target.value;
       startWebcamStream();
@@ -4059,40 +3264,34 @@ button {
     });
     el['camera-res-select'].addEventListener('change', () => startWebcamStream());
     el['btn-toggle-torch'].addEventListener('click', () => toggleTorch());
-
-    // CCTV Controls
     el['cctv-channel-select'].addEventListener('change', (e) => {
       state.cctvChannel = e.target.value;
       const isCustom = state.cctvChannel === 'custom';
       el['ipcam-url-input'].classList.toggle('hidden', !isCustom);
       el['btn-connect-ipcam'].classList.toggle('hidden', !isCustom);
+      scheduleRecognition(true);
     });
-
-    // Virtual Stage Controls
     el['chk-stage-motion'].addEventListener('change', (e) => {
       state.stageHandMotion = e.target.checked;
-      wakeFromEcoSleep();
+      scheduleRecognition(true);
     });
     el['btn-stage-rotate'].addEventListener('click', () => {
       state.stageAngle = (state.stageAngle + 0.14) % (Math.PI * 2);
-      wakeFromEcoSleep();
+      scheduleRecognition(true);
     });
-
-    // Threshold, Auto-Cart & Eco Gate
     el['threshold-slider'].addEventListener('input', (e) => {
       const val = Number(e.target.value);
       state.threshold = val / 100;
       el['threshold-label'].textContent = `${val}%`;
+      scheduleRecognition(true);
     });
     el['chk-auto-cart'].addEventListener('change', (e) => {
       state.autoAddCart = e.target.checked;
     });
     el['chk-eco-sleep'].addEventListener('change', (e) => {
       state.ecoGateEnabled = e.target.checked;
-      if (!state.ecoGateEnabled) wakeFromEcoSleep();
+      scheduleRecognition(true);
     });
-
-    // HUD & Recognized Product Card Actions
     el['hud-add-cart-btn'].addEventListener('click', () => {
       if (state.currentMatch) addToCart(state.currentMatch.id, 1);
     });
@@ -4125,15 +3324,14 @@ button {
       el['reg-preview-img'].src = state.regThumbnail;
       el['reg-sample-count'].textContent = `樣本數: ${state.regDescriptors.length} 組`;
     });
-
     el['btn-train-extra-angle'].addEventListener('click', async () => {
       if (!state.currentMatch) return;
       const sourceElem = getActiveVideoSourceElement();
       const sig = VisionEngine.captureFrameSignature(sourceElem, getRoiRect(sourceElem), true);
       const p = state.currentMatch;
-      p.descriptors = p.descriptors || [];
-      p.descriptors.push(...(sig.augmentedDescriptors || [sig.descriptor]));
-      if (p.descriptors.length > 33) p.descriptors = p.descriptors.slice(-33);
+      const combined = [...(p.descriptors || []), ...(sig.augmentedDescriptors || [sig.descriptor])];
+      p.descriptors = VisionEngine.deduplicateDescriptors(combined, 24);
+      VisionEngine.ensureProductCache(p);
       try {
         await fetch(`/api/products/${encodeURIComponent(p.id)}`, {
           method: 'PATCH',
@@ -4144,8 +3342,6 @@ button {
       notifyPeers();
       showToast(`📸 已為「${p.name}」新增多尺度角度樣本（目前共 ${p.descriptors.length} 組）`);
     });
-
-    // Registration Form Buttons
     el['btn-capture-frame'].addEventListener('click', async () => {
       captureForRegistration(false, true);
       await upsertRegistrationProduct(false);
@@ -4161,7 +3357,6 @@ button {
       }
     });
     el['btn-fill-demo-new'].addEventListener('click', () => {
-      // Switch virtual stage to an unregistered item if not already on one
       const unregIdx = VisionEngine.VIRTUAL_STAGE_ITEMS.findIndex(
         (item) => !state.products.some((p) => p.sku === item.sku)
       );
@@ -4176,8 +3371,6 @@ button {
     });
     el['btn-reset-reg-form'].addEventListener('click', () => resetRegistrationForm());
     el['register-product-form'].addEventListener('submit', handleRegistrationSubmit);
-
-    // Inventory Search, Filter & Delegated Actions
     el['inv-search-input'].addEventListener('input', () => renderInventoryList());
     el['inv-filter-select'].addEventListener('change', () => renderInventoryList());
     el['inventory-list-container'].addEventListener('click', (e) => {
@@ -4190,7 +3383,6 @@ button {
       else if (action === 'inv-cart') addToCart(id, 1);
       else if (action === 'inv-del') deleteProduct(id);
     });
-
     el['btn-export-inventory'].addEventListener('click', () => {
       const blob = new Blob([JSON.stringify({ products: state.products, orders: state.orders }, null, 2)], {
         type: 'application/json'
@@ -4202,12 +3394,13 @@ button {
       a.click();
       URL.revokeObjectURL(url);
     });
-
     el['btn-reset-demo'].addEventListener('click', async () => {
       const defaultCatalog = VisionEngine.buildDefaultCatalog();
+      defaultCatalog.forEach((p) => VisionEngine.ensureProductCache(p));
       state.products = defaultCatalog;
       state.orders = [];
       state.cart = [];
+      invalidateRecognitionUICache();
       try {
         await fetch('/api/reset', {
           method: 'POST',
@@ -4217,10 +3410,9 @@ button {
       } catch (_) {}
       notifyPeers();
       renderAll();
+      scheduleRecognition(true);
       showToast('已重置回預設 5 款建檔商品與 2 款待建檔測試商品');
     });
-
-    // Cart & Checkout Actions
     el['cart-items-container'].addEventListener('click', (e) => {
       const minusBtn = e.target.closest('button[data-cart-minus]');
       const plusBtn = e.target.closest('button[data-cart-plus]');
@@ -4234,13 +3426,11 @@ button {
         if (item) updateCartQty(id, item.quantity + 1);
       }
     });
-
     el['btn-clear-cart'].addEventListener('click', () => {
       state.cart = [];
       renderCart();
     });
     el['cart-discount-input'].addEventListener('input', () => renderCart());
-
     document.querySelectorAll('.pay-method-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         state.paymentMethod = btn.getAttribute('data-pay');
@@ -4248,10 +3438,7 @@ button {
         btn.classList.add('active');
       });
     });
-
     el['btn-checkout-submit'].addEventListener('click', () => submitCheckout());
-
-    // Keyboard shortcut: Enter adds current recognized product to cart when not typing in an input
     window.addEventListener('keydown', (e) => {
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
       if (e.key === 'Enter' && state.activeTab === 'scan' && state.currentMatch) {
@@ -4259,21 +3446,56 @@ button {
         addToCart(state.currentMatch.id, 1);
       }
     });
-
-    // Hardware BarcodeDetector status check
+    document.addEventListener('visibilitychange', async () => {
+      if (document.hidden) {
+        cancelScheduledRecognition();
+        clearBgCameraReleaseTimer();
+        updatePowerTelemetryUI();
+        if (state.sourceMode === 'webcam' && state.mediaStream) {
+          bgCameraReleaseTimer = setTimeout(() => {
+            bgCameraReleaseTimer = null;
+            if (document.hidden && state.sourceMode === 'webcam' && state.mediaStream) {
+              stopWebcamStream();
+              state.autoPausedWebcamInBg = true;
+              state.torchOn = false;
+              if (el['active-source-badge']) {
+                el['active-source-badge'].textContent = '省電待機：已釋放鏡頭';
+              }
+              updatePowerTelemetryUI();
+            }
+          }, BG_CAMERA_RELEASE_MS);
+        }
+      } else {
+        clearBgCameraReleaseTimer();
+        if (state.autoPausedWebcamInBg && state.sourceMode === 'webcam') {
+          state.autoPausedWebcamInBg = false;
+          await startWebcamStream(true);
+        }
+        VisionEngine.resetMotionGate();
+        scheduleRecognition(true);
+      }
+    });
+    if (navigator && typeof navigator.getBattery === 'function') {
+      navigator.getBattery().then((battery) => {
+        const syncBatteryState = () => {
+          state.lowBatteryMode = !battery.charging && battery.level <= 0.20;
+          updatePowerTelemetryUI();
+        };
+        syncBatteryState();
+        battery.addEventListener('levelchange', syncBatteryState);
+        battery.addEventListener('chargingchange', syncBatteryState);
+      }).catch(() => {});
+    }
     if ('BarcodeDetector' in window) {
       el['barcode-hw-status'].textContent = '✅ 已啟用原生硬體 BarcodeDetector 雙引擎加速';
     } else {
-      el['barcode-hw-status'].textContent = '✅ 使用 CCVD-144 純視覺極速指紋引擎 (< 0.4ms)';
+      el['barcode-hw-status'].textContent = '✅ 使用 CCVD-144 零配置視覺指紋引擎 (< 0.15ms)';
     }
   }
-
-  // Boot Application + Customer Native Camera Deep-Link Handler (?sku=...)
   window.addEventListener('DOMContentLoaded', async () => {
     bindElements();
     setupEvents();
     await initDataStore();
-
     try {
       const params = new URLSearchParams(window.location.search);
       const targetSku = params.get('sku');
@@ -4295,11 +3517,9 @@ button {
         }
       }
     } catch (_) {}
-
-    runRecognitionTick();
+    scheduleRecognition(true);
   });
 })();
-
 </script>
 </body>
 </html>
