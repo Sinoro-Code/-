@@ -357,8 +357,8 @@ const server = http.createServer(async (req, res) => {
           category: product.category || '一般商品',
           price: Number(product.price) || 0,
           cost: Number(product.cost) || 0,
-          stock: Number(product.stock) ?? 10,
-          minStock: Number(product.minStock) ?? 5,
+          stock: Number.isFinite(Number(product.stock)) ? Number(product.stock) : 10,
+          minStock: Number.isFinite(Number(product.minStock)) ? Number(product.minStock) : 5,
           unit: product.unit || '件',
           location: product.location || 'A-01',
           spec: product.spec || '',
@@ -400,7 +400,9 @@ const server = http.createServer(async (req, res) => {
       if (typeof body.name === 'string' && body.name.trim()) product.name = body.name.trim();
       if (typeof body.location === 'string') product.location = body.location;
       if (typeof body.spec === 'string') product.spec = body.spec;
-      if (
+      if (Array.isArray(body.descriptors) && body.descriptors.length > 0) {
+        product.descriptors = body.descriptors.slice(-24);
+      } else if (
         Array.isArray(body.newDescriptor) ||
         (typeof body.newDescriptor === 'string' && body.newDescriptor.startsWith('q1:'))
       ) {

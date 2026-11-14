@@ -1,34 +1,38 @@
 /**
- * VisionPOS Edge — Main Application Controller
- * Connects Multi-Source Camera Pipeline, CCVD-144 Visual Recognition Engine,
- * Real-Time Inventory Management, Camera Photo Registration, and POS Checkout.
+ * VisionPOS Edge — Merchant Product Scan & Registration Controller
+ * Streamlined Store-Facing Edition:
+ * 1. Direct Top Optical Viewport (Zero blocks above viewfinder)
+ * 2. Two Core Merchant Functions ONLY:
+ *    - 掃描商品 (Scan Product): Lists full product info if registered; displays "未建檔" if unregistered
+ *    - 商品建檔 (Register Product): 128x128 WebP thumbnail + CCVD-144 v3 descriptors + Barcode/QR
+ * 3. Universal Android 5.0 (API 21) – Android 15/16+ WebView & Browser Compatibility (ES6-safe)
+ * 4. 10-Second Background Camera Sensor Auto-Release & 16x16 Motion-Gated Eco Power Saving
  */
 
 (function () {
   'use strict';
 
-  const STORAGE_KEY = 'vision_pos_edge_store_v1';
-  const CART_STORAGE_KEY = 'vision_pos_cart_v1';
-  const OUTBOX_STORAGE_KEY = 'vision_pos_outbox_v1';
-  const ROLE_STORAGE_KEY = 'vision_pos_role_v1';
-  const ADMIN_PIN_KEY = 'vision_pos_admin_pin_v1';
-  const BG_CAMERA_RELEASE_MS = 10000; // 10 seconds background auto-release for camera sensor power saving
+  var STORAGE_KEY = 'vision_pos_edge_store_v1';
+  var OUTBOX_STORAGE_KEY = 'vision_pos_outbox_v1';
+  var BG_CAMERA_RELEASE_MS = 10000; // 10 seconds background auto-release for camera sensor power saving
 
-  const state = {
-    activeTab: 'scan',
-    sourceMode: 'virtual', // 'virtual' | 'webcam' | 'ipcam' | 'photo'
-    customerKioskMode: false,
-    adminPin: '1234',
+  // Clean dark SVG placeholder so broken image icons never render before first capture
+  var EMPTY_THUMB_DATA_URI =
+    'data:image/svg+xml;utf8,' +
+    encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">' +
+        '<rect width="128" height="128" rx="14" fill="#111827"/>' +
+        '<rect x="28" y="34" width="72" height="60" rx="10" fill="none" stroke="#334155" stroke-width="4"/>' +
+        '<circle cx="64" cy="64" r="15" fill="none" stroke="#10b981" stroke-width="4"/>' +
+      '</svg>'
+    );
+
+  var state = {
+    activeTab: 'scan', // 'scan' | 'register'
+    sourceMode: 'webcam', // 'webcam' | 'photo' | 'standby'
     products: [],
-    orders: [],
-    cart: [], // { productId, quantity }
-    paymentMethod: 'cash',
-    discount: 0,
     threshold: 0.80,
-    autoAddCart: false,
     ecoGateEnabled: true,
-    lastAutoCartTime: 0,
-    lastAutoCartProductId: null,
 
     // Current Recognition Result & 3-Frame Temporal Hysteresis + Barcode
     currentMatch: null,
@@ -39,36 +43,26 @@
     lastDetectedBarcode: '',
     lastBarcodeTime: 0,
     barcodeTickCounter: 0,
+    lastVibratedProductId: null,
 
     // Registration Draft
     regDescriptors: [],
     regThumbnail: '',
-    regEditingId: '',
     regManualCaptured: false,
+    lastLiveRegPreviewTime: 0,
+    pendingAngleAppend: false,
+    pendingAngleProductId: '',
 
-    // Virtual Stage State
-    stageItemIndex: 0,
-    stageAngle: 0,
-    stageHandMotion: false,
-    stagePhase: 0,
-
-    // Webcam State
+    // Webcam & Native Photo State
     mediaStream: null,
     facingMode: 'environment',
     selectedDeviceId: '',
     resolutionHeight: 480,
     torchOn: false,
     autoPausedWebcamInBg: false,
-
-    // CCTV / Custom IP Cam / Photo State
-    cctvChannel: 'ch1',
-    cctvTimer: 0,
-    customIpcamUrl: '',
-    customIpcamImg: null,
-    customIpcamActive: false,
-    loadedPhotoImage: null,
     hasLoadedPhoto: false,
-    pendingAngleAppend: false,
+
+    // 2-Tap Armed Confirmation State
     armedConfirmMap: {},
 
     // Eco & Telemetry State
@@ -76,142 +70,137 @@
     isEcoSleeping: false,
     lowBatteryMode: false,
     forceNextEval: true,
-    lastInferenceMs: 0.16,
+    lastInferenceMs: 0.12,
     lastMotionDelta: 0,
     connectedNodes: 1
   };
 
   // Pre-allocated 640x480 buffer canvas so 12MP/50MP mobile camera photos are downscaled ONCE
-  // instead of inside the 20 FPS recognition loop (prevents mobile UI thread freeze).
-  const photoBufferCanvas = document.createElement('canvas');
+  var photoBufferCanvas = document.createElement('canvas');
   photoBufferCanvas.width = 640;
   photoBufferCanvas.height = 480;
-  const photoBufferCtx = photoBufferCanvas.getContext('2d', {
+  var photoBufferCtx = photoBufferCanvas.getContext('2d', {
     alpha: false,
     desynchronized: true
   });
 
-  // DOM Elements cache
-  const el = {};
+  // Exact DOM Elements cache matching public/index.html
+  var el = {};
   function bindElements() {
-    const ids = [
-      'sync-status-badge', 'metric-latency', 'power-mode-dot', 'metric-power-mode',
-      'metric-energy-saved', 'metric-product-count', 'nav-inv-count', 'btn-role-toggle',
-      'tab-btn-scan', 'tab-btn-register', 'tab-btn-inventory', 'tab-btn-devices',
-      'view-scan', 'view-register', 'view-inventory', 'view-devices',
-      'active-source-badge', 'native-scan-input', 'native-camera-input', 'quick-snap-register-btn',
-      'src-btn-virtual', 'src-btn-webcam', 'src-btn-ipcam', 'src-btn-photo',
-      'webcam-controls-bar', 'camera-device-select', 'btn-flip-camera',
-      'camera-res-select', 'btn-toggle-torch',
-      'ipcam-controls-bar', 'cctv-channel-select', 'ipcam-url-input', 'btn-connect-ipcam',
+    var ids = [
+      'native-scan-input', 'native-camera-input',
       'viewport-container', 'camera-video', 'stage-canvas',
-      'hud-scan-dot', 'hud-status-text', 'hud-confidence-val', 'roi-reticle',
-      'hud-match-banner', 'hud-match-sub', 'hud-match-title', 'hud-match-price',
-      'hud-match-stock', 'hud-add-cart-btn',
-      'virtual-stage-tray', 'stage-objects-list', 'chk-stage-motion', 'btn-stage-rotate',
-      'fingerprint-canvas', 'motion-delta-text', 'threshold-label', 'threshold-slider',
-      'chk-auto-cart', 'chk-eco-sleep',
-      'scan-match-badge', 'btn-train-extra-angle', 'recognized-product-card',
-      'rec-img', 'rec-category', 'rec-sku', 'rec-similarity', 'rec-name', 'rec-spec',
-      'rec-price', 'rec-stock', 'rec-location',
-      'btn-rec-add-cart', 'btn-rec-stock-plus', 'btn-rec-stock-minus', 'btn-rec-edit',
-      'unregistered-prompt-card', 'btn-instant-register', 'btn-jump-register', 'top-candidates-list',
-      'btn-fill-demo-new', 'reg-preview-img', 'reg-descriptor-status', 'reg-sample-count',
-      'btn-capture-frame', 'btn-add-angle-sample', 'register-product-form',
-      'reg-id', 'reg-name', 'reg-price', 'reg-stock', 'reg-sku', 'reg-barcode',
-      'reg-category', 'reg-unit', 'reg-location', 'reg-spec', 'btn-reset-reg-form',
-      'inv-search-input', 'inv-filter-select', 'inventory-list-container',
-      'inv-import-input', 'btn-import-inventory', 'btn-export-csv',
-      'btn-export-inventory', 'btn-reset-demo', 'barcode-hw-status',
-      'cart-count-badge', 'btn-clear-cart', 'cart-items-container',
-      'summary-qty', 'summary-subtotal', 'cart-discount-input', 'summary-total',
-      'btn-checkout-submit', 'today-revenue-text', 'btn-export-orders-csv',
-      'orders-history-list', 'receipt-modal', 'receipt-paper-content',
-      'btn-close-receipt', 'btn-print-receipt', 'toast-stack'
+      'hud-scan-dot', 'hud-status-text',
+      'btn-live-webcam', 'btn-flip-camera', 'btn-toggle-torch',
+      'roi-reticle', 'hud-match-banner', 'hud-match-title', 'hud-match-sub',
+      'hud-confidence-val', 'hud-match-price',
+      'tab-btn-scan', 'tab-btn-register', 'nav-inv-count',
+      'view-scan', 'view-register',
+      'recognized-product-card', 'rec-img', 'rec-match-type', 'rec-category',
+      'rec-similarity', 'rec-name', 'rec-price', 'rec-stock',
+      'btn-rec-stock-minus', 'btn-rec-stock-plus',
+      'rec-location', 'rec-sku', 'rec-barcode', 'rec-spec',
+      'btn-rec-edit', 'btn-train-extra-angle', 'btn-rec-delete',
+      'unregistered-prompt-card', 'unreg-subtext', 'btn-jump-register',
+      'reg-preview-img', 'reg-descriptor-status', 'reg-sample-count',
+      'btn-capture-frame', 'btn-add-angle-sample',
+      'register-product-form', 'reg-id', 'reg-name', 'reg-price', 'reg-stock',
+      'reg-sku', 'reg-barcode', 'reg-category', 'reg-unit', 'reg-location',
+      'reg-spec', 'btn-submit-reg', 'btn-reset-reg-form',
+      'toast-stack'
     ];
-    ids.forEach((id) => {
-      el[id] = document.getElementById(id);
-    });
+    for (var i = 0; i < ids.length; i++) {
+      el[ids[i]] = document.getElementById(ids[i]);
+    }
+    if (el['rec-img']) el['rec-img'].src = EMPTY_THUMB_DATA_URI;
+    if (el['reg-preview-img']) el['reg-preview-img'].src = EMPTY_THUMB_DATA_URI;
   }
 
-  // Subtle WebAudio Feedback (Zero external file overhead)
-  let audioCtx = null;
-  function playTone(freq = 880, durationMs = 55, type = 'sine') {
+  // Subtle WebAudio Feedback + Optional Android Haptic Feedback
+  var audioCtx = null;
+  function playTone(freq, durationMs, type) {
     try {
+      var f = freq || 880;
+      var dur = durationMs || 55;
+      var wave = type || 'sine';
       if (!audioCtx) {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        var AudioContextClass = window.AudioContext || window.webkitAudioContext;
         if (!AudioContextClass) return;
         audioCtx = new AudioContextClass();
       }
       if (audioCtx.state === 'suspended') audioCtx.resume();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + durationMs / 1000);
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = wave;
+      osc.frequency.setValueAtTime(f, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur / 1000);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start();
-      osc.stop(audioCtx.currentTime + durationMs / 1000);
+      osc.stop(audioCtx.currentTime + dur / 1000);
     } catch (_) {}
   }
 
-  function showToast(message, type = 'success') {
-    if (!el['toast-stack']) return;
-    const div = document.createElement('div');
-    div.className = 'toast';
-    if (type === 'warn') div.style.borderLeftColor = 'var(--accent-amber)';
-    if (type === 'danger') div.style.borderLeftColor = 'var(--accent-danger)';
-    div.textContent = message;
-    el['toast-stack'].appendChild(div);
-    setTimeout(() => {
-      div.remove();
-    }, 2800);
-  }
-
-  // Universal file download helper supporting standard Browser + Android APK WebView Bridge
-  function triggerFileDownload(filename, contentStr, mimeType = 'application/octet-stream') {
+  function triggerHaptic(ms) {
     try {
-      if (
-        window.VisionPOSAndroid &&
-        typeof window.VisionPOSAndroid.saveTextFile === 'function'
-      ) {
-        window.VisionPOSAndroid.saveTextFile(filename, String(contentStr), mimeType);
-        showToast(`📥 已匯出並儲存檔案：${filename}`);
-        return;
+      if (window.VisionPOSAndroid && typeof window.VisionPOSAndroid.vibrate === 'function') {
+        window.VisionPOSAndroid.vibrate(ms || 25);
+      } else if (navigator && typeof navigator.vibrate === 'function') {
+        navigator.vibrate(ms || 25);
       }
     } catch (_) {}
-    const blob = new Blob([contentStr], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+
+  function showToast(message, type) {
+    if (!el['toast-stack']) return;
+    var div = document.createElement('div');
+    div.className = 'toast';
+    if (type === 'warn') div.className += ' warn';
+    if (type === 'danger') div.className += ' danger';
+    div.textContent = message;
+    el['toast-stack'].appendChild(div);
+    setTimeout(function () {
+      if (div.parentNode) div.parentNode.removeChild(div);
+    }, 2600);
+  }
+
+  // Filter out legacy synthetic virtual demo items so only genuine merchant items remain
+  function isMerchantProduct(p) {
+    if (!p || !p.name) return false;
+    if (p.virtualPresetId && !p.isCameraRegistered) return false;
+    return true;
+  }
+
+  function updateCatalogBadge() {
+    if (el['nav-inv-count']) {
+      el['nav-inv-count'].textContent = String(state.products.length);
+    }
   }
 
   // ==========================================================================
-  // IndexedDB Unlimited Async Store + LocalStorage + Offline Outbox + SSE Sync
+  // IndexedDB Async Store + LocalStorage + Offline Outbox + SSE Multi-Device Sync
   // ==========================================================================
-  const IDBStore = (function () {
-    let dbPromise = null;
+  var IDBStore = (function () {
+    var dbPromise = null;
     function openDB() {
       if (dbPromise) return dbPromise;
       if (typeof indexedDB === 'undefined') return Promise.resolve(null);
-      dbPromise = new Promise((resolve) => {
+      dbPromise = new Promise(function (resolve) {
         try {
-          const req = indexedDB.open('vision_pos_idb_v1', 1);
-          req.onupgradeneeded = (e) => {
-            const db = e.target.result;
+          var req = indexedDB.open('vision_pos_idb_v1', 1);
+          req.onupgradeneeded = function (e) {
+            var db = e.target.result;
             if (!db.objectStoreNames.contains('kv')) {
               db.createObjectStore('kv');
             }
           };
-          req.onsuccess = () => resolve(req.result);
-          req.onerror = () => resolve(null);
+          req.onsuccess = function () {
+            resolve(req.result);
+          };
+          req.onerror = function () {
+            resolve(null);
+          };
         } catch (_) {
           resolve(null);
         }
@@ -219,45 +208,47 @@
       return dbPromise;
     }
     return {
-      async get(key) {
-        const db = await openDB();
-        if (!db) return null;
-        return new Promise((resolve) => {
-          try {
-            const tx = db.transaction('kv', 'readonly');
-            const req = tx.objectStore('kv').get(key);
-            req.onsuccess = () => resolve(req.result || null);
-            req.onerror = () => resolve(null);
-          } catch (_) {
-            resolve(null);
-          }
+      get: function (key) {
+        return openDB().then(function (db) {
+          if (!db) return null;
+          return new Promise(function (resolve) {
+            try {
+              var tx = db.transaction('kv', 'readonly');
+              var req = tx.objectStore('kv').get(key);
+              req.onsuccess = function () {
+                resolve(req.result || null);
+              };
+              req.onerror = function () {
+                resolve(null);
+              };
+            } catch (_) {
+              resolve(null);
+            }
+          });
         });
       },
-      async set(key, val) {
-        const db = await openDB();
-        if (!db) return;
-        try {
-          const tx = db.transaction('kv', 'readwrite');
-          tx.objectStore('kv').put(val, key);
-        } catch (_) {}
+      set: function (key, val) {
+        return openDB().then(function (db) {
+          if (!db) return;
+          try {
+            var tx = db.transaction('kv', 'readwrite');
+            tx.objectStore('kv').put(val, key);
+          } catch (_) {}
+        });
       }
     };
   })();
 
-  let broadcastChannel = null;
+  var broadcastChannel = null;
   try {
     if ('BroadcastChannel' in window) {
       broadcastChannel = new BroadcastChannel('vision_pos_edge_sync');
-      broadcastChannel.onmessage = (ev) => {
-        if (!ev.data) return;
-        if (ev.data.type === 'state_updated') {
+      broadcastChannel.onmessage = function (ev) {
+        if (ev.data && ev.data.type === 'state_updated') {
           loadFromLocalStorage();
-          loadCartFromStorage();
-          renderAll();
+          updateCatalogBadge();
+          invalidateRecognitionUICache();
           scheduleRecognition(true);
-        } else if (ev.data.type === 'cart_updated') {
-          loadCartFromStorage();
-          renderCart();
         }
       };
     }
@@ -265,49 +256,10 @@
     broadcastChannel = null;
   }
 
-  function saveCartToStorage() {
-    try {
-      const discount = el['cart-discount-input']
-        ? Math.max(0, Number(el['cart-discount-input'].value) || 0)
-        : state.discount;
-      state.discount = discount;
-      localStorage.setItem(
-        CART_STORAGE_KEY,
-        JSON.stringify({
-          cart: state.cart,
-          discount: state.discount,
-          paymentMethod: state.paymentMethod,
-          updatedAt: Date.now()
-        })
-      );
-    } catch (_) {}
-  }
-
-  function loadCartFromStorage() {
-    try {
-      const raw = localStorage.getItem(CART_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (parsed && Array.isArray(parsed.cart)) {
-        state.cart = parsed.cart.filter((c) => c && c.productId && Number(c.quantity) > 0);
-      }
-      if (typeof parsed.discount === 'number' && el['cart-discount-input']) {
-        state.discount = Math.max(0, parsed.discount);
-        el['cart-discount-input'].value = String(state.discount);
-      }
-      if (parsed.paymentMethod && ['cash', 'card', 'mobile'].includes(parsed.paymentMethod)) {
-        state.paymentMethod = parsed.paymentMethod;
-        document.querySelectorAll('.pay-method-btn').forEach((b) => {
-          b.classList.toggle('active', b.getAttribute('data-pay') === state.paymentMethod);
-        });
-      }
-    } catch (_) {}
-  }
-
   function getOutboxQueue() {
     try {
-      const raw = localStorage.getItem(OUTBOX_STORAGE_KEY);
-      const list = raw ? JSON.parse(raw) : [];
+      var raw = localStorage.getItem(OUTBOX_STORAGE_KEY);
+      var list = raw ? JSON.parse(raw) : [];
       return Array.isArray(list) ? list : [];
     } catch (_) {
       return [];
@@ -321,48 +273,46 @@
   }
 
   function enqueueOutbox(op) {
-    const list = getOutboxQueue();
-    list.push({ ...op, queuedAt: Date.now() });
+    var list = getOutboxQueue();
+    var copy = {};
+    for (var k in op) {
+      if (Object.prototype.hasOwnProperty.call(op, k)) copy[k] = op[k];
+    }
+    copy.queuedAt = Date.now();
+    list.push(copy);
     saveOutboxQueue(list);
   }
 
-  let isFlushingOutbox = false;
+  var isFlushingOutbox = false;
   async function flushOutboxToServer() {
     if (isFlushingOutbox) return;
-    const queue = getOutboxQueue();
+    var queue = getOutboxQueue();
     if (queue.length === 0) return;
     isFlushingOutbox = true;
-    const remaining = [];
+    var remaining = [];
     try {
-      for (const item of queue) {
+      for (var i = 0; i < queue.length; i++) {
+        var item = queue[i];
         try {
           if (item.type === 'upsert_product') {
-            const r = await fetch('/api/products', {
+            var r1 = await fetch('/api/products', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(item.payload)
             });
-            if (!r.ok && r.status >= 500) remaining.push(item);
+            if (!r1.ok && r1.status >= 500) remaining.push(item);
           } else if (item.type === 'patch_product') {
-            const r = await fetch(`/api/products/${encodeURIComponent(item.id)}`, {
+            var r2 = await fetch('/api/products/' + encodeURIComponent(item.id), {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(item.payload)
             });
-            if (!r.ok && r.status >= 500) remaining.push(item);
+            if (!r2.ok && r2.status >= 500) remaining.push(item);
           } else if (item.type === 'delete_product') {
-            const r = await fetch(`/api/products/${encodeURIComponent(item.id)}`, {
-              method: 'DELETE',
-              headers: { 'X-Admin-Pin': state.adminPin }
+            var r3 = await fetch('/api/products/' + encodeURIComponent(item.id), {
+              method: 'DELETE'
             });
-            if (!r.ok && r.status >= 500) remaining.push(item);
-          } else if (item.type === 'checkout') {
-            const r = await fetch('/api/checkout', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(item.payload)
-            });
-            if (!r.ok && r.status >= 500) remaining.push(item);
+            if (!r3.ok && r3.status >= 500) remaining.push(item);
           }
         } catch (_) {
           remaining.push(item);
@@ -374,28 +324,9 @@
     }
   }
 
-  function mergeServerProducts(serverProducts) {
-    if (!Array.isArray(serverProducts) || serverProducts.length === 0) return;
-    const byId = new Map();
-    for (const sp of serverProducts) {
-      if (sp && sp.id) byId.set(sp.id, sp);
-    }
-    if (getOutboxQueue().length > 0) {
-      for (const lp of state.products) {
-        if (!lp || !lp.id) continue;
-        const sp = byId.get(lp.id);
-        if (!sp || (lp.updatedAt || 0) > (sp.updatedAt || 0)) {
-          byId.set(lp.id, lp);
-        }
-      }
-    }
-    state.products = Array.from(byId.values());
-  }
-
   function saveToLocalStorage() {
-    const snapshot = {
+    var snapshot = {
       products: state.products,
-      orders: state.orders,
       updatedAt: Date.now()
     };
     try {
@@ -406,283 +337,201 @@
 
   function loadFromLocalStorage() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      var raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return false;
-      const parsed = JSON.parse(raw);
-      if (parsed && Array.isArray(parsed.products) && parsed.products.length > 0) {
-        state.products = parsed.products.map((p, idx) => ({
-          ...p,
-          id: p.id || ('prd-repaired-' + idx + '-' + Date.now().toString(36))
-        }));
-        state.orders = Array.isArray(parsed.orders) ? parsed.orders : [];
+      var parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.products)) {
+        state.products = parsed.products
+          .filter(isMerchantProduct)
+          .map(function (p, idx) {
+            if (!p.id) p.id = 'prd-repaired-' + idx + '-' + Date.now().toString(36);
+            return p;
+          });
         return true;
       }
     } catch (_) {}
     return false;
   }
 
-  /**
-   * Migrate legacy descriptors to v2 Int8-Base64 ('q1:...') & compress oversized legacy thumbnails to 128x128.
-   * Only builds default catalog lazily if an un-migrated synthetic preset product actually needs it.
-   */
-  function migrateProductsToV2() {
-    let changed = false;
-    let lazyDefaultCatalog = null;
-
-    state.products.forEach((p) => {
-      // Upgrade existing v2 JSON float arrays to compact Int8-Base64 strings (saves ~78% storage)
-      if (
-        p.descriptorVersion === 2 &&
-        Array.isArray(p.descriptors) &&
-        p.descriptors.length > 0
-      ) {
+  function normalizeLoadedProducts() {
+    var changed = false;
+    state.products = state.products.filter(isMerchantProduct);
+    state.products.forEach(function (p) {
+      if (Array.isArray(p.descriptors) && p.descriptors.length > 0) {
         if (typeof p.descriptors[0] !== 'string') {
-          p.descriptors = VisionEngine.deduplicateDescriptors(p.descriptors, 12);
+          p.descriptors = VisionEngine.deduplicateDescriptors(p.descriptors, 16);
+          p.descriptorVersion = 2;
           changed = true;
         }
         VisionEngine.ensureProductCache(p);
-
-        // Compress any oversized legacy >14KB base64 thumbnail down to 128x128 WebP (~2KB)
-        if (p.isCameraRegistered && p.thumbnail && p.thumbnail.length > 14000) {
-          VisionEngine.extractDescriptorsFromThumbnail(p.thumbnail, (newDescs, thumb128) => {
-            if (thumb128 && thumb128.length < p.thumbnail.length) {
-              p.thumbnail = thumb128;
-              saveToLocalStorage();
+      }
+      if (p.thumbnail && p.thumbnail.length > 14000) {
+        VisionEngine.extractDescriptorsFromThumbnail(p.thumbnail, function (newDescs, thumb128) {
+          if (thumb128 && thumb128.length < p.thumbnail.length) {
+            p.thumbnail = thumb128;
+            if ((!p.descriptors || p.descriptors.length === 0) && Array.isArray(newDescs)) {
+              p.descriptors = newDescs;
+              VisionEngine.ensureProductCache(p);
             }
-          });
-        }
-        return;
-      }
-
-      if (!p.isCameraRegistered) {
-        if (!lazyDefaultCatalog) {
-          lazyDefaultCatalog = VisionEngine.buildDefaultCatalog();
-        }
-        const presetMatch = lazyDefaultCatalog.find(
-          (dc) => (p.virtualPresetId && dc.virtualPresetId === p.virtualPresetId) || (p.sku && dc.sku === p.sku)
-        );
-        if (presetMatch) {
-          p.descriptors = presetMatch.descriptors;
-          p.thumbnail = presetMatch.thumbnail;
-          p.descriptorVersion = 2;
-          p.virtualPresetId = presetMatch.virtualPresetId;
-          VisionEngine.ensureProductCache(p);
-          changed = true;
-          return;
-        }
-      }
-
-      if (p.thumbnail && p.thumbnail.startsWith('data:image/')) {
-        p.isCameraRegistered = true;
-        VisionEngine.extractDescriptorsFromThumbnail(p.thumbnail, (newDescs, thumb128) => {
-          if (Array.isArray(newDescs) && newDescs.length > 0) {
-            p.descriptors = newDescs;
-            p.descriptorVersion = 2;
-            if (thumb128) p.thumbnail = thumb128;
-            VisionEngine.ensureProductCache(p);
             saveToLocalStorage();
-            scheduleRecognition(true);
           }
         });
       }
     });
-
     if (changed) {
       saveToLocalStorage();
     }
+    updateCatalogBadge();
+  }
+
+  function mergeServerProducts(serverProducts) {
+    if (!Array.isArray(serverProducts)) return;
+    var byId = new Map();
+    for (var i = 0; i < serverProducts.length; i++) {
+      var sp = serverProducts[i];
+      if (isMerchantProduct(sp) && sp.id) {
+        byId.set(sp.id, sp);
+      }
+    }
+    if (getOutboxQueue().length > 0) {
+      for (var j = 0; j < state.products.length; j++) {
+        var lp = state.products[j];
+        if (!isMerchantProduct(lp) || !lp.id) continue;
+        var existing = byId.get(lp.id);
+        if (!existing || (lp.updatedAt || 0) > (existing.updatedAt || 0)) {
+          byId.set(lp.id, lp);
+        }
+      }
+    }
+    state.products = Array.from(byId.values());
   }
 
   async function initDataStore() {
-    loadCartFromStorage();
-    try {
-      const savedPin = localStorage.getItem(ADMIN_PIN_KEY);
-      if (savedPin) state.adminPin = savedPin;
-    } catch (_) {}
-
-    let hasLocal = loadFromLocalStorage();
+    var hasLocal = loadFromLocalStorage();
     if (!hasLocal) {
-      const idbSnap = await IDBStore.get('store');
-      if (idbSnap && Array.isArray(idbSnap.products) && idbSnap.products.length > 0) {
-        state.products = idbSnap.products;
-        state.orders = Array.isArray(idbSnap.orders) ? idbSnap.orders : [];
+      var idbSnap = await IDBStore.get('store');
+      if (idbSnap && Array.isArray(idbSnap.products)) {
+        state.products = idbSnap.products.filter(isMerchantProduct);
         hasLocal = true;
       }
     }
+    normalizeLoadedProducts();
 
-    if (!hasLocal) {
-      state.products = VisionEngine.buildDefaultCatalog();
-      state.products.forEach((p) => VisionEngine.ensureProductCache(p));
-      saveToLocalStorage();
-    } else {
-      migrateProductsToV2();
-    }
-
-    const isRemoteServerOrigin =
+    var isRemoteServerOrigin =
       (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
       window.location.hostname !== 'visionpos.local';
 
     if (isRemoteServerOrigin) {
       try {
         await flushOutboxToServer();
-        const res = await fetch('/api/state');
+        var res = await fetch('/api/state');
         if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.products) && data.products.length > 0) {
+          var data = await res.json();
+          if (Array.isArray(data.products)) {
             mergeServerProducts(data.products);
-            state.orders = data.orders || state.orders;
-            migrateProductsToV2();
+            normalizeLoadedProducts();
             saveToLocalStorage();
-          } else {
-            await fetch('/api/seed', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ products: state.products, force: true })
-            });
           }
           connectSSE();
         }
-      } catch (_) {
-        el['sync-status-badge'].textContent = '離線極速模式 (自動佇列同步)';
-      }
-    } else {
-      if (window.location.hostname === 'visionpos.local') {
-        let devLabel = 'Android';
-        try {
-          if (window.VisionPOSAndroid && typeof window.VisionPOSAndroid.getDeviceInfo === 'function') {
-            devLabel = window.VisionPOSAndroid.getDeviceInfo() || 'Android';
-          }
-        } catch (_) {}
-        el['sync-status-badge'].textContent = `${devLabel} · 原生 APK 極速引擎`;
-      } else {
-        el['sync-status-badge'].textContent = '本地極速模式 (支援跨分頁同步)';
-      }
+      } catch (_) {}
     }
 
-    renderAll();
+    updateCatalogBadge();
+    invalidateRecognitionUICache();
+    updateRecognitionUI({
+      matched: false,
+      exactBarcode: false,
+      product: null,
+      bestCandidate: null,
+      similarity: 0,
+      margin: 0,
+      topCandidates: []
+    });
   }
 
   function connectSSE() {
     try {
-      const devType = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile-Cam' : 'Desktop-POS';
-      const es = new EventSource(`/api/events?deviceType=${encodeURIComponent(devType)}`);
+      var devType = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Merchant-Mobile' : 'Merchant-Terminal';
+      var es = new EventSource('/api/events?deviceType=' + encodeURIComponent(devType));
 
-      es.addEventListener('init', async (e) => {
+      es.addEventListener('init', async function (e) {
         await flushOutboxToServer();
-        const { payload } = JSON.parse(e.data);
-        if (payload.products && payload.products.length > 0) {
+        var msg = JSON.parse(e.data);
+        var payload = msg.payload || {};
+        if (Array.isArray(payload.products)) {
           mergeServerProducts(payload.products);
-          state.orders = payload.orders || state.orders;
-          state.connectedNodes = payload.connectedClients || 1;
-          migrateProductsToV2();
+          normalizeLoadedProducts();
           saveToLocalStorage();
-          renderAll();
+          invalidateRecognitionUICache();
           scheduleRecognition(true);
         }
-        el['sync-status-badge'].textContent = `即時同步 (${state.connectedNodes} 台連線)`;
       });
 
-      es.addEventListener('product_upserted', (e) => {
-        const { payload } = JSON.parse(e.data);
-        if (!payload || !payload.product) return;
-        VisionEngine.ensureProductCache(payload.product);
-        const idx = state.products.findIndex((p) => p.id === payload.product.id);
+      es.addEventListener('product_upserted', function (e) {
+        var msg = JSON.parse(e.data);
+        var prod = msg.payload && msg.payload.product;
+        if (!isMerchantProduct(prod)) return;
+        VisionEngine.ensureProductCache(prod);
+        var idx = state.products.findIndex(function (p) {
+          return p.id === prod.id;
+        });
         if (idx >= 0) {
-          state.products[idx] = payload.product;
+          state.products[idx] = prod;
         } else {
-          state.products.unshift(payload.product);
+          state.products.unshift(prod);
         }
+        updateCatalogBadge();
         saveToLocalStorage();
-        renderAll();
+        invalidateRecognitionUICache();
         scheduleRecognition(true);
       });
 
-      es.addEventListener('product_deleted', (e) => {
-        const { payload } = JSON.parse(e.data);
-        state.products = state.products.filter((p) => p.id !== payload.id);
+      es.addEventListener('product_deleted', function (e) {
+        var msg = JSON.parse(e.data);
+        var delId = msg.payload && msg.payload.id;
+        if (!delId) return;
+        state.products = state.products.filter(function (p) {
+          return p.id !== delId;
+        });
+        if (state.currentMatch && state.currentMatch.id === delId) {
+          state.currentMatch = null;
+        }
+        updateCatalogBadge();
         saveToLocalStorage();
-        renderAll();
+        invalidateRecognitionUICache();
         scheduleRecognition(true);
       });
 
-      es.addEventListener('checkout_completed', (e) => {
-        const { payload } = JSON.parse(e.data);
-        if (Array.isArray(payload.updatedProducts)) {
-          payload.updatedProducts.forEach((up) => {
-            VisionEngine.ensureProductCache(up);
-            const idx = state.products.findIndex((p) => p.id === up.id);
-            if (idx >= 0) state.products[idx] = up;
-          });
-        }
-        if (payload.order) {
-          const exists = state.orders.some((o) => o.id === payload.order.id);
-          if (!exists) state.orders.unshift(payload.order);
-        }
-        saveToLocalStorage();
-        renderAll();
-        scheduleRecognition(true);
-      });
-
-      es.addEventListener('products_synced', (e) => {
-        const { payload } = JSON.parse(e.data);
+      es.addEventListener('products_synced', function (e) {
+        var msg = JSON.parse(e.data);
+        var payload = msg.payload || {};
         if (Array.isArray(payload.products)) {
-          state.products = payload.products;
-          migrateProductsToV2();
+          state.products = payload.products.filter(isMerchantProduct);
+          normalizeLoadedProducts();
+          saveToLocalStorage();
+          invalidateRecognitionUICache();
+          scheduleRecognition(true);
         }
-        if (Array.isArray(payload.orders)) state.orders = payload.orders;
-        saveToLocalStorage();
-        renderAll();
-        scheduleRecognition(true);
-      });
-
-      es.addEventListener('devices_updated', (e) => {
-        const { payload } = JSON.parse(e.data);
-        state.connectedNodes = payload.connectedClients || 1;
-        el['sync-status-badge'].textContent = `即時同步 (${state.connectedNodes} 台連線)`;
       });
     } catch (_) {}
   }
 
   function notifyPeers() {
     saveToLocalStorage();
-    saveCartToStorage();
+    updateCatalogBadge();
     if (broadcastChannel) {
-      broadcastChannel.postMessage({ type: 'state_updated', timestamp: Date.now() });
+      try {
+        broadcastChannel.postMessage({ type: 'state_updated', timestamp: Date.now() });
+      } catch (_) {}
     }
   }
 
   // ==========================================================================
-  // Multi-Source Camera Pipeline (Virtual Stage, Live Webcam, IP Cam, Photo)
+  // Optical Camera Pipeline (Live WebRTC Primary 1x Rear Lens + Native Photo)
   // ==========================================================================
-  function renderStageTray() {
-    const container = el['stage-objects-list'];
-    if (!container) return;
-    container.innerHTML = '';
-
-    VisionEngine.VIRTUAL_STAGE_ITEMS.forEach((item, idx) => {
-      const isRegistered = state.products.some(
-        (p) => p.virtualPresetId === item.presetId || p.sku === item.sku
-      );
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'stage-obj-btn' + (state.stageItemIndex === idx ? ' active' : '');
-      btn.innerHTML = `
-        <span class="stage-obj-dot" style="background:${item.palette.bg1};"></span>
-        <span>${isRegistered ? item.shortName.replace('[待建檔] ', '') : '🆕 ' + item.shortName}</span>
-      `;
-      btn.addEventListener('click', () => {
-        state.stageItemIndex = idx;
-        state.stageAngle = 0;
-        renderStageTray();
-        scheduleRecognition(true);
-        if (state.activeTab === 'register') {
-          setTimeout(() => captureForRegistration(false), 40);
-        }
-      });
-      container.appendChild(btn);
-    });
-  }
-
-  let bgCameraReleaseTimer = null;
+  var bgCameraReleaseTimer = null;
+  var stageCanvasCtx = null;
 
   function clearBgCameraReleaseTimer() {
     if (bgCameraReleaseTimer) {
@@ -691,97 +540,44 @@
     }
   }
 
-  async function switchVideoSource(mode) {
-    const prevMode = state.sourceMode;
-    state.sourceMode = mode;
-    clearBgCameraReleaseTimer();
-    if (mode !== 'webcam') {
-      state.autoPausedWebcamInBg = false;
-    }
-    if (prevMode !== mode && mode !== 'photo') {
-      state.regDescriptors = [];
-      state.regManualCaptured = false;
-    }
-
-    ['virtual', 'webcam', 'ipcam', 'photo'].forEach((m) => {
-      const btn = el[`src-btn-${m}`];
-      if (btn) btn.classList.toggle('active', m === mode);
-    });
-
-    el['webcam-controls-bar'].classList.toggle('hidden', mode !== 'webcam');
-    el['ipcam-controls-bar'].classList.toggle('hidden', mode !== 'ipcam');
-    el['virtual-stage-tray'].classList.toggle('hidden', mode !== 'virtual');
-
-    if (mode !== 'webcam') {
-      stopWebcamStream();
-      el['camera-video'].classList.add('hidden');
-      el['stage-canvas'].classList.remove('hidden');
-    }
-
-    if (mode === 'virtual') {
-      el['active-source-badge'].textContent = '互動測試舞台';
-    } else if (mode === 'webcam') {
-      el['active-source-badge'].textContent = '真實相機 WebRTC';
-      await startWebcamStream();
-    } else if (mode === 'ipcam') {
-      el['active-source-badge'].textContent = '監控串流 CCTV';
-    } else if (mode === 'photo') {
-      el['active-source-badge'].textContent = '手機相機實拍辨識';
-    }
-
-    VisionEngine.resetMotionGate();
-    scheduleRecognition(true);
-  }
-
   function stopWebcamStream() {
     cancelVideoFrameSync();
     if (state.mediaStream) {
-      state.mediaStream.getTracks().forEach((t) => t.stop());
+      state.mediaStream.getTracks().forEach(function (t) {
+        t.stop();
+      });
       state.mediaStream = null;
     }
     if (el['camera-video']) {
       el['camera-video'].srcObject = null;
     }
+    if (el['btn-live-webcam']) {
+      el['btn-live-webcam'].classList.remove('active');
+    }
   }
 
-  async function populateCameraDevices() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoInputs = devices.filter((d) => d.kind === 'videoinput');
-      const select = el['camera-device-select'];
-      const currentVal = select.value;
-      select.innerHTML = '<option value="">自動偵測鏡頭 (後置優先)</option>';
-      videoInputs.forEach((dev, i) => {
-        const opt = document.createElement('option');
-        opt.value = dev.deviceId;
-        opt.textContent = dev.label || `攝影機鏡頭 #${i + 1}`;
-        select.appendChild(opt);
-      });
-      if (currentVal) select.value = currentVal;
-    } catch (_) {}
-  }
-
-  async function startWebcamStream(silentResume = false) {
+  async function startWebcamStream(isSilentOrAuto) {
     stopWebcamStream();
+    clearBgCameraReleaseTimer();
+
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      showToast('📱 已自動為您開啟手機原生相機拍照模式（本地檔案模式）', 'warn');
-      state.sourceMode = 'photo';
-      el['active-source-badge'].textContent = '手機相機實拍辨識';
-      el['camera-video'].classList.add('hidden');
-      el['stage-canvas'].classList.remove('hidden');
-      if (state.activeTab === 'register' && el['native-camera-input']) {
-        el['native-camera-input'].click();
-      } else if (el['native-scan-input']) {
-        el['native-scan-input'].click();
+      state.sourceMode = state.hasLoadedPhoto ? 'photo' : 'standby';
+      renderStageCanvasFrame();
+      updateHudCameraStatus();
+      if (!isSilentOrAuto) {
+        showToast('📱 此環境不支援連續串流，已開啟系統相機拍照模式', 'warn');
+        if (state.activeTab === 'register' && el['native-camera-input']) {
+          el['native-camera-input'].click();
+        } else if (el['native-scan-input']) {
+          el['native-scan-input'].click();
+        }
       }
       return;
     }
 
-    const height = Number(el['camera-res-select'].value) || 480;
-    const width = Math.round(height * (4 / 3));
-
-    const videoConstraints = {
+    var height = state.resolutionHeight || 480;
+    var width = Math.round(height * (4 / 3));
+    var videoConstraints = {
       width: { ideal: width },
       height: { ideal: height },
       frameRate: { ideal: 24, max: 30 }
@@ -794,7 +590,7 @@
     }
 
     try {
-      let stream;
+      var stream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: videoConstraints,
@@ -807,27 +603,31 @@
         });
       }
 
-      // Multi-Lens Android Flagship Guard (Samsung Galaxy S/Ultra, OPPO, vivo, Pixel, Sony, Motorola):
-      // If facingMode:'environment' picked an ultra-wide/macro/depth auxiliary lens without Torch/AF,
-      // automatically switch to the primary 1x rear camera ('camera2 0' / non-ultra/macro back lens).
+      // Multi-Lens Android Flagship Guard (Samsung, Xiaomi, OPPO, vivo, Pixel, Sony):
+      // Automatically switch away from ultra-wide/macro/depth auxiliary lenses to the primary 1x rear camera.
       if (state.facingMode === 'environment' && !state.selectedDeviceId && navigator.mediaDevices.enumerateDevices) {
         try {
-          const firstTrack = stream.getVideoTracks()[0];
-          const label0 = ((firstTrack && firstTrack.label) || '').toLowerCase();
-          const caps0 = firstTrack && firstTrack.getCapabilities ? firstTrack.getCapabilities() : {};
-          const looksAuxiliary = /ultra|wide-angle|0\.5|0\.6|macro|tele|depth|tof|mono/i.test(label0);
+          var firstTrack = stream.getVideoTracks()[0];
+          var label0 = ((firstTrack && firstTrack.label) || '').toLowerCase();
+          var caps0 = firstTrack && firstTrack.getCapabilities ? firstTrack.getCapabilities() : {};
+          var looksAuxiliary = /ultra|wide-angle|0\.5|0\.6|macro|tele|depth|tof|mono/i.test(label0);
           if (looksAuxiliary || (!caps0.torch && /camera2\s+[2-9]/i.test(label0))) {
-            const allDevs = await navigator.mediaDevices.enumerateDevices();
-            const backCams = allDevs.filter(
-              (d) =>
+            var allDevs = await navigator.mediaDevices.enumerateDevices();
+            var backCams = allDevs.filter(function (d) {
+              return (
                 d.kind === 'videoinput' &&
                 /back|rear|environment|後|0/i.test(d.label || '') &&
                 !/front|user|前|ultra|macro|tele|depth|tof/i.test(d.label || '')
-            );
-            const primaryRear =
-              backCams.find((d) => /camera2\s*0|main|0,\s*facing\s*back/i.test(d.label || '')) || backCams[0];
-            if (primaryRear && firstTrack && primaryRear.deviceId && primaryRear.deviceId !== (firstTrack.getSettings && firstTrack.getSettings().deviceId)) {
-              const betterStream = await navigator.mediaDevices.getUserMedia({
+              );
+            });
+            var primaryRear =
+              backCams.find(function (d) {
+                return /camera2\s*0|main|0,\s*facing\s*back/i.test(d.label || '');
+              }) || backCams[0];
+            var firstDevId =
+              firstTrack && firstTrack.getSettings ? firstTrack.getSettings().deviceId : '';
+            if (primaryRear && primaryRear.deviceId && primaryRear.deviceId !== firstDevId) {
+              var betterStream = await navigator.mediaDevices.getUserMedia({
                 video: {
                   deviceId: { exact: primaryRear.deviceId },
                   width: { ideal: width },
@@ -836,7 +636,9 @@
                 },
                 audio: false
               });
-              stream.getTracks().forEach((t) => t.stop());
+              stream.getTracks().forEach(function (t) {
+                t.stop();
+              });
               stream = betterStream;
             }
           }
@@ -845,10 +647,10 @@
 
       // Enable Continuous Autofocus / Exposure / White-Balance on Android Camera2 WebRTC tracks
       try {
-        const activeTrack = stream.getVideoTracks()[0];
+        var activeTrack = stream.getVideoTracks()[0];
         if (activeTrack && activeTrack.getCapabilities && activeTrack.applyConstraints) {
-          const caps = activeTrack.getCapabilities();
-          const adv = {};
+          var caps = activeTrack.getCapabilities();
+          var adv = {};
           if (Array.isArray(caps.focusMode) && caps.focusMode.indexOf('continuous') !== -1) {
             adv.focusMode = 'continuous';
           }
@@ -859,70 +661,82 @@
             adv.whiteBalanceMode = 'continuous';
           }
           if (Object.keys(adv).length > 0) {
-            activeTrack.applyConstraints({ advanced: [adv] }).catch(() => {});
+            activeTrack.applyConstraints({ advanced: [adv] }).catch(function () {});
           }
         }
       } catch (_) {}
 
       state.mediaStream = stream;
+      state.sourceMode = 'webcam';
       state.autoPausedWebcamInBg = false;
+      state.torchOn = false;
 
-      const video = el['camera-video'];
-      video.srcObject = stream;
-      // Direct GPU Zero-Copy Hardware Video Overlay (no 640x480 canvas blit per frame!)
-      video.removeAttribute('style');
-      video.classList.toggle('mirrored', state.facingMode === 'user' && !state.selectedDeviceId);
-      video.classList.remove('hidden');
-      await video.play();
-      el['stage-canvas'].classList.add('hidden');
-      el['active-source-badge'].textContent = '真實相機 WebRTC';
-
-      await populateCameraDevices();
-      VisionEngine.resetMotionGate();
-      scheduleRecognition(true);
-      if (!silentResume) {
-        showToast('已開啟真實相機鏡頭，將商品對準中央框即可即時辨識或建檔');
+      var video = el['camera-video'];
+      if (video) {
+        video.srcObject = stream;
+        video.removeAttribute('style');
+        video.classList.toggle('mirrored', state.facingMode === 'user');
+        video.classList.remove('hidden');
+        await video.play();
       }
-    } catch (err) {
-      el['camera-video'].classList.add('hidden');
-      el['stage-canvas'].classList.remove('hidden');
-      showToast('📱 無法直接存取連續串流，已自動切換為「手機原生相機拍照」模式', 'warn');
-      state.sourceMode = 'photo';
-      el['active-source-badge'].textContent = '手機相機實拍辨識';
-      if (state.activeTab === 'register' && el['native-camera-input']) {
-        el['native-camera-input'].click();
-      } else if (el['native-scan-input']) {
-        el['native-scan-input'].click();
+      if (el['stage-canvas']) el['stage-canvas'].classList.add('hidden');
+      if (el['btn-live-webcam']) el['btn-live-webcam'].classList.add('active');
+
+      VisionEngine.resetMotionGate();
+      updateHudCameraStatus();
+      scheduleRecognition(true);
+      if (!isSilentOrAuto) {
+        showToast('🎥 已開啟即時鏡頭掃描');
+      }
+    } catch (_) {
+      state.sourceMode = state.hasLoadedPhoto ? 'photo' : 'standby';
+      if (el['camera-video']) el['camera-video'].classList.add('hidden');
+      if (el['stage-canvas']) el['stage-canvas'].classList.remove('hidden');
+      renderStageCanvasFrame();
+      updateHudCameraStatus();
+
+      if (!isSilentOrAuto) {
+        showToast('📱 無法開啟連續串流，已切換至系統相機拍照模式', 'warn');
+        if (state.activeTab === 'register' && el['native-camera-input']) {
+          el['native-camera-input'].click();
+        } else if (el['native-scan-input']) {
+          el['native-scan-input'].click();
+        }
       }
     }
   }
 
   async function toggleTorch() {
-    if (!state.mediaStream) return;
-    const track = state.mediaStream.getVideoTracks()[0];
-    if (!track || !track.getCapabilities) {
-      showToast('目前攝影機不支援硬體補光燈控制', 'warn');
+    if (!state.mediaStream) {
+      showToast('請先開啟「🎥 即時」鏡頭再切換補光燈', 'warn');
       return;
     }
-    const caps = track.getCapabilities();
+    var track = state.mediaStream.getVideoTracks()[0];
+    if (!track || !track.getCapabilities) {
+      showToast('目前鏡頭不支援補光燈控制', 'warn');
+      return;
+    }
+    var caps = track.getCapabilities();
     if (!caps.torch) {
-      showToast('此鏡頭無內建補光燈 (Torch)', 'warn');
+      showToast('此鏡頭無內建補光燈 (請確認使用後置主鏡頭)', 'warn');
       return;
     }
     state.torchOn = !state.torchOn;
     try {
       await track.applyConstraints({ advanced: [{ torch: state.torchOn }] });
-      showToast(state.torchOn ? '已開啟補光燈' : '已關閉補光燈');
-    } catch (_) {}
+      if (el['btn-toggle-torch']) {
+        el['btn-toggle-torch'].classList.toggle('active', state.torchOn);
+      }
+      showToast(state.torchOn ? '🔦 已開啟補光燈' : '🔦 已關閉補光燈');
+    } catch (_) {
+      showToast('補光燈切換失敗', 'warn');
+    }
   }
 
-  let stageCanvasCtx = null;
-
-  // Render Virtual Stage, CCTV, or Pre-Scaled Photo onto #stage-canvas (640x480).
-  // In live webcam mode, #camera-video is displayed directly via zero-copy hardware overlay!
   function renderStageCanvasFrame() {
-    const canvas = el['stage-canvas'];
-    const video = el['camera-video'];
+    var canvas = el['stage-canvas'];
+    var video = el['camera-video'];
+    if (!canvas) return;
 
     if (state.sourceMode === 'webcam' && state.mediaStream && video && video.readyState >= 2) {
       video.classList.remove('hidden');
@@ -930,74 +744,38 @@
       return;
     }
 
+    if (video) video.classList.add('hidden');
     canvas.classList.remove('hidden');
     if (!stageCanvasCtx) {
       stageCanvasCtx = canvas.getContext('2d', { alpha: false, desynchronized: true });
     }
-    const ctx = stageCanvasCtx;
-    const w = canvas.width;
-    const h = canvas.height;
+    var ctx = stageCanvasCtx;
+    var w = canvas.width;
+    var h = canvas.height;
 
-    if (state.sourceMode === 'virtual') {
-      const item = VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex];
-      let offsetX = 0;
-      let offsetY = 0;
-      let rot = state.stageAngle;
-      if (state.stageHandMotion) {
-        state.stagePhase += 0.08;
-        offsetX = Math.sin(state.stagePhase) * 9;
-        offsetY = Math.cos(state.stagePhase * 1.3) * 6;
-        rot += Math.sin(state.stagePhase * 0.7) * 0.04;
-      }
-      VisionEngine.drawVirtualProduct(ctx, w, h, item, {
-        offsetX,
-        offsetY,
-        angle: rot,
-        scale: 1.0,
-        lighting: 1.0
-      });
-    } else if (state.sourceMode === 'ipcam') {
-      if (
-        state.cctvChannel === 'custom' &&
-        state.customIpcamActive &&
-        state.customIpcamImg &&
-        state.customIpcamImg.complete &&
-        state.customIpcamImg.naturalWidth > 0
-      ) {
-        const iw = state.customIpcamImg.naturalWidth;
-        const ih = state.customIpcamImg.naturalHeight;
-        const sc = Math.max(w / iw, h / ih);
-        const dw = iw * sc;
-        const dh = ih * sc;
-        ctx.drawImage(state.customIpcamImg, (w - dw) * 0.5, (h - dh) * 0.5, dw, dh);
-      } else {
-        state.cctvTimer += 0.025;
-        let itemIdx = 0;
-        if (state.cctvChannel === 'ch1') {
-          itemIdx = Math.floor(state.cctvTimer * 0.35) % 5;
-        } else if (state.cctvChannel === 'ch2') {
-          itemIdx = 1;
-        } else if (state.cctvChannel === 'ch3') {
-          itemIdx = 3;
-        }
-        const item = VisionEngine.VIRTUAL_STAGE_ITEMS[itemIdx];
-        VisionEngine.drawVirtualProduct(ctx, w, h, item, {
-          offsetX: Math.sin(state.cctvTimer) * 4,
-          offsetY: 0,
-          angle: 0.02,
-          scale: 0.96,
-          lighting: 0.92
-        });
-      }
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-      ctx.fillRect(14, h - 38, 320, 24);
-      ctx.fillStyle = '#10b981';
-      ctx.font = '12px monospace';
-      const chLabel = state.cctvChannel === 'custom' && state.customIpcamActive ? 'CUSTOM-STREAM' : state.cctvChannel.toUpperCase();
-      ctx.fillText(`CCTV ${chLabel} | RTSP-EDGE | ${new Date().toLocaleTimeString()}`, 22, h - 22);
-    } else if (state.sourceMode === 'photo' && state.hasLoadedPhoto) {
+    if (state.sourceMode === 'photo' && state.hasLoadedPhoto) {
       ctx.drawImage(photoBufferCanvas, 0, 0);
+      return;
     }
+
+    // Clean Merchant Camera Standby Canvas (Zero fake demo items)
+    var grad = ctx.createRadialGradient(w * 0.5, h * 0.48, 24, w * 0.5, h * 0.5, w * 0.72);
+    grad.addColorStop(0, '#131c2b');
+    grad.addColorStop(1, '#070b11');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.fillStyle = 'rgba(226, 232, 240, 0.85)';
+    ctx.font = '600 17px system-ui, -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(
+      state.autoPausedWebcamInBg ? '省電待機中（返回畫面即自動恢復鏡頭）' : '請點選上方「🎥 即時」或「📷 拍照」開始掃描',
+      w * 0.5,
+      h * 0.5 - 6
+    );
+    ctx.fillStyle = 'rgba(148, 163, 184, 0.75)';
+    ctx.font = '13px system-ui, -apple-system, sans-serif';
+    ctx.fillText('將商品或條碼置於中央取景框即可自動比對建檔資料', w * 0.5, h * 0.5 + 20);
   }
 
   function getActiveVideoSourceElement() {
@@ -1012,14 +790,32 @@
     return el['stage-canvas'];
   }
 
-  // Exact 4:3 object-fit:cover ROI mapping so direct <video> stream & #stage-canvas align 1:1 with reticle
+  function hasValidOpticalSource() {
+    if (
+      state.sourceMode === 'webcam' &&
+      state.mediaStream &&
+      el['camera-video'] &&
+      el['camera-video'].readyState >= 2
+    ) {
+      return true;
+    }
+    if (state.sourceMode === 'photo' && state.hasLoadedPhoto) {
+      return true;
+    }
+    return false;
+  }
+
+  // Exact 4:3 object-fit:cover ROI mapping aligned with .roi-reticle
   function getRoiRect(sourceElem) {
     if (sourceElem === el['camera-video']) {
-      const vw = sourceElem.videoWidth || 640;
-      const vh = sourceElem.videoHeight || 480;
-      const targetAspect = 4 / 3;
-      const videoAspect = vw / vh;
-      let visX = 0, visY = 0, visW = vw, visH = vh;
+      var vw = sourceElem.videoWidth || 640;
+      var vh = sourceElem.videoHeight || 480;
+      var targetAspect = 4 / 3;
+      var videoAspect = vw / vh;
+      var visX = 0;
+      var visY = 0;
+      var visW = vw;
+      var visH = vh;
       if (videoAspect > targetAspect) {
         visW = vh * targetAspect;
         visX = (vw - visW) * 0.5;
@@ -1027,27 +823,30 @@
         visH = vw / targetAspect;
         visY = (vh - visH) * 0.5;
       }
-      const roiW = Math.round(visW * 0.58);
-      const roiH = Math.round(visH * 0.68);
-      const sx = Math.round(visX + (visW - roiW) * 0.5);
-      const sy = Math.round(visY + (visH - roiH) * 0.5);
-      return { sx, sy, sw: roiW, sh: roiH };
+      var roiW = Math.round(visW * 0.58);
+      var roiH = Math.round(visH * 0.62);
+      var sx = Math.round(visX + (visW - roiW) * 0.5);
+      var sy = Math.round(visY + (visH - roiH) * 0.5);
+      return { sx: sx, sy: sy, sw: roiW, sh: roiH };
     }
 
-    const sw = sourceElem.width || 640;
-    const sh = sourceElem.height || 480;
-    const roiW = Math.round(sw * 0.58);
-    const roiH = Math.round(sh * 0.68);
-    const sx = Math.round((sw - roiW) * 0.5);
-    const sy = Math.round((sh - roiH) * 0.5);
-    return { sx, sy, sw: roiW, sh: roiH };
+    var sw = (sourceElem && sourceElem.width) || 640;
+    var sh = (sourceElem && sourceElem.height) || 480;
+    var rw = Math.round(sw * 0.58);
+    var rh = Math.round(sh * 0.62);
+    return {
+      sx: Math.round((sw - rw) * 0.5),
+      sy: Math.round((sh - rh) * 0.5),
+      sw: rw,
+      sh: rh
+    };
   }
 
   // ==========================================================================
-  // Event-Driven Zero-Polling Loop, Motion Gate & 10s Background Camera Release
+  // Event-Driven Scan Loop, 16x16 Motion Gate & 10s Background Auto-Release
   // ==========================================================================
-  let scanTimerId = null;
-  let videoFrameCallbackId = null;
+  var scanTimerId = null;
+  var videoFrameCallbackId = null;
 
   function cancelVideoFrameSync() {
     if (
@@ -1072,58 +871,50 @@
 
   function isContinuousSourceActive() {
     if (document.hidden) return false;
-    if (state.activeTab !== 'scan' && state.activeTab !== 'register') return false;
-    if (state.sourceMode === 'webcam') return Boolean(state.mediaStream);
-    if (state.sourceMode === 'ipcam') return true;
-    if (state.sourceMode === 'virtual') return Boolean(state.stageHandMotion);
-    return false; // 'photo' & static 'virtual' run purely event-driven at 0 FPS!
+    return state.sourceMode === 'webcam' && Boolean(state.mediaStream);
   }
 
   function wakeFromEcoSleep() {
     state.staticFrameStreak = 0;
     if (state.isEcoSleeping) {
       state.isEcoSleeping = false;
-      updatePowerTelemetryUI();
+      updateHudCameraStatus();
     }
   }
 
-  function updatePowerTelemetryUI() {
-    if (!el['metric-power-mode']) return;
+  function updateHudCameraStatus() {
+    var dot = el['hud-scan-dot'];
+    var txt = el['hud-status-text'];
+    if (!txt) return;
+
     if (state.autoPausedWebcamInBg || document.hidden) {
-      el['power-mode-dot'].className = 'status-dot eco';
-      el['metric-power-mode'].textContent = state.autoPausedWebcamInBg ? '已釋放鏡頭 (0W)' : '背景休眠 (0 FPS)';
-      el['metric-energy-saved'].textContent = '100% 省電';
-      el['hud-status-text'].textContent = '背景省電待機中';
+      if (dot) dot.className = 'status-dot eco';
+      txt.textContent = state.autoPausedWebcamInBg ? '已釋放鏡頭省電待機' : '背景休眠待機';
+      return;
+    }
+    if (state.sourceMode === 'photo' && state.hasLoadedPhoto) {
+      if (dot) dot.className = 'status-dot';
+      txt.textContent = '📷 相片辨識鎖定中';
       return;
     }
     if (!isContinuousSourceActive()) {
-      el['power-mode-dot'].className = 'status-dot eco';
-      el['metric-power-mode'].textContent = '事件驅動待機 (0 FPS)';
-      el['metric-energy-saved'].textContent = '99.8% 省電';
-      el['hud-status-text'].textContent = state.sourceMode === 'photo'
-        ? '實拍零耗電鎖定中'
-        : '靜態零輪詢省電待機';
+      if (dot) dot.className = 'status-dot eco';
+      txt.textContent = '點擊 🎥 即時 或 📷 拍照';
       return;
     }
     if (state.isEcoSleeping) {
-      el['power-mode-dot'].className = 'status-dot eco';
-      el['metric-power-mode'].textContent = '靜止休眠 (2.5 FPS)';
-      el['metric-energy-saved'].textContent = '98% 省電';
-      el['hud-status-text'].textContent = 'ECO 靜止省電待機 (移動即喚醒)';
+      if (dot) dot.className = 'status-dot eco';
+      txt.textContent = 'ECO 靜止省電 (移動即喚醒)';
     } else if (state.lowBatteryMode) {
-      el['power-mode-dot'].className = 'status-dot eco';
-      el['metric-power-mode'].textContent = '低電量節能 (10 FPS)';
-      el['metric-energy-saved'].textContent = '96% 省電';
-      el['hud-status-text'].textContent = 'ROI 64×64 節能視覺追蹤中';
+      if (dot) dot.className = 'status-dot eco';
+      txt.textContent = '節能掃描中 (10 FPS)';
     } else {
-      el['power-mode-dot'].className = 'status-dot';
-      el['metric-power-mode'].textContent = '高速辨識 (18 FPS)';
-      el['metric-energy-saved'].textContent = '95% 省電';
-      el['hud-status-text'].textContent = 'ROI 64×64 零配置視覺追蹤中';
+      if (dot) dot.className = 'status-dot';
+      txt.textContent = state.activeTab === 'register' ? '對準商品擷取建檔畫面' : '即時掃描辨識中';
     }
   }
 
-  function scheduleRecognition(forceImmediate = false) {
+  function scheduleRecognition(forceImmediate) {
     if (forceImmediate) {
       state.forceNextEval = true;
       wakeFromEcoSleep();
@@ -1136,16 +927,16 @@
 
     if (!isContinuousSourceActive()) {
       cancelScheduledRecognition();
-      updatePowerTelemetryUI();
+      updateHudCameraStatus();
       return;
     }
 
     if (scanTimerId !== null || videoFrameCallbackId !== null) return;
 
-    const nextInterval = state.isEcoSleeping ? 400 : (state.lowBatteryMode ? 100 : 55);
-    scanTimerId = setTimeout(() => {
+    var nextInterval = state.isEcoSleeping ? 400 : (state.lowBatteryMode ? 100 : 55);
+    scanTimerId = setTimeout(function () {
       scanTimerId = null;
-      const video = el['camera-video'];
+      var video = el['camera-video'];
       if (
         state.sourceMode === 'webcam' &&
         state.mediaStream &&
@@ -1154,7 +945,7 @@
         video.readyState >= 2 &&
         typeof video.requestVideoFrameCallback === 'function'
       ) {
-        videoFrameCallbackId = video.requestVideoFrameCallback(() => {
+        videoFrameCallbackId = video.requestVideoFrameCallback(function () {
           videoFrameCallbackId = null;
           runRecognitionTick();
         });
@@ -1169,471 +960,470 @@
     videoFrameCallbackId = null;
 
     if (document.hidden) {
-      updatePowerTelemetryUI();
+      updateHudCameraStatus();
       return;
     }
 
-    const continuous = isContinuousSourceActive();
+    var continuous = isContinuousSourceActive();
     if (!state.forceNextEval && !continuous) {
-      updatePowerTelemetryUI();
+      updateHudCameraStatus();
       return;
     }
 
-    const forceEval = state.forceNextEval;
+    var forceEval = state.forceNextEval;
     state.forceNextEval = false;
 
     renderStageCanvasFrame();
 
-    const sourceElem = getActiveVideoSourceElement();
-    const roiRect = getRoiRect(sourceElem);
+    if (!hasValidOpticalSource()) {
+      updateHudCameraStatus();
+      updateRecognitionUI({
+        matched: false,
+        exactBarcode: false,
+        product: null,
+        bestCandidate: null,
+        similarity: 0,
+        margin: 0,
+        topCandidates: []
+      });
+      return;
+    }
 
-    const t0 = performance.now();
-    const sig = VisionEngine.captureFrameSignature(sourceElem, roiRect, false, {
+    var sourceElem = getActiveVideoSourceElement();
+    var roiRect = getRoiRect(sourceElem);
+
+    var t0 = performance.now();
+    var sig = VisionEngine.captureFrameSignature(sourceElem, roiRect, false, {
       skipIfStatic: state.ecoGateEnabled && !forceEval && continuous,
       staticThreshold: 1.5
     });
     state.lastMotionDelta = sig.motionDelta;
 
-    // Pre-Extraction Motion Gate: Static frame short-circuit (< 0.02 ms CPU, zero descriptor extraction!)
     if (sig.isStaticSkip) {
-      const skipMs = +(performance.now() - t0).toFixed(2);
       state.staticFrameStreak++;
       if (state.staticFrameStreak >= 8 && !state.isEcoSleeping) {
         state.isEcoSleeping = true;
-        updatePowerTelemetryUI();
-      }
-      const latStr = `${Math.max(0.03, skipMs).toFixed(2)} ms`;
-      if (el['metric-latency'].textContent !== latStr) {
-        el['metric-latency'].textContent = latStr;
+        updateHudCameraStatus();
       }
       scheduleRecognition(false);
       return;
     }
 
-    // Check Motion Gate for active scene
     if (state.ecoGateEnabled && continuous && sig.motionDelta < 1.8) {
       state.staticFrameStreak++;
       if (state.staticFrameStreak >= 10 && !state.isEcoSleeping) {
         state.isEcoSleeping = true;
-        updatePowerTelemetryUI();
+        updateHudCameraStatus();
       }
     } else {
       wakeFromEcoSleep();
-      updatePowerTelemetryUI();
+      updateHudCameraStatus();
     }
 
     // Live Registration Preview on Register tab when webcam is active and not manually locked
-    const activeTag = document.activeElement ? document.activeElement.tagName : '';
+    var activeTag = document.activeElement ? document.activeElement.tagName : '';
     if (
       state.activeTab === 'register' &&
       state.sourceMode === 'webcam' &&
       !state.regManualCaptured &&
-      !['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)
+      activeTag !== 'INPUT' &&
+      activeTag !== 'TEXTAREA' &&
+      activeTag !== 'SELECT'
     ) {
-      const nowMs = Date.now();
+      var nowMs = Date.now();
       if (!state.lastLiveRegPreviewTime || nowMs - state.lastLiveRegPreviewTime > 550) {
         state.lastLiveRegPreviewTime = nowMs;
-        const regSig = VisionEngine.captureFrameSignature(sourceElem, roiRect, true);
+        var regSig = VisionEngine.captureFrameSignature(sourceElem, roiRect, true);
         state.regDescriptors = regSig.augmentedDescriptors || [regSig.descriptor];
         state.regThumbnail = regSig.thumbnail;
-        if (el['reg-preview-img']) el['reg-preview-img'].src = state.regThumbnail;
+        if (el['reg-preview-img'] && state.regThumbnail) {
+          el['reg-preview-img'].src = state.regThumbnail;
+        }
         if (el['reg-sample-count']) {
-          el['reg-sample-count'].textContent = `樣本數: ${state.regDescriptors.length} 組`;
+          el['reg-sample-count'].textContent = '樣本: ' + state.regDescriptors.length + ' 組';
+        }
+        if (el['reg-descriptor-status']) {
+          el['reg-descriptor-status'].textContent = '即時取景特徵就緒';
         }
       }
     }
 
-    // Non-blocking parallel Hardware BarcodeDetector probe (every 4th active frame on real video/ipcam)
-    if (
-      (state.sourceMode === 'webcam' || state.sourceMode === 'ipcam') &&
-      typeof VisionEngine.detectBarcode === 'function'
-    ) {
+    // Parallel Non-Blocking Hardware BarcodeDetector Probe (every 4th active frame)
+    if (state.sourceMode === 'webcam' && typeof VisionEngine.detectBarcode === 'function') {
       state.barcodeTickCounter = (state.barcodeTickCounter + 1) & 3;
       if (state.barcodeTickCounter === 0) {
-        VisionEngine.detectBarcode(sourceElem).then((codeObj) => {
+        VisionEngine.detectBarcode(sourceElem).then(function (codeObj) {
           if (codeObj && codeObj.rawValue) {
+            var isNewBarcode = state.lastDetectedBarcode !== codeObj.rawValue;
             state.lastDetectedBarcode = codeObj.rawValue;
             state.lastBarcodeTime = Date.now();
             if (state.activeTab === 'register' && el['reg-barcode'] && !el['reg-barcode'].value.trim()) {
               el['reg-barcode'].value = codeObj.rawValue;
-              showToast(`⚡ 已自動讀取條碼：${codeObj.rawValue}`);
+              showToast('⚡ 已自動帶入條碼：' + codeObj.rawValue);
+            } else if (isNewBarcode) {
+              scheduleRecognition(true);
             }
           }
         });
       }
     }
 
-    const freshBarcode =
-      state.lastDetectedBarcode && Date.now() - state.lastBarcodeTime < 1400
+    var freshBarcode =
+      state.lastDetectedBarcode && Date.now() - state.lastBarcodeTime < 1500
         ? state.lastDetectedBarcode
         : '';
 
-    const activeVirtualPresetId =
-      state.sourceMode === 'virtual' && VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex]
-        ? VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex].presetId
-        : null;
-
-    const rawMatchRes = VisionEngine.matchProducts(
+    var rawMatchRes = VisionEngine.matchProducts(
       sig.descriptor,
       state.products,
       state.threshold,
       sig.queryDescriptors,
       {
-        sourceMode: state.sourceMode,
-        virtualPresetId: activeVirtualPresetId,
+        sourceMode: state.sourceMode === 'photo' ? 'photo' : 'webcam',
+        virtualPresetId: null,
         detectedBarcode: freshBarcode
       }
     );
 
-    // 3-Frame Temporal Hysteresis for continuous webcam/ipcam streams (prevents motion-blur flicker)
-    let matchRes = rawMatchRes;
+    // 3-Frame Temporal Hysteresis on live webcam stream (instant lock on barcode or >= 93% similarity)
+    var matchRes = rawMatchRes;
     if (
-      (state.sourceMode === 'webcam' || state.sourceMode === 'ipcam') &&
+      state.sourceMode === 'webcam' &&
       !rawMatchRes.exactBarcode &&
       rawMatchRes.similarity < 0.93
     ) {
-      const frameId = rawMatchRes.matched && rawMatchRes.product ? rawMatchRes.product.id : null;
+      var frameId = rawMatchRes.matched && rawMatchRes.product ? rawMatchRes.product.id : null;
       state.matchHistory.push(frameId);
       if (state.matchHistory.length > 3) state.matchHistory.shift();
 
       if (state.matchHistory.length >= 2) {
-        // Count occurrences in sliding window
-        let consensusId = undefined;
-        for (let i = 0; i < state.matchHistory.length; i++) {
-          const candidateId = state.matchHistory[i];
-          let cnt = 0;
-          for (let j = 0; j < state.matchHistory.length; j++) {
-            if (state.matchHistory[j] === candidateId) cnt++;
+        var consensusId;
+        var hasConsensus = false;
+        for (var i = 0; i < state.matchHistory.length; i++) {
+          var candId = state.matchHistory[i];
+          var cnt = 0;
+          for (var j = 0; j < state.matchHistory.length; j++) {
+            if (state.matchHistory[j] === candId) cnt++;
           }
           if (cnt >= 2) {
-            consensusId = candidateId;
+            consensusId = candId;
+            hasConsensus = true;
             break;
           }
         }
-        if (consensusId !== undefined && consensusId !== frameId) {
+        if (hasConsensus && consensusId !== frameId) {
           if (consensusId === null) {
-            matchRes = { ...rawMatchRes, matched: false, product: null };
+            matchRes = {
+              matched: false,
+              exactBarcode: false,
+              product: null,
+              bestCandidate: rawMatchRes.bestCandidate,
+              similarity: rawMatchRes.similarity,
+              margin: rawMatchRes.margin,
+              topCandidates: rawMatchRes.topCandidates
+            };
           } else {
-            const heldProd = state.products.find((p) => p.id === consensusId);
+            var heldProd = state.products.find(function (p) {
+              return p.id === consensusId;
+            });
             if (heldProd) {
-              matchRes = { ...rawMatchRes, matched: true, product: heldProd };
+              matchRes = {
+                matched: true,
+                exactBarcode: false,
+                product: heldProd,
+                bestCandidate: heldProd,
+                similarity: rawMatchRes.similarity,
+                margin: rawMatchRes.margin,
+                topCandidates: rawMatchRes.topCandidates
+              };
             }
           }
         }
       }
     } else {
-      const instantId = rawMatchRes.matched && rawMatchRes.product ? rawMatchRes.product.id : null;
+      var instantId = rawMatchRes.matched && rawMatchRes.product ? rawMatchRes.product.id : null;
       state.matchHistory = [instantId, instantId];
     }
 
-    const t1 = performance.now();
-
-    state.lastInferenceMs = +(t1 - t0).toFixed(2);
+    state.lastInferenceMs = +(performance.now() - t0).toFixed(2);
     state.liveDescriptor = sig.descriptor;
-    state.currentMatch = matchRes.product;
+    state.currentMatch = matchRes.matched ? matchRes.product : null;
     state.currentSimilarity = matchRes.similarity;
-    state.topCandidates = matchRes.topCandidates;
+    state.topCandidates = matchRes.topCandidates || [];
 
-    const latText = `${Math.max(0.08, state.lastInferenceMs).toFixed(2)} ms`;
-    if (el['metric-latency'].textContent !== latText) {
-      el['metric-latency'].textContent = latText;
-    }
-
-    const refF32List = matchRes.bestCandidate
-      ? VisionEngine.ensureProductCache(matchRes.bestCandidate)
-      : null;
-    drawFingerprintWaveform(sig.descriptor, refF32List && refF32List[0] ? refF32List[0] : null);
-    updateRecognitionUI(matchRes);
-
-    // Auto-Add to Shopping Cart if enabled and cooldown passed
-    if (
-      state.autoAddCart &&
-      matchRes.matched &&
-      matchRes.product &&
-      matchRes.product.stock > 0
-    ) {
-      const now = Date.now();
-      const cooldownDone =
-        now - state.lastAutoCartTime > 2200 ||
-        state.lastAutoCartProductId !== matchRes.product.id;
-      if (cooldownDone) {
-        state.lastAutoCartTime = now;
-        state.lastAutoCartProductId = matchRes.product.id;
-        addToCart(matchRes.product.id, 1, true);
+    if (matchRes.matched && matchRes.product) {
+      if (state.lastVibratedProductId !== matchRes.product.id) {
+        state.lastVibratedProductId = matchRes.product.id;
+        triggerHaptic(22);
       }
+    } else {
+      state.lastVibratedProductId = null;
     }
 
+    updateRecognitionUI(matchRes, freshBarcode);
     scheduleRecognition(false);
   }
 
-  function drawFingerprintWaveform(liveVec, refVec) {
-    const canvas = el['fingerprint-canvas'];
-    if (!canvas || !liveVec || canvas.offsetParent === null) return;
-    const ctx = canvas.getContext('2d');
-    const w = canvas.width;
-    const h = canvas.height;
-    ctx.clearRect(0, 0, w, h);
-
-    const len = liveVec.length;
-    const barW = w / len;
-
-    if (refVec && refVec.length === len) {
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.32)';
-      for (let i = 0; i < len; i++) {
-        const val = Math.min(1, Math.abs(refVec[i]) * 4.2);
-        const bh = val * (h - 4);
-        ctx.fillRect(i * barW, h - bh, Math.max(1.5, barW - 0.5), bh);
-      }
-    }
-
-    ctx.fillStyle = '#10b981';
-    for (let i = 0; i < len; i++) {
-      const val = Math.min(1, Math.abs(liveVec[i]) * 4.2);
-      const bh = val * (h - 4);
-      ctx.fillRect(i * barW, h - bh, Math.max(1, barW - 1), bh);
-    }
-  }
-
-  // State-diffed UI updater to eliminate redundant DOM mutations & reflows
-  const lastUIState = {
-    simPct: '',
+  // State-diffed Merchant Recognition UI Updater
+  var lastUIState = {
+    simLabel: '',
     matched: null,
-    productKey: ''
+    renderKey: ''
   };
 
   function invalidateRecognitionUICache() {
-    lastUIState.productKey = '';
+    lastUIState.renderKey = '';
     lastUIState.matched = null;
+    lastUIState.simLabel = '';
   }
 
-  function updateRecognitionUI(matchRes) {
-    const simPct = (matchRes.similarity * 100).toFixed(1) + '%';
-    if (lastUIState.simPct !== simPct) {
-      lastUIState.simPct = simPct;
-      el['hud-confidence-val'].textContent = simPct;
+  function updateRecognitionUI(matchRes, activeBarcode) {
+    var isMatched = Boolean(matchRes && matchRes.matched && matchRes.product);
+    var simVal = matchRes && typeof matchRes.similarity === 'number' ? matchRes.similarity : 0;
+    var simLabel = isMatched && matchRes.exactBarcode
+      ? '條碼 100%'
+      : (state.products.length > 0 && simVal > 0 ? (simVal * 100).toFixed(1) + '%' : '--%');
+
+    if (lastUIState.simLabel !== simLabel) {
+      lastUIState.simLabel = simLabel;
+      if (el['hud-confidence-val']) el['hud-confidence-val'].textContent = simLabel;
     }
 
-    if (lastUIState.matched !== matchRes.matched) {
-      lastUIState.matched = matchRes.matched;
-      el['roi-reticle'].classList.toggle('matched', matchRes.matched);
-      el['hud-match-banner'].classList.toggle('matched-state', matchRes.matched);
+    if (lastUIState.matched !== isMatched) {
+      lastUIState.matched = isMatched;
+      if (el['roi-reticle']) el['roi-reticle'].classList.toggle('matched', isMatched);
+      if (el['hud-match-banner']) el['hud-match-banner'].classList.toggle('matched-state', isMatched);
     }
 
-    if (matchRes.matched && matchRes.product) {
-      const p = matchRes.product;
-      const pKey = `${p.id}|${p.name}|${p.price}|${p.stock}|${p.spec || ''}|${(p.thumbnail || '').length}`;
-      if (lastUIState.productKey !== pKey) {
-        lastUIState.productKey = pKey;
-        el['hud-match-title'].textContent = p.name;
-        el['hud-match-sub'].textContent = p.spec || '精選商品';
-        el['hud-match-price'].textContent = `NT$ ${p.price.toLocaleString()}`;
-        el['hud-match-stock'].textContent = `${p.stock}`;
-        el['hud-add-cart-btn'].disabled = p.stock <= 0;
+    if (isMatched) {
+      var p = matchRes.product;
+      var priceNum = Number(p.price) || 0;
+      var stockNum = Number.isFinite(Number(p.stock)) ? Number(p.stock) : 0;
+      var unitStr = p.unit || '件';
+      var locStr = p.location || '未設定';
+      var skuStr = p.sku || '未設定';
+      var barcodeStr = p.barcode || '未設定';
+      var catStr = p.category || '一般商品';
+      var specStr = p.spec || '尚無額外規格備註';
+      var matchTypeStr = matchRes.exactBarcode ? '條碼精準命中' : '視覺特徵命中';
+      var cardSimStr = matchRes.exactBarcode
+        ? '100% 條碼吻合'
+        : ('相似度 ' + (simVal * 100).toFixed(1) + '%');
 
-        // Update Column 2 Customer Product Card (Strictly Name, Price, Intro, Add to Cart)
-        el['recognized-product-card'].classList.remove('hidden');
-        el['unregistered-prompt-card'].classList.add('hidden');
+      var pKey = [
+        p.id, p.name, priceNum, stockNum, unitStr, locStr, skuStr,
+        barcodeStr, catStr, specStr, matchTypeStr, cardSimStr, (p.thumbnail || '').length
+      ].join('|');
 
-        if (p.thumbnail && el['rec-img'].getAttribute('src') !== p.thumbnail) {
-          el['rec-img'].src = p.thumbnail;
+      if (lastUIState.renderKey !== pKey) {
+        lastUIState.renderKey = pKey;
+
+        if (el['hud-match-title']) el['hud-match-title'].textContent = p.name;
+        if (el['hud-match-sub']) {
+          el['hud-match-sub'].textContent = '庫存 ' + stockNum + ' ' + unitStr + ' · 儲位 ' + locStr;
         }
-        el['rec-name'].textContent = p.name;
-        el['rec-price'].textContent = `NT$ ${p.price.toLocaleString()}`;
-        el['rec-spec'].textContent = p.spec || '尚無額外產品介紹';
-        el['btn-rec-add-cart'].disabled = p.stock <= 0;
-        el['btn-rec-add-cart'].textContent = p.stock > 0 ? '🛒 加入購物車' : '暫無庫存';
+        if (el['hud-match-price']) {
+          el['hud-match-price'].textContent = 'NT$ ' + priceNum.toLocaleString();
+        }
+
+        if (el['recognized-product-card']) el['recognized-product-card'].classList.remove('hidden');
+        if (el['unregistered-prompt-card']) el['unregistered-prompt-card'].classList.add('hidden');
+
+        var thumbSrc = p.thumbnail || EMPTY_THUMB_DATA_URI;
+        if (el['rec-img'] && el['rec-img'].getAttribute('src') !== thumbSrc) {
+          el['rec-img'].src = thumbSrc;
+        }
+        if (el['rec-match-type']) el['rec-match-type'].textContent = matchTypeStr;
+        if (el['rec-category']) el['rec-category'].textContent = catStr;
+        if (el['rec-similarity']) el['rec-similarity'].textContent = cardSimStr;
+        if (el['rec-name']) el['rec-name'].textContent = p.name;
+        if (el['rec-price']) el['rec-price'].textContent = 'NT$ ' + priceNum.toLocaleString();
+        if (el['rec-stock']) el['rec-stock'].textContent = stockNum + ' ' + unitStr;
+        if (el['rec-location']) el['rec-location'].textContent = locStr;
+        if (el['rec-sku']) el['rec-sku'].textContent = skuStr;
+        if (el['rec-barcode']) el['rec-barcode'].textContent = barcodeStr;
+        if (el['rec-spec']) el['rec-spec'].textContent = specStr;
+
+        // Reset delete button confirmation appearance if product changed
+        resetDeleteButtonUI();
       }
-    } else if (lastUIState.productKey !== '__UNREG__') {
-      lastUIState.productKey = '__UNREG__';
-      el['hud-match-title'].textContent = '⚠️ 未建檔';
-      el['hud-match-sub'].textContent = '未掃描到庫存中的商品';
-      el['hud-match-price'].textContent = '未建檔';
-      el['hud-add-cart-btn'].disabled = true;
+    } else {
+      var unregSubHud = state.products.length === 0
+        ? '目前尚無建檔商品，請點選「商品建檔」新增'
+        : (activeBarcode ? ('條碼 ' + activeBarcode + ' 尚未建檔') : '未掃描到已建檔的商品');
+      var unregCardDesc = activeBarcode
+        ? ('偵測到條碼「' + activeBarcode + '」尚未建立商品檔案')
+        : (state.products.length === 0
+          ? '目前商品庫尚無資料，請對準商品進行拍照建檔'
+          : '目前掃描畫面中的商品尚未建立檔案');
+      var uKey = '__UNREG__|' + unregSubHud + '|' + unregCardDesc;
 
-      el['recognized-product-card'].classList.add('hidden');
-      el['unregistered-prompt-card'].classList.remove('hidden');
-    }
+      if (lastUIState.renderKey !== uKey) {
+        lastUIState.renderKey = uKey;
+        if (el['hud-match-title']) el['hud-match-title'].textContent = '未建檔';
+        if (el['hud-match-sub']) el['hud-match-sub'].textContent = unregSubHud;
+        if (el['hud-match-price']) el['hud-match-price'].textContent = '未建檔';
 
-    // Only build candidate HTML if #top-candidates-list is visible
-    const candContainer = el['top-candidates-list'];
-    if (candContainer && !candContainer.classList.contains('hidden')) {
-      candContainer.innerHTML = matchRes.topCandidates
-        .map((c) => {
-          const pct = (c.similarity * 100).toFixed(1);
-          const isPass = c.similarity >= state.threshold;
-          return `
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 10px; background:var(--bg-elevated); border-radius:var(--radius-sm); border:1px solid ${isPass ? 'hsla(158, 78%, 42%, 0.4)' : 'var(--border-subtle)'};">
-              <div style="min-width:0; flex:1;">
-                <div style="font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(c.product.name)}</div>
-                <div style="font-size:12px; color:var(--text-muted); font-family:var(--font-mono);">
-                  ${escapeHtml(c.product.sku)} · 庫存 ${c.product.stock} ${escapeHtml(c.product.unit || '件')} · NT$ ${c.product.price.toLocaleString()}
-                </div>
-              </div>
-              <span class="badge ${isPass ? 'badge-emerald' : 'badge-amber'}">${pct}%</span>
-            </div>
-          `;
-        })
-        .join('');
+        if (el['recognized-product-card']) el['recognized-product-card'].classList.add('hidden');
+        if (el['unregistered-prompt-card']) el['unregistered-prompt-card'].classList.remove('hidden');
+        if (el['unreg-subtext']) el['unreg-subtext'].textContent = unregCardDesc;
+      }
     }
   }
 
   // ==========================================================================
-  // Camera Photo Registration Workflow (手機相機拍照建檔)
+  // Merchant Product Registration & Maintenance Workflow
   // ==========================================================================
-  function captureForRegistration(appendAngle = false, isManual = false) {
+  function captureForRegistration(appendAngle, isManual) {
     renderStageCanvasFrame();
-    const sourceElem = getActiveVideoSourceElement();
-    const roiRect = getRoiRect(sourceElem);
-    const sig = VisionEngine.captureFrameSignature(sourceElem, roiRect, true);
+    if (!hasValidOpticalSource()) {
+      if (el['reg-descriptor-status']) {
+        el['reg-descriptor-status'].textContent = '請先開啟即時鏡頭或系統相機實拍';
+      }
+      return false;
+    }
+
+    var sourceElem = getActiveVideoSourceElement();
+    var roiRect = getRoiRect(sourceElem);
+    var sig = VisionEngine.captureFrameSignature(sourceElem, roiRect, true);
     if (isManual) {
       state.regManualCaptured = true;
     }
 
+    var extracted = sig.augmentedDescriptors || [sig.descriptor];
     if (appendAngle && state.regDescriptors.length > 0) {
-      const extra = sig.augmentedDescriptors || [sig.descriptor];
-      state.regDescriptors.push(...extra);
-      if (state.regDescriptors.length > 33) {
-        state.regDescriptors = state.regDescriptors.slice(-33);
-      }
-      state.regThumbnail = sig.thumbnail;
-      showToast(`📸 已補拍新角度特徵！目前共 ${state.regDescriptors.length} 組多尺度視覺樣本`);
+      var combined = state.regDescriptors.concat(extracted);
+      state.regDescriptors = VisionEngine.deduplicateDescriptors(combined, 24);
+      state.regThumbnail = sig.thumbnail || state.regThumbnail;
+      showToast('📸 已補拍新角度！目前共 ' + state.regDescriptors.length + ' 組特徵樣本');
     } else {
-      state.regDescriptors = sig.augmentedDescriptors || [sig.descriptor];
+      state.regDescriptors = VisionEngine.deduplicateDescriptors(extracted, 12);
       state.regThumbnail = sig.thumbnail;
     }
 
-    el['reg-preview-img'].src = state.regThumbnail;
-    el['reg-sample-count'].textContent = `樣本數: ${state.regDescriptors.length} 組`;
-    el['reg-descriptor-status'].textContent =
-      state.sourceMode === 'photo'
-        ? '已擷取手機實拍 144 維特徵'
-        : '已擷取 144 維視覺特徵';
+    if (el['reg-preview-img'] && state.regThumbnail) {
+      el['reg-preview-img'].src = state.regThumbnail;
+    }
+    if (el['reg-sample-count']) {
+      el['reg-sample-count'].textContent = '樣本: ' + state.regDescriptors.length + ' 組';
+    }
+    if (el['reg-descriptor-status']) {
+      el['reg-descriptor-status'].textContent =
+        state.sourceMode === 'photo' ? '已擷取相片 144 維特徵' : '已鎖定畫面 144 維特徵';
+    }
+
+    // Pre-fill detected barcode if barcode input is currently blank
+    if (
+      el['reg-barcode'] &&
+      !el['reg-barcode'].value.trim() &&
+      state.lastDetectedBarcode &&
+      Date.now() - state.lastBarcodeTime < 8000
+    ) {
+      el['reg-barcode'].value = state.lastDetectedBarcode;
+    }
+
     playTone(1040, 45, 'triangle');
-
-    // Auto-fill form appropriately so the user never hits empty-field validation blocks
-    if (!el['reg-id'].value && !appendAngle) {
-      const currentName = el['reg-name'].value.trim();
-      const isVirtualPresetName = VisionEngine.VIRTUAL_STAGE_ITEMS.some(
-        (it) => it.name === currentName
-      );
-      const isAutoDefaultName = /^實拍新商品 #\d+$/.test(currentName);
-
-      if (state.sourceMode === 'virtual') {
-        const stageItem = VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex];
-        if (stageItem && (!currentName || isVirtualPresetName || isAutoDefaultName)) {
-          fillRegistrationFormFromPreset(stageItem);
-        }
-      } else {
-        // Real camera photo or live webcam mode: never leave a virtual stage preset SKU/Name
-        if (!currentName || isVirtualPresetName) {
-          el['reg-name'].value = `實拍新商品 #${state.products.length + 1}`;
-          el['reg-price'].value = '199';
-          el['reg-stock'].value = '20';
-          el['reg-sku'].value = '';
-          el['reg-barcode'].value = '';
-          el['reg-category'].value = '手機實拍商品';
-          el['reg-unit'].value = '件';
-          el['reg-location'].value = 'A-01';
-          el['reg-spec'].value = '透過手機相機實拍建檔之庫存商品';
-        }
-      }
-    }
+    return true;
   }
 
-  function fillRegistrationFormFromPreset(stageItem) {
-    el['reg-name'].value = stageItem.name;
-    el['reg-price'].value = stageItem.price;
-    el['reg-stock'].value = stageItem.stock;
-    el['reg-sku'].value = stageItem.sku;
-    el['reg-barcode'].value = stageItem.barcode || '';
-    el['reg-category'].value = stageItem.category || '精選商品';
-    el['reg-unit'].value = stageItem.unit || '件';
-    el['reg-location'].value = stageItem.location || 'B-04';
-    el['reg-spec'].value = stageItem.spec || '';
-  }
-
-  // Build product payload from current registration form & captured descriptors
-  function buildRegistrationPayload(refreshLiveFrame = false) {
-    if (state.regDescriptors.length === 0 || refreshLiveFrame) {
-      renderStageCanvasFrame();
-      const sourceElem = getActiveVideoSourceElement();
-      const freshSig = VisionEngine.captureFrameSignature(sourceElem, getRoiRect(sourceElem), true);
-      const freshList = freshSig.augmentedDescriptors || [freshSig.descriptor];
-      if (state.regDescriptors.length === 0 || !state.regManualCaptured) {
-        state.regDescriptors = freshList;
-        state.regThumbnail = freshSig.thumbnail;
-      } else {
-        // Merge fresh frame descriptors with manually captured descriptors (up to 22 samples)
-        state.regDescriptors = [...freshList, ...state.regDescriptors].slice(0, 22);
-      }
+  async function handleRegistrationSubmit(e) {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
     }
 
-    const editingId = (el['reg-id'].value || '').trim();
-    const stageItem = state.sourceMode === 'virtual'
-      ? VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex]
-      : null;
+    // Ensure visual signature is captured if an optical source is active and no samples exist yet
+    if (state.regDescriptors.length === 0 && hasValidOpticalSource()) {
+      captureForRegistration(false, true);
+    }
 
-    const fallbackName = stageItem
-      ? stageItem.name
-      : `實拍新商品 #${state.products.length + 1}`;
-    const prodName = el['reg-name'].value.trim() || fallbackName;
-    const rawPrice = el['reg-price'].value.trim();
-    const prodPrice = rawPrice !== '' ? Math.max(0, Number(rawPrice) || 0) : (stageItem ? stageItem.price : 199);
-    const rawStock = el['reg-stock'].value.trim();
-    const prodStock = rawStock !== '' ? Math.max(0, Number(rawStock) || 0) : (stageItem ? stageItem.stock : 20);
-    const prodSpec = el['reg-spec'].value.trim() || (stageItem ? stageItem.spec : '透過手機相機實拍建檔之庫存商品');
+    var editingId = el['reg-id'] ? el['reg-id'].value.trim() : '';
+    var rawName = el['reg-name'] ? el['reg-name'].value.trim() : '';
+    var prodName = rawName || ('店家商品 #' + (state.products.length + 1));
 
-    const now = Date.now();
-    const uniqueSku = editingId
-      ? (el['reg-sku'].value.trim() || ('SKU-' + now.toString().slice(-5)))
-      : (stageItem ? stageItem.sku : (el['reg-sku'].value.trim() || ('SKU-' + now.toString().slice(-5))));
+    var rawPrice = el['reg-price'] ? el['reg-price'].value.trim() : '';
+    var prodPrice = rawPrice !== '' ? Math.max(0, Number(rawPrice) || 0) : 0;
 
-    const payload = {
+    var rawStock = el['reg-stock'] ? el['reg-stock'].value.trim() : '';
+    var prodStock = rawStock !== '' ? Math.max(0, Math.floor(Number(rawStock) || 0)) : 10;
+
+    var now = Date.now();
+    var rawSku = el['reg-sku'] ? el['reg-sku'].value.trim() : '';
+    var prodSku = rawSku || ('SKU-' + String(state.products.length + 101).padStart(4, '0'));
+    var prodBarcode = el['reg-barcode'] ? el['reg-barcode'].value.trim() : '';
+    var prodCategory = (el['reg-category'] && el['reg-category'].value.trim()) || '一般商品';
+    var prodUnit = (el['reg-unit'] && el['reg-unit'].value.trim()) || '件';
+    var prodLocation = (el['reg-location'] && el['reg-location'].value.trim()) || 'A-01';
+    var prodSpec = el['reg-spec'] ? el['reg-spec'].value.trim() : '';
+
+    var descriptors = VisionEngine.deduplicateDescriptors(state.regDescriptors || [], 24);
+    if (descriptors.length === 0 && !prodBarcode) {
+      showToast('⚠️ 請先擷取商品畫面或輸入條碼再儲存建檔', 'warn');
+      return;
+    }
+
+    var payload = {
       name: prodName,
       price: prodPrice,
       stock: prodStock,
-      sku: uniqueSku,
-      barcode: el['reg-barcode'].value.trim(),
-      category: el['reg-category'].value.trim() || '一般商品',
-      unit: el['reg-unit'].value.trim() || '件',
-      location: el['reg-location'].value.trim() || 'A-01',
+      sku: prodSku,
+      barcode: prodBarcode,
+      category: prodCategory,
+      unit: prodUnit,
+      location: prodLocation,
       spec: prodSpec,
-      thumbnail: state.regThumbnail,
-      descriptors: state.regDescriptors,
+      thumbnail: state.regThumbnail || EMPTY_THUMB_DATA_URI,
+      descriptors: descriptors,
       descriptorVersion: 2,
-      isCameraRegistered: state.sourceMode !== 'virtual',
-      virtualPresetId: stageItem ? stageItem.presetId : null
+      isCameraRegistered: true,
+      virtualPresetId: null
     };
-    if (editingId) {
-      payload.id = editingId;
-    }
-    return { payload, editingId, stageItem, now };
-  }
 
-  // Upsert product immediately into memory, localStorage, and Backend API
-  async function upsertRegistrationProduct(refreshLiveFrame = false) {
-    const { payload, editingId, stageItem, now } = buildRegistrationPayload(refreshLiveFrame);
+    var savedProduct = null;
+    var existingIdx = editingId
+      ? state.products.findIndex(function (p) {
+          return p.id === editingId;
+        })
+      : -1;
 
-    let savedProduct = null;
-    // Perform immediate synchronous local upsert first so scanning never misses even 1ms later
-    const existingIdx = state.products.findIndex(
-      (p) =>
-        (editingId && p.id === editingId) ||
-        (stageItem && stageItem.presetId && p.virtualPresetId === stageItem.presetId)
-    );
     if (existingIdx >= 0) {
-      const existing = state.products[existingIdx];
+      var existing = state.products[existingIdx];
       savedProduct = {
-        ...existing,
-        ...payload,
         id: existing.id,
+        name: payload.name,
+        price: payload.price,
+        stock: payload.stock,
+        sku: payload.sku,
+        barcode: payload.barcode,
+        category: payload.category,
+        unit: payload.unit,
+        location: payload.location,
+        spec: payload.spec,
+        thumbnail: payload.thumbnail || existing.thumbnail,
+        descriptors: payload.descriptors.length > 0 ? payload.descriptors : (existing.descriptors || []),
+        descriptorVersion: 2,
+        isCameraRegistered: true,
+        virtualPresetId: null,
+        createdAt: existing.createdAt || now,
         updatedAt: now
       };
       state.products[existingIdx] = savedProduct;
     } else {
       savedProduct = {
-        ...payload,
-        id: editingId || ('prd-' + now.toString(36) + '-' + Math.random().toString(36).slice(2, 5)),
+        id: 'prd-' + now.toString(36) + '-' + Math.random().toString(36).slice(2, 6),
+        name: payload.name,
+        price: payload.price,
+        stock: payload.stock,
+        sku: payload.sku,
+        barcode: payload.barcode,
+        category: payload.category,
+        unit: payload.unit,
+        location: payload.location,
+        spec: payload.spec,
+        thumbnail: payload.thumbnail,
+        descriptors: payload.descriptors,
+        descriptorVersion: 2,
+        isCameraRegistered: true,
+        virtualPresetId: null,
         createdAt: now,
         updatedAt: now
       };
@@ -1641,609 +1431,301 @@
     }
 
     VisionEngine.ensureProductCache(savedProduct);
-    invalidateRecognitionUICache();
-    el['reg-id'].value = savedProduct.id;
-    el['reg-sku'].value = savedProduct.sku;
     notifyPeers();
-    renderAll();
 
-    // Sync to backend API asynchronously (or queue in Offline Outbox if unreachable)
-    const syncBody = { ...payload, id: savedProduct.id, updatedAt: now };
-    try {
-      const res = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(syncBody)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.product) {
-          VisionEngine.ensureProductCache(data.product);
-          const idx = state.products.findIndex((p) => p.id === savedProduct.id || p.id === data.product.id);
-          if (idx >= 0) state.products[idx] = data.product;
-          savedProduct = data.product;
-          saveToLocalStorage();
+    // Async persist to server (or Offline Outbox if offline / standalone APK)
+    var isRemoteServerOrigin =
+      (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
+      window.location.hostname !== 'visionpos.local';
+
+    if (isRemoteServerOrigin) {
+      try {
+        var res = await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(savedProduct)
+        });
+        if (res.ok) {
+          var data = await res.json();
+          if (data && data.product) {
+            VisionEngine.ensureProductCache(data.product);
+            var sIdx = state.products.findIndex(function (p) {
+              return p.id === savedProduct.id || p.id === data.product.id;
+            });
+            if (sIdx >= 0) state.products[sIdx] = data.product;
+            savedProduct = data.product;
+            saveToLocalStorage();
+          }
+        } else if (res.status >= 500) {
+          enqueueOutbox({ type: 'upsert_product', payload: savedProduct });
         }
-      } else if (res.status >= 500) {
-        enqueueOutbox({ type: 'upsert_product', payload: syncBody });
+      } catch (_) {
+        enqueueOutbox({ type: 'upsert_product', payload: savedProduct });
       }
-    } catch (_) {
-      enqueueOutbox({ type: 'upsert_product', payload: syncBody });
     }
-
-    return savedProduct;
-  }
-
-  async function handleRegistrationSubmit(e) {
-    if (e && typeof e.preventDefault === 'function') {
-      e.preventDefault();
-    }
-    const savedProduct = await upsertRegistrationProduct(true);
 
     resetRegistrationForm();
-    switchTab('scan');
+    switchTab('scan', true);
 
-    // Immediately lock onto the newly registered product in the Scan View
+    // Immediately show the newly registered product's complete info on Scan View
     state.currentMatch = savedProduct;
-    state.currentSimilarity = 0.996;
-    state.topCandidates = [{ product: savedProduct, similarity: 0.996 }];
+    state.currentSimilarity = 0.998;
     state.matchHistory = [savedProduct.id, savedProduct.id];
     invalidateRecognitionUICache();
     updateRecognitionUI({
       matched: true,
+      exactBarcode: Boolean(savedProduct.barcode && savedProduct.barcode === state.lastDetectedBarcode),
       product: savedProduct,
       bestCandidate: savedProduct,
-      similarity: 0.996,
-      margin: 0.25,
-      topCandidates: state.topCandidates
+      similarity: 0.998,
+      margin: 1.0,
+      topCandidates: [{ product: savedProduct, similarity: 0.998 }]
     });
 
-    scheduleRecognition(false);
-    playTone(1320, 80, 'sine');
-    showToast(`✅ 建檔成功！「${savedProduct.name}」(NT$ ${savedProduct.price.toLocaleString()}) 已加入庫存並立即啟用掃描辨識！`);
-    if (el['recognized-product-card']) {
-      el['recognized-product-card'].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
+    triggerHaptic(35);
+    playTone(1320, 75, 'sine');
+    showToast('✅ 建檔完成：「' + savedProduct.name + '」已儲存！');
   }
 
   function resetRegistrationForm() {
-    el['register-product-form'].reset();
-    el['reg-id'].value = '';
-    el['reg-name'].value = '';
-    el['reg-price'].value = '199';
-    el['reg-stock'].value = '20';
-    el['reg-sku'].value = '';
-    el['reg-barcode'].value = '';
-    el['reg-spec'].value = '';
+    if (el['register-product-form']) el['register-product-form'].reset();
+    if (el['reg-id']) el['reg-id'].value = '';
+    if (el['reg-name']) el['reg-name'].value = '';
+    if (el['reg-price']) el['reg-price'].value = '';
+    if (el['reg-stock']) el['reg-stock'].value = '10';
+    if (el['reg-sku']) el['reg-sku'].value = '';
+    if (el['reg-barcode']) el['reg-barcode'].value = '';
+    if (el['reg-category']) el['reg-category'].value = '一般商品';
+    if (el['reg-unit']) el['reg-unit'].value = '件';
+    if (el['reg-location']) el['reg-location'].value = 'A-01';
+    if (el['reg-spec']) el['reg-spec'].value = '';
+    if (el['btn-submit-reg']) el['btn-submit-reg'].textContent = '✅ 儲存商品建檔';
+    if (el['reg-preview-img']) el['reg-preview-img'].src = EMPTY_THUMB_DATA_URI;
+    if (el['reg-sample-count']) el['reg-sample-count'].textContent = '樣本: 0 組';
+    if (el['reg-descriptor-status']) el['reg-descriptor-status'].textContent = '準備擷取畫面特徵';
+
     state.regDescriptors = [];
+    state.regThumbnail = '';
     state.regManualCaptured = false;
   }
 
-  // ==========================================================================
-  // Inventory Management Actions (Edit, Angle Append, 2-Tap Armed Delete)
-  // ==========================================================================
-  function openEditProductInRegister(productId, triggerExtraAngle = false) {
-    const p = state.products.find((item) => item.id === productId);
+  function openEditForCurrentMatch() {
+    var p = state.currentMatch;
     if (!p) return;
     switchTab('register', true);
-    el['reg-id'].value = p.id;
-    el['reg-name'].value = p.name;
-    el['reg-price'].value = p.price;
-    el['reg-stock'].value = p.stock;
-    el['reg-sku'].value = p.sku || '';
-    el['reg-barcode'].value = p.barcode || '';
-    el['reg-category'].value = p.category || '一般商品';
-    el['reg-unit'].value = p.unit || '件';
-    el['reg-location'].value = p.location || 'A-01';
-    el['reg-spec'].value = p.spec || '';
-    state.regDescriptors = Array.isArray(p.descriptors) ? [...p.descriptors] : [];
-    state.regThumbnail = p.thumbnail || '';
+    if (el['reg-id']) el['reg-id'].value = p.id;
+    if (el['reg-name']) el['reg-name'].value = p.name || '';
+    if (el['reg-price']) el['reg-price'].value = String(Number(p.price) || 0);
+    if (el['reg-stock']) el['reg-stock'].value = String(Number.isFinite(Number(p.stock)) ? Number(p.stock) : 0);
+    if (el['reg-sku']) el['reg-sku'].value = p.sku || '';
+    if (el['reg-barcode']) el['reg-barcode'].value = p.barcode || '';
+    if (el['reg-category']) el['reg-category'].value = p.category || '一般商品';
+    if (el['reg-unit']) el['reg-unit'].value = p.unit || '件';
+    if (el['reg-location']) el['reg-location'].value = p.location || 'A-01';
+    if (el['reg-spec']) el['reg-spec'].value = p.spec || '';
+    if (el['btn-submit-reg']) el['btn-submit-reg'].textContent = '💾 儲存建檔修改';
+
+    state.regDescriptors = Array.isArray(p.descriptors) ? p.descriptors.slice() : [];
+    state.regThumbnail = p.thumbnail || EMPTY_THUMB_DATA_URI;
     state.regManualCaptured = true;
+
     if (el['reg-preview-img']) el['reg-preview-img'].src = state.regThumbnail;
     if (el['reg-sample-count']) {
-      el['reg-sample-count'].textContent = `樣本數: ${state.regDescriptors.length || 1} 組`;
+      el['reg-sample-count'].textContent = '樣本: ' + state.regDescriptors.length + ' 組';
     }
-    if (el['view-register']) {
-      el['view-register'].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (el['reg-descriptor-status']) {
+      el['reg-descriptor-status'].textContent = '編輯已建檔商品';
     }
-    if (triggerExtraAngle) {
-      if (state.sourceMode === 'photo' && el['native-camera-input']) {
-        state.pendingAngleAppend = true;
-        el['native-camera-input'].click();
-      } else {
-        showToast(`📸 請對準「${p.name}」新角度後點擊「➕ 補拍多角度 (+1)」或「📱 開手機相機實拍」`);
-      }
-    } else {
-      showToast(`✏️ 正在編輯「${p.name}」，修改後將即時同步更新`);
-    }
-  }
-
-  function isActionArmed(armKey) {
-    const now = Date.now();
-    const exp = state.armedConfirmMap[armKey] || 0;
-    if (exp > now) {
-      delete state.armedConfirmMap[armKey];
-      return true;
-    }
-    state.armedConfirmMap[armKey] = now + 3200;
-    setTimeout(() => {
-      if (state.armedConfirmMap[armKey] && state.armedConfirmMap[armKey] <= Date.now()) {
-        delete state.armedConfirmMap[armKey];
-        if (state.activeTab === 'inventory') renderInventoryList();
-      }
-    }, 3300);
-    return false;
+    showToast('✏️ 正在編輯「' + p.name + '」');
   }
 
   async function adjustProductStock(productId, delta) {
-    const product = state.products.find((p) => p.id === productId);
+    var product = state.products.find(function (p) {
+      return p.id === productId;
+    });
     if (!product) return;
-    product.stock = Math.max(0, product.stock + delta);
+
+    product.stock = Math.max(0, (Number(product.stock) || 0) + delta);
     product.updatedAt = Date.now();
+    notifyPeers();
     invalidateRecognitionUICache();
 
-    try {
-      const r = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stock: product.stock })
+    if (state.currentMatch && state.currentMatch.id === product.id) {
+      updateRecognitionUI({
+        matched: true,
+        exactBarcode: false,
+        product: product,
+        bestCandidate: product,
+        similarity: state.currentSimilarity || 0.99,
+        margin: 1.0,
+        topCandidates: state.topCandidates
       });
-      if (!r.ok && r.status >= 500) {
+    }
+
+    var isRemoteServerOrigin =
+      (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
+      window.location.hostname !== 'visionpos.local';
+    if (isRemoteServerOrigin) {
+      try {
+        var r = await fetch('/api/products/' + encodeURIComponent(productId), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stock: product.stock })
+        });
+        if (!r.ok && r.status >= 500) {
+          enqueueOutbox({ type: 'patch_product', id: productId, payload: { stock: product.stock } });
+        }
+      } catch (_) {
         enqueueOutbox({ type: 'patch_product', id: productId, payload: { stock: product.stock } });
       }
-    } catch (_) {
-      enqueueOutbox({ type: 'patch_product', id: productId, payload: { stock: product.stock } });
     }
-
-    notifyPeers();
-    renderAll();
-    scheduleRecognition(true);
   }
 
-  async function deleteProduct(productId) {
-    const product = state.products.find((p) => p.id === productId);
+  async function appendExtraAngleToProduct(product) {
     if (!product) return;
-    if (!isActionArmed('del:' + productId)) {
-      renderInventoryList();
-      showToast(`⚠️ 再點一次「確認?」即可刪除「${product.name}」`, 'warn');
+    renderStageCanvasFrame();
+    if (!hasValidOpticalSource()) {
+      if (el['native-camera-input']) {
+        state.pendingAngleProductId = product.id;
+        el['native-camera-input'].click();
+      }
       return;
     }
 
-    state.products = state.products.filter((p) => p.id !== productId);
-    state.cart = state.cart.filter((c) => c.productId !== productId);
+    var sourceElem = getActiveVideoSourceElement();
+    var sig = VisionEngine.captureFrameSignature(sourceElem, getRoiRect(sourceElem), true);
+    var extra = sig.augmentedDescriptors || [sig.descriptor];
+    var combined = (product.descriptors || []).concat(extra);
+    product.descriptors = VisionEngine.deduplicateDescriptors(combined, 24);
+    if (!product.thumbnail && sig.thumbnail) {
+      product.thumbnail = sig.thumbnail;
+    }
+    product.updatedAt = Date.now();
+    VisionEngine.ensureProductCache(product);
+    notifyPeers();
     invalidateRecognitionUICache();
 
-    try {
-      const r = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
-        method: 'DELETE',
-        headers: { 'X-Admin-Pin': state.adminPin }
-      });
-      if (!r.ok && r.status >= 500) {
-        enqueueOutbox({ type: 'delete_product', id: productId });
-      }
-    } catch (_) {
-      enqueueOutbox({ type: 'delete_product', id: productId });
-    }
-
-    notifyPeers();
-    renderAll();
-    scheduleRecognition(true);
-    showToast(`已刪除商品「${product.name}」`, 'warn');
-  }
-
-  function renderInventoryList() {
-    const container = el['inventory-list-container'];
-    if (!container) return;
-
-    const query = (el['inv-search-input'].value || '').trim().toLowerCase();
-    const filter = el['inv-filter-select'].value;
-
-    const filtered = state.products.filter((p) => {
-      if (filter === 'low' && p.stock > (p.minStock || 5)) return false;
-      if (!query) return true;
-      return (
-        p.name.toLowerCase().includes(query) ||
-        (p.sku && p.sku.toLowerCase().includes(query)) ||
-        (p.category && p.category.toLowerCase().includes(query)) ||
-        (p.barcode && p.barcode.toLowerCase().includes(query))
-      );
-    });
-
-    el['metric-product-count'].textContent = `${state.products.length} 筆`;
-    el['nav-inv-count'].textContent = String(state.products.length);
-
-    if (filtered.length === 0) {
-      container.innerHTML = `<div style="padding:24px; text-align:center; color:var(--text-muted);">沒有符合條件的產品</div>`;
-      return;
-    }
-
-    const now = Date.now();
-    container.innerHTML = filtered
-      .map((p) => {
-        const isLow = p.stock <= (p.minStock || 5);
-        const delArmed = (state.armedConfirmMap['del:' + p.id] || 0) > now;
-        const bcTag = p.barcode ? ` · 條碼 ${escapeHtml(p.barcode)}` : '';
-        return `
-          <div class="inv-item">
-            <img class="inv-thumb" src="${p.thumbnail || ''}" alt="${escapeHtml(p.name)}" />
-            <div class="inv-info">
-              <div class="inv-title">${escapeHtml(p.name)}</div>
-              <div class="inv-sub">
-                ${escapeHtml(p.sku)}${bcTag} · 儲位 ${escapeHtml(p.location || 'A-01')} · <strong style="color:var(--accent-primary);">NT$ ${p.price.toLocaleString()}</strong>
-              </div>
-              <div style="margin-top:2px; display:flex; gap:4px; flex-wrap:wrap;">
-                <span class="badge ${isLow ? 'badge-danger' : 'badge-emerald'}">
-                  庫存: ${p.stock} ${escapeHtml(p.unit || '件')} ${isLow ? '(低庫存)' : ''}
-                </span>
-                <span class="badge badge-info">特徵 ${(p.descriptors && p.descriptors.length) || 1} 組</span>
-              </div>
-            </div>
-            <div class="inv-actions" style="flex-wrap:wrap; justify-content:flex-end;">
-              <button type="button" class="btn btn-secondary btn-sm" data-action="inv-minus" data-id="${p.id}" title="庫存 -1">-1</button>
-              <button type="button" class="btn btn-secondary btn-sm" data-action="inv-plus" data-id="${p.id}" title="庫存 +1">+1</button>
-              <button type="button" class="btn btn-secondary btn-sm" data-action="inv-edit" data-id="${p.id}" title="編輯名稱、價格、條碼與介紹">✏️</button>
-              <button type="button" class="btn btn-secondary btn-sm" data-action="inv-angle" data-id="${p.id}" title="補拍多角度特徵">📸</button>
-              <button type="button" class="btn btn-primary btn-sm" data-action="inv-cart" data-id="${p.id}" ${p.stock <= 0 ? 'disabled' : ''}>+入車</button>
-              <button type="button" class="btn btn-danger btn-sm" data-action="inv-del" data-id="${p.id}" title="刪除商品">${delArmed ? '確認?' : '✕'}</button>
-            </div>
-          </div>
-        `;
-      })
-      .join('');
-  }
-
-  // ==========================================================================
-  // Real-Time Shopping Cart, Persistent Cart & Electronic Receipt POS Checkout
-  // ==========================================================================
-  function syncCartAndBroadcast() {
-    saveCartToStorage();
-    if (broadcastChannel) {
-      broadcastChannel.postMessage({ type: 'cart_updated', timestamp: Date.now() });
-    }
-  }
-
-  function addToCart(productId, qty = 1, isAuto = false) {
-    const product = state.products.find((p) => p.id === productId);
-    if (!product) return;
-    if (product.stock <= 0) {
-      showToast(`「${product.name}」庫存已售罄！`, 'danger');
-      return;
-    }
-
-    const existing = state.cart.find((c) => c.productId === productId);
-    if (existing) {
-      if (existing.quantity + qty > product.stock) {
-        showToast(`已達「${product.name}」庫存上限 (${product.stock} ${product.unit || '件'})`, 'warn');
-        return;
-      }
-      existing.quantity += qty;
-    } else {
-      state.cart.push({ productId, quantity: Math.min(qty, product.stock) });
-    }
-
-    playTone(960, 45, 'sine');
-    try {
-      if (window.VisionPOSAndroid && typeof window.VisionPOSAndroid.vibrate === 'function') {
-        window.VisionPOSAndroid.vibrate(18);
-      } else if (navigator.vibrate) {
-        navigator.vibrate(18);
-      }
-    } catch (_) {}
-    if (isAuto) {
-      showToast(`⚡ 自動掃描入車：${product.name} ×1`);
-    } else {
-      showToast(`🛒 已加入購物車：${product.name}`);
-    }
-    renderCart();
-    syncCartAndBroadcast();
-  }
-
-  function updateCartQty(productId, newQty) {
-    const product = state.products.find((p) => p.id === productId);
-    if (!product) return;
-    if (newQty <= 0) {
-      state.cart = state.cart.filter((c) => c.productId !== productId);
-    } else {
-      const item = state.cart.find((c) => c.productId === productId);
-      if (item) {
-        item.quantity = Math.min(product.stock, newQty);
-      }
-    }
-    renderCart();
-    syncCartAndBroadcast();
-  }
-
-  function renderCart() {
-    const container = el['cart-items-container'];
-    if (!container) return;
-
-    let totalQty = 0;
-    let subtotal = 0;
-
-    // Clean out deleted products
-    state.cart = state.cart.filter((c) => state.products.some((p) => p.id === c.productId));
-
-    if (state.cart.length === 0) {
-      container.innerHTML = `
-        <div style="padding:22px 12px; text-align:center; color:var(--text-muted); border:1px dashed var(--border-subtle); border-radius:var(--radius-sm);">
-          購物車目前是空的<br/>
-          <span style="font-size:12px;">開啟相機掃描商品即可一鍵或自動加入購物車</span>
-        </div>
-      `;
-    } else {
-      container.innerHTML = state.cart
-        .map((c) => {
-          const p = state.products.find((prod) => prod.id === c.productId);
-          if (!p) return '';
-          const lineTotal = p.price * c.quantity;
-          totalQty += c.quantity;
-          subtotal += lineTotal;
-          return `
-            <div class="cart-row">
-              <div style="min-width:0; flex:1;">
-                <div style="font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                  ${escapeHtml(p.name)}
-                </div>
-                <div style="font-size:12px; color:var(--text-secondary); font-family:var(--font-mono);">
-                  NT$ ${p.price.toLocaleString()} × ${c.quantity} = <strong style="color:var(--accent-primary);">NT$ ${lineTotal.toLocaleString()}</strong>
-                </div>
-              </div>
-              <div class="qty-stepper">
-                <button type="button" class="qty-btn" data-cart-minus="${p.id}">−</button>
-                <span class="qty-val">${c.quantity}</span>
-                <button type="button" class="qty-btn" data-cart-plus="${p.id}">+</button>
-              </div>
-            </div>
-          `;
-        })
-        .join('');
-    }
-
-    const discount = Math.max(0, Number(el['cart-discount-input'].value) || 0);
-    const total = Math.max(0, subtotal - discount);
-
-    el['cart-count-badge'].textContent = `${totalQty} 件`;
-    el['summary-qty'].textContent = String(totalQty);
-    el['summary-subtotal'].textContent = `NT$ ${subtotal.toLocaleString()}`;
-    el['summary-total'].textContent = `NT$ ${total.toLocaleString()}`;
-    el['btn-checkout-submit'].disabled = state.cart.length === 0;
-    saveCartToStorage();
-  }
-
-  function openReceiptModal(order) {
-    if (!order || !el['receipt-modal'] || !el['receipt-paper-content']) return;
-    const payNames = { cash: '現金支付', card: '感應刷卡', mobile: '行動支付' };
-    const dtStr = new Date(order.createdAt || Date.now()).toLocaleString('zh-TW');
-    const itemsHtml = (order.items || [])
-      .map(
-        (i) => `
-          <div style="display:flex; justify-content:space-between; gap:8px; margin:4px 0;">
-            <span style="flex:1; word-break:break-all;">${escapeHtml(i.name)} ×${i.quantity}</span>
-            <span style="white-space:nowrap;">NT$ ${Number(i.lineTotal != null ? i.lineTotal : i.price * i.quantity).toLocaleString()}</span>
-          </div>
-        `
-      )
-      .join('');
-
-    el['receipt-paper-content'].innerHTML = `
-      <div style="text-align:center; font-weight:700; font-size:15px;">VisionPOS Edge 智慧門市</div>
-      <div style="text-align:center; font-size:11px; color:#4b5563;">電子交易明細憑證</div>
-      <hr class="receipt-divider" />
-      <div>單號：${escapeHtml(order.id)}</div>
-      <div>時間：${escapeHtml(dtStr)}</div>
-      <div>付款：${escapeHtml(payNames[order.paymentMethod] || '現金支付')}</div>
-      <hr class="receipt-divider" />
-      ${itemsHtml}
-      <hr class="receipt-divider" />
-      <div style="display:flex; justify-content:space-between;">
-        <span>小計 (${order.totalQty || 1} 件)</span>
-        <span>NT$ ${Number(order.subtotal || order.total || 0).toLocaleString()}</span>
-      </div>
-      ${
-        Number(order.discount) > 0
-          ? `<div style="display:flex; justify-content:space-between;"><span>折扣折抵</span><span>-NT$ ${Number(order.discount).toLocaleString()}</span></div>`
-          : ''
-      }
-      <div style="display:flex; justify-content:space-between; font-weight:700; font-size:14px; margin-top:4px;">
-        <span>實收總額</span>
-        <span>NT$ ${Number(order.total || 0).toLocaleString()}</span>
-      </div>
-      <hr class="receipt-divider" />
-      <div style="text-align:center; font-size:11px; color:#6b7280;">感謝您的惠顧 · 請妥善保存此明細</div>
-    `;
-    el['receipt-modal'].classList.remove('hidden');
-  }
-
-  async function submitCheckout() {
-    if (state.cart.length === 0) return;
-
-    // Validate stock locally first for atomic safety
-    for (const c of state.cart) {
-      const p = state.products.find((prod) => prod.id === c.productId);
-      if (!p || p.stock < c.quantity) {
-        showToast(`「${p ? p.name : ''}」庫存不足`, 'danger');
-        return;
-      }
-    }
-
-    const now = Date.now();
-    const clientOrderId =
-      'ORD-' + now.toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 5).toUpperCase();
-    const discount = Math.max(0, Number(el['cart-discount-input'].value) || 0);
-    const payload = {
-      id: clientOrderId,
-      createdAt: now,
-      items: state.cart.map((c) => ({ ...c })),
-      discount,
-      paymentMethod: state.paymentMethod
-    };
-
-    let completedOrder = null;
-    let syncedOnline = false;
-    try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        completedOrder = data.order;
-        syncedOnline = true;
-        if (Array.isArray(data.updatedProducts)) {
-          data.updatedProducts.forEach((up) => {
-            VisionEngine.ensureProductCache(up);
-            const idx = state.products.findIndex((p) => p.id === up.id);
-            if (idx >= 0) state.products[idx] = up;
+    var isRemoteServerOrigin =
+      (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
+      window.location.hostname !== 'visionpos.local';
+    if (isRemoteServerOrigin) {
+      try {
+        var r = await fetch('/api/products/' + encodeURIComponent(product.id), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ descriptors: product.descriptors, newDescriptor: sig.descriptor })
+        });
+        if (!r.ok && r.status >= 500) {
+          enqueueOutbox({
+            type: 'patch_product',
+            id: product.id,
+            payload: { descriptors: product.descriptors, newDescriptor: sig.descriptor }
           });
         }
-      }
-    } catch (_) {}
-
-    if (!completedOrder) {
-      let subtotal = 0;
-      const orderItems = [];
-      for (const c of state.cart) {
-        const p = state.products.find((prod) => prod.id === c.productId);
-        p.stock -= c.quantity;
-        p.updatedAt = now;
-        const lineTotal = p.price * c.quantity;
-        subtotal += lineTotal;
-        orderItems.push({
-          productId: p.id,
-          sku: p.sku,
-          name: p.name,
-          price: p.price,
-          quantity: c.quantity,
-          unit: p.unit || '件',
-          lineTotal
+      } catch (_) {
+        enqueueOutbox({
+          type: 'patch_product',
+          id: product.id,
+          payload: { descriptors: product.descriptors, newDescriptor: sig.descriptor }
         });
       }
-      completedOrder = {
-        id: clientOrderId,
-        createdAt: now,
-        paymentMethod: state.paymentMethod,
-        items: orderItems,
-        totalQty: orderItems.reduce((a, b) => a + b.quantity, 0),
-        subtotal,
-        discount,
-        total: Math.max(0, subtotal - discount)
-      };
-      if (!syncedOnline) {
-        enqueueOutbox({ type: 'checkout', payload });
-      }
     }
 
-    if (!state.orders.some((o) => o.id === completedOrder.id)) {
-      state.orders.unshift(completedOrder);
-    }
-    state.cart = [];
-    el['cart-discount-input'].value = '0';
-
-    invalidateRecognitionUICache();
-    notifyPeers();
-    renderAll();
-    scheduleRecognition(true);
-    playTone(1180, 90, 'sine');
-    setTimeout(() => playTone(1560, 120, 'sine'), 85);
-    showToast(`🎉 結帳成功！單號 ${completedOrder.id}，實收 NT$ ${completedOrder.total.toLocaleString()}`);
-    if (state.customerKioskMode) {
-      openReceiptModal(completedOrder);
-    }
+    triggerHaptic(25);
+    showToast('📸 已為「' + product.name + '」補拍多角度特徵（共 ' + product.descriptors.length + ' 組）');
   }
 
-  function renderOrdersHistory() {
-    const container = el['orders-history-list'];
-    if (!container) return;
+  function resetDeleteButtonUI() {
+    if (!el['btn-rec-delete']) return;
+    el['btn-rec-delete'].classList.remove('btn-danger');
+    el['btn-rec-delete'].textContent = '🗑️ 刪除建檔';
+  }
 
-    const todayRevenue = state.orders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
-    el['today-revenue-text'].textContent = `累計營收: NT$ ${todayRevenue.toLocaleString()}`;
+  async function deleteRecognizedProduct() {
+    var product = state.currentMatch;
+    if (!product) return;
 
-    if (state.orders.length === 0) {
-      container.innerHTML = `<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:10px;">尚無結帳紀錄</div>`;
+    var armKey = 'del:' + product.id;
+    var now = Date.now();
+    if (!state.armedConfirmMap[armKey] || state.armedConfirmMap[armKey] <= now) {
+      state.armedConfirmMap[armKey] = now + 3200;
+      if (el['btn-rec-delete']) {
+        el['btn-rec-delete'].classList.add('btn-danger');
+        el['btn-rec-delete'].textContent = '⚠️ 再按一次確認刪除';
+      }
+      setTimeout(function () {
+        if (state.armedConfirmMap[armKey] && state.armedConfirmMap[armKey] <= Date.now()) {
+          delete state.armedConfirmMap[armKey];
+          resetDeleteButtonUI();
+        }
+      }, 3300);
+      showToast('⚠️ 再按一次「確認刪除」即可移除「' + product.name + '」', 'warn');
       return;
     }
 
-    const payNames = { cash: '現金', card: '刷卡', mobile: '行動支付' };
-    container.innerHTML = state.orders
-      .slice(0, 20)
-      .map((o) => {
-        const timeStr = new Date(o.createdAt).toLocaleTimeString();
-        const summaryNames = (o.items || []).map((i) => `${i.name}×${i.quantity}`).join('、');
-        return `
-          <div data-receipt-id="${escapeHtml(o.id)}" style="cursor:pointer; padding:8px 10px; background:var(--bg-elevated); border-radius:var(--radius-sm); border:1px solid var(--border-subtle); font-size:12px;" title="點擊查看或列印電子收據">
-            <div style="display:flex; justify-content:space-between; font-weight:600;">
-              <span style="font-family:var(--font-mono);">🧾 ${escapeHtml(o.id)}</span>
-              <span style="color:var(--accent-primary); font-family:var(--font-mono);">NT$ ${Number(o.total).toLocaleString()}</span>
-            </div>
-            <div style="color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;">
-              ${escapeHtml(summaryNames)}
-            </div>
-            <div style="color:var(--text-muted); font-size:12px; margin-top:2px;">
-              ${timeStr} · ${payNames[o.paymentMethod] || '現金'} · 共 ${o.totalQty || 1} 件
-            </div>
-          </div>
-        `;
-      })
-      .join('');
-  }
+    delete state.armedConfirmMap[armKey];
+    resetDeleteButtonUI();
 
-  // ==========================================================================
-  // Navigation & Event Listeners
-  // ==========================================================================
-  function switchTab(tabName, skipAutoCapture = false) {
-    state.activeTab = tabName;
-    ['scan', 'register', 'inventory', 'devices'].forEach((t) => {
-      el[`tab-btn-${t}`].classList.toggle('active', t === tabName);
-      el[`view-${t}`].classList.toggle('hidden', t !== tabName);
+    var deletedId = product.id;
+    var deletedName = product.name;
+    state.products = state.products.filter(function (p) {
+      return p.id !== deletedId;
     });
-    if (tabName === 'register' && !skipAutoCapture) {
-      captureForRegistration(false);
+    state.currentMatch = null;
+    state.matchHistory = [null, null];
+    notifyPeers();
+    invalidateRecognitionUICache();
+    updateRecognitionUI({
+      matched: false,
+      exactBarcode: false,
+      product: null,
+      bestCandidate: null,
+      similarity: 0,
+      margin: 0,
+      topCandidates: []
+    });
+
+    var isRemoteServerOrigin =
+      (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
+      window.location.hostname !== 'visionpos.local';
+    if (isRemoteServerOrigin) {
+      try {
+        var r = await fetch('/api/products/' + encodeURIComponent(deletedId), {
+          method: 'DELETE'
+        });
+        if (!r.ok && r.status >= 500) {
+          enqueueOutbox({ type: 'delete_product', id: deletedId });
+        }
+      } catch (_) {
+        enqueueOutbox({ type: 'delete_product', id: deletedId });
+      }
     }
-    if (tabName === 'scan' || tabName === 'register') {
-      scheduleRecognition(true);
-    } else {
-      // Pause background scanning (0 FPS) when viewing Inventory or Devices tabs
-      scheduleRecognition(false);
-    }
+
+    showToast('🗑️ 已刪除「' + deletedName + '」建檔資料', 'warn');
   }
 
-  function renderAll() {
-    renderStageTray();
-    renderInventoryList();
-    renderCart();
-    renderOrdersHistory();
-  }
-
-  function escapeHtml(str) {
-    return String(str || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
+  // ==========================================================================
+  // High-Res Native Mobile Photo Loader (EXIF-aware createImageBitmap + Fallback)
+  // ==========================================================================
   function drawSourceOntoPhotoBuffer(imgOrBitmap) {
-    const srcW = imgOrBitmap.width || 640;
-    const srcH = imgOrBitmap.height || 480;
-    const w = photoBufferCanvas.width;
-    const h = photoBufferCanvas.height;
+    var srcW = imgOrBitmap.naturalWidth || imgOrBitmap.width || 640;
+    var srcH = imgOrBitmap.naturalHeight || imgOrBitmap.height || 480;
+    var w = photoBufferCanvas.width;
+    var h = photoBufferCanvas.height;
     photoBufferCtx.fillStyle = '#090d14';
     photoBufferCtx.fillRect(0, 0, w, h);
-    const scale = Math.max(w / srcW, h / srcH);
-    const dw = srcW * scale;
-    const dh = srcH * scale;
+    var scale = Math.max(w / srcW, h / srcH);
+    var dw = srcW * scale;
+    var dh = srcH * scale;
     photoBufferCtx.drawImage(imgOrBitmap, (w - dw) * 0.5, (h - dh) * 0.5, dw, dh);
   }
 
-  // Hardware-subsampled 12MP/50MP mobile photo loader (< 18ms via createImageBitmap, ~99% less peak RAM)
   async function loadMobilePhotoToBuffer(file, onComplete) {
     if (!file) return;
 
     if (typeof createImageBitmap === 'function') {
       try {
-        // Specify ONLY resizeWidth + imageOrientation:'from-image' so all Android OEM cameras preserve EXIF rotation
-        let bitmap;
+        var bitmap;
         try {
           bitmap = await createImageBitmap(file, {
             resizeWidth: 720,
@@ -2255,708 +1737,302 @@
         }
         drawSourceOntoPhotoBuffer(bitmap);
         if (typeof bitmap.close === 'function') bitmap.close();
+        stopWebcamStream();
+        state.sourceMode = 'photo';
         state.hasLoadedPhoto = true;
-        await switchVideoSource('photo');
         renderStageCanvasFrame();
+        updateHudCameraStatus();
         if (typeof onComplete === 'function') onComplete();
         return;
-      } catch (_) {
-        // Fall through to HTMLImageElement fallback
-      }
+      } catch (_) {}
     }
 
-    const objUrl = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = async () => {
+    var objUrl = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function () {
       drawSourceOntoPhotoBuffer(img);
       URL.revokeObjectURL(objUrl);
+      stopWebcamStream();
+      state.sourceMode = 'photo';
       state.hasLoadedPhoto = true;
-      await switchVideoSource('photo');
       renderStageCanvasFrame();
+      updateHudCameraStatus();
       if (typeof onComplete === 'function') onComplete();
     };
-    img.onerror = () => {
+    img.onerror = function () {
       URL.revokeObjectURL(objUrl);
-      showToast('照片讀取失敗，請再試一次', 'danger');
+      showToast('相片讀取失敗，請重試一次', 'danger');
     };
     img.src = objUrl;
   }
 
-  let regInputDebounceTimer = null;
-  let customIpcamPollTimer = null;
+  // ==========================================================================
+  // Tab Switching & Event Bindings
+  // ==========================================================================
+  function switchTab(tabName, skipAutoCapture) {
+    state.activeTab = tabName === 'register' ? 'register' : 'scan';
+    if (el['tab-btn-scan']) {
+      el['tab-btn-scan'].classList.toggle('active', state.activeTab === 'scan');
+    }
+    if (el['tab-btn-register']) {
+      el['tab-btn-register'].classList.toggle('active', state.activeTab === 'register');
+    }
+    if (el['view-scan']) {
+      el['view-scan'].classList.toggle('hidden', state.activeTab !== 'scan');
+    }
+    if (el['view-register']) {
+      el['view-register'].classList.toggle('hidden', state.activeTab !== 'register');
+    }
 
-  function applyCustomerKioskMode(enabled) {
-    state.customerKioskMode = Boolean(enabled);
-    document.body.classList.toggle('customer-kiosk-mode', state.customerKioskMode);
-    if (el['btn-role-toggle']) {
-      el['btn-role-toggle'].textContent = state.customerKioskMode
-        ? '🛍️ 顧客自助模式'
-        : '🔓 店長模式';
+    updateHudCameraStatus();
+    if (state.activeTab === 'register' && !skipAutoCapture && hasValidOpticalSource()) {
+      captureForRegistration(false, false);
     }
-    try {
-      localStorage.setItem(ROLE_STORAGE_KEY, state.customerKioskMode ? 'customer' : 'admin');
-    } catch (_) {}
-    if (state.customerKioskMode && state.activeTab !== 'scan') {
-      switchTab('scan');
-    }
-  }
-
-  function connectCustomIpCam() {
-    const url = (el['ipcam-url-input'].value || '').trim();
-    if (!url) {
-      showToast('請輸入 MJPEG 或 HTTP 快照串流網址 (例如 http://192.168.1.100:8080/video)', 'warn');
-      return;
-    }
-    if (customIpcamPollTimer) {
-      clearInterval(customIpcamPollTimer);
-      customIpcamPollTimer = null;
-    }
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      state.customIpcamImg = img;
-      state.customIpcamUrl = url;
-      state.customIpcamActive = true;
-      scheduleRecognition(true);
-    };
-    img.onerror = () => {
-      state.customIpcamActive = false;
-      showToast('⚠️ 無法連線該攝影機網址（請確認同一區域網路與 CORS 權限），已維持模擬巡檢畫面', 'warn');
-    };
-    img.src = url;
-    showToast('📹 正在連線自訂 IP 攝影機串流...');
-
-    // If URL looks like a static JPEG snapshot endpoint, refresh at 4 FPS cleanly
-    if (/\.(jpg|jpeg|png|webp)(\?|$)|snapshot|shot\.jpg/i.test(url)) {
-      customIpcamPollTimer = setInterval(() => {
-        if (state.sourceMode !== 'ipcam' || state.cctvChannel !== 'custom' || document.hidden) return;
-        const sep = url.includes('?') ? '&' : '?';
-        img.src = `${url}${sep}_t=${Date.now()}`;
-      }, 250);
-    }
+    scheduleRecognition(true);
   }
 
   function setupEvents() {
-    // Customer / Admin Kiosk Role Toggle (PIN protected unlock, default PIN: 1234)
-    if (el['btn-role-toggle']) {
-      el['btn-role-toggle'].addEventListener('click', () => {
-        if (!state.customerKioskMode) {
-          applyCustomerKioskMode(true);
-          showToast('🛍️ 已切換為「顧客自助模式」（隱藏後台建檔與庫存管理，返回後台預設 PIN: 1234）');
-        } else {
-          const entered = window.prompt('請輸入店長管理 PIN 碼切換回後台模式（預設：1234）：', '');
-          if (entered === null) return;
-          if (entered.trim() === state.adminPin) {
-            applyCustomerKioskMode(false);
-            showToast('🔓 已解鎖切換回「店長後台模式」');
-          } else {
-            showToast('PIN 碼錯誤，維持顧客自助模式', 'danger');
-          }
+    // 1. Two Merchant Tabs: 掃描商品 & 商品建檔
+    if (el['tab-btn-scan']) {
+      el['tab-btn-scan'].addEventListener('click', function () {
+        switchTab('scan', false);
+      });
+    }
+    if (el['tab-btn-register']) {
+      el['tab-btn-register'].addEventListener('click', function () {
+        if (el['reg-id'] && !el['reg-id'].value) {
+          state.regManualCaptured = false;
         }
+        switchTab('register', false);
       });
     }
 
-    // Mode Navigation Tabs
-    ['scan', 'register', 'inventory', 'devices'].forEach((t) => {
-      el[`tab-btn-${t}`].addEventListener('click', () => {
-        if (state.customerKioskMode && t !== 'scan') return;
-        switchTab(t);
-        if (t === 'register' && el['view-register']) {
-          el['view-register'].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
+    // 2. In-Viewfinder Camera Controls (🎥 即時 / 📷 拍照 / 🔄 鏡頭 / 🔦 補光)
+    if (el['btn-live-webcam']) {
+      el['btn-live-webcam'].addEventListener('click', function () {
+        startWebcamStream(false);
       });
-    });
-
-    // Source Mode Switcher
-    ['virtual', 'webcam', 'ipcam'].forEach((s) => {
-      if (el[`src-btn-${s}`]) {
-        el[`src-btn-${s}`].addEventListener('click', () => switchVideoSource(s));
-      }
-    });
-
-    // One-tap Instant Registration from Unregistered Prompt Card
-    if (el['btn-instant-register']) {
-      el['btn-instant-register'].addEventListener('click', () => {
-        el['reg-id'].value = '';
-        el['reg-name'].value = '';
-        captureForRegistration(false, true);
-        handleRegistrationSubmit(null);
+    }
+    if (el['btn-flip-camera']) {
+      el['btn-flip-camera'].addEventListener('click', function () {
+        state.selectedDeviceId = '';
+        state.facingMode = state.facingMode === 'environment' ? 'user' : 'environment';
+        startWebcamStream(false);
+      });
+    }
+    if (el['btn-toggle-torch']) {
+      el['btn-toggle-torch'].addEventListener('click', function () {
+        toggleTorch();
       });
     }
 
-    // Jump to register form from Unregistered Prompt Card (auto-creates draft in inventory immediately)
-    el['btn-jump-register'].addEventListener('click', async () => {
-      el['reg-id'].value = '';
-      el['reg-name'].value = '';
-      switchTab('register', true);
-      captureForRegistration(false, true);
-      await upsertRegistrationProduct(false);
-      if (el['view-register']) {
-        el['view-register'].scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-      if (el['reg-name']) {
-        setTimeout(() => el['reg-name'].select(), 150);
-      }
-    });
-
-    // 1. Mobile Native Camera SCAN Input (Customer Photo Scan -> Hybrid Barcode + Multi-Crop Recognition)
+    // 3. Native Photo Scan Input (📷 拍照 -> Match Registered Product or Show 未建檔)
     if (el['native-scan-input']) {
-      el['native-scan-input'].addEventListener('change', (e) => {
-        const file = e.target.files && e.target.files[0];
+      el['native-scan-input'].addEventListener('change', function (e) {
+        var file = e.target.files && e.target.files[0];
         if (!file) return;
-        loadMobilePhotoToBuffer(file, async () => {
-          switchTab('scan');
-          const sourceElem = getActiveVideoSourceElement();
-          const codeObj =
-            typeof VisionEngine.detectBarcode === 'function'
-              ? await VisionEngine.detectBarcode(sourceElem)
-              : null;
-          const detectedCode = codeObj && codeObj.rawValue ? codeObj.rawValue : '';
-          const sig = VisionEngine.captureFrameSignature(sourceElem, getRoiRect(sourceElem), false);
-          const matchRes = VisionEngine.matchProducts(
+        loadMobilePhotoToBuffer(file, async function () {
+          switchTab('scan', true);
+          var sourceElem = getActiveVideoSourceElement();
+          var detectedCode = '';
+          if (typeof VisionEngine.detectBarcode === 'function') {
+            var codeObj = await VisionEngine.detectBarcode(sourceElem);
+            if (codeObj && codeObj.rawValue) {
+              detectedCode = codeObj.rawValue;
+              state.lastDetectedBarcode = detectedCode;
+              state.lastBarcodeTime = Date.now();
+            }
+          }
+          var sig = VisionEngine.captureFrameSignature(sourceElem, getRoiRect(sourceElem), false);
+          var matchRes = VisionEngine.matchProducts(
             sig.descriptor,
             state.products,
             state.threshold,
             sig.queryDescriptors,
             { sourceMode: 'photo', virtualPresetId: null, detectedBarcode: detectedCode }
           );
+
           state.liveDescriptor = sig.descriptor;
-          state.currentMatch = matchRes.product;
+          state.currentMatch = matchRes.matched ? matchRes.product : null;
           state.currentSimilarity = matchRes.similarity;
-          state.topCandidates = matchRes.topCandidates;
+          state.topCandidates = matchRes.topCandidates || [];
           state.matchHistory = matchRes.product ? [matchRes.product.id, matchRes.product.id] : [null, null];
+
           invalidateRecognitionUICache();
-          updateRecognitionUI(matchRes);
+          updateRecognitionUI(matchRes, detectedCode);
+
           if (matchRes.matched && matchRes.product) {
+            triggerHaptic(30);
             playTone(1080, 60, 'sine');
-            showToast(`✅ 掃描辨識成功：${matchRes.product.name} (NT$ ${matchRes.product.price.toLocaleString()})`);
-            if (el['recognized-product-card']) {
-              el['recognized-product-card'].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
+            showToast('✅ 已建檔商品：' + matchRes.product.name);
           } else {
-            playTone(440, 90, 'sawtooth');
-            showToast(
-              state.customerKioskMode
-                ? '⚠️ 未建檔：未掃描到庫存中的商品'
-                : '⚠️ 未建檔：未掃描到庫存中的商品（可點擊下方「⚡ 一鍵立即建檔」）',
-              'warn'
-            );
-            if (el['unregistered-prompt-card']) {
-              el['unregistered-prompt-card'].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
+            triggerHaptic(45);
+            playTone(440, 85, 'sawtooth');
+            showToast('⚠️ 未建檔：查無此商品資料', 'warn');
           }
         });
         e.target.value = '';
       });
     }
 
-    // 2. Mobile Native Camera REGISTER Input (Backend Photo Registration -> 128x128 WebP + Barcode + Auto-Save)
+    // 4. Native Camera Registration Input (📷 系統相機實拍 / 開啟系統相機拍照建檔 / 補拍角度)
     if (el['native-camera-input']) {
-      el['native-camera-input'].addEventListener('change', (e) => {
-        const file = e.target.files && e.target.files[0];
+      el['native-camera-input'].addEventListener('change', function (e) {
+        var file = e.target.files && e.target.files[0];
         if (!file) return;
-        const isAppend = state.pendingAngleAppend;
+
+        var appendProductId = state.pendingAngleProductId;
+        var isFormAngleAppend = state.pendingAngleAppend;
+        state.pendingAngleProductId = '';
         state.pendingAngleAppend = false;
-        loadMobilePhotoToBuffer(file, async () => {
-          if (!isAppend) {
-            el['reg-id'].value = '';
-            el['reg-name'].value = '';
+
+        loadMobilePhotoToBuffer(file, async function () {
+          var sourceElem = getActiveVideoSourceElement();
+
+          // Case A: Appending an extra angle directly to an already-recognized product from Scan View
+          if (appendProductId) {
+            var targetProd = state.products.find(function (p) {
+              return p.id === appendProductId;
+            });
+            if (targetProd) {
+              await appendExtraAngleToProduct(targetProd);
+              switchTab('scan', true);
+              state.currentMatch = targetProd;
+              invalidateRecognitionUICache();
+              updateRecognitionUI({
+                matched: true,
+                exactBarcode: false,
+                product: targetProd,
+                bestCandidate: targetProd,
+                similarity: 0.995,
+                margin: 1.0,
+                topCandidates: [{ product: targetProd, similarity: 0.995 }]
+              });
+              return;
+            }
+          }
+
+          // Case B: Capturing new product photo or extra angle inside Registration Form
+          if (!isFormAngleAppend && el['reg-id'] && !el['reg-id'].value) {
+            resetRegistrationForm();
           }
           switchTab('register', true);
-          const sourceElem = getActiveVideoSourceElement();
+
           if (typeof VisionEngine.detectBarcode === 'function') {
-            const codeObj = await VisionEngine.detectBarcode(sourceElem);
-            if (codeObj && codeObj.rawValue && el['reg-barcode']) {
-              el['reg-barcode'].value = codeObj.rawValue;
+            var codeObj = await VisionEngine.detectBarcode(sourceElem);
+            if (codeObj && codeObj.rawValue) {
+              state.lastDetectedBarcode = codeObj.rawValue;
+              state.lastBarcodeTime = Date.now();
+              if (el['reg-barcode'] && !el['reg-barcode'].value.trim()) {
+                el['reg-barcode'].value = codeObj.rawValue;
+              }
             }
           }
-          captureForRegistration(isAppend, true);
-          const autoSaved = await upsertRegistrationProduct(false);
-          if (!isAppend && autoSaved) {
-            showToast(`✅ 已自動建檔「${autoSaved.name}」！可直接再掃描，或於下方修改名稱價格後按完成`);
-            if (el['view-register']) {
-              el['view-register'].scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-            if (el['reg-name']) {
-              setTimeout(() => el['reg-name'].select(), 200);
-            }
+
+          captureForRegistration(isFormAngleAppend, true);
+          if (!isFormAngleAppend && el['reg-name']) {
+            setTimeout(function () {
+              el['reg-name'].focus();
+            }, 120);
           }
         });
         e.target.value = '';
       });
     }
 
-    // Debounced live-sync registration form edits (prevents per-keystroke JSON serialization & list rebuild)
-    ['reg-name', 'reg-price', 'reg-stock', 'reg-sku', 'reg-barcode', 'reg-spec', 'reg-category', 'reg-unit', 'reg-location'].forEach((fieldId) => {
-      if (el[fieldId]) {
-        el[fieldId].addEventListener('input', () => {
-          const activeId = (el['reg-id'].value || '').trim();
-          if (!activeId) return;
-          const prod = state.products.find((p) => p.id === activeId);
-          if (!prod) return;
-          if (el['reg-name'].value.trim()) prod.name = el['reg-name'].value.trim();
-          if (el['reg-price'].value.trim() !== '') prod.price = Math.max(0, Number(el['reg-price'].value) || 0);
-          if (el['reg-stock'].value.trim() !== '') prod.stock = Math.max(0, Number(el['reg-stock'].value) || 0);
-          if (el['reg-sku'].value.trim()) prod.sku = el['reg-sku'].value.trim();
-          prod.barcode = el['reg-barcode'].value.trim();
-          if (el['reg-spec'].value.trim()) prod.spec = el['reg-spec'].value.trim();
-          if (el['reg-category'].value.trim()) prod.category = el['reg-category'].value.trim();
-          if (el['reg-unit'].value.trim()) prod.unit = el['reg-unit'].value.trim();
-          if (el['reg-location'].value.trim()) prod.location = el['reg-location'].value.trim();
-          prod.updatedAt = Date.now();
-          invalidateRecognitionUICache();
-
-          if (regInputDebounceTimer) clearTimeout(regInputDebounceTimer);
-          regInputDebounceTimer = setTimeout(() => {
-            saveToLocalStorage();
-            renderInventoryList();
-          }, 180);
-        });
-      }
-    });
-
-    // Webcam Controls
-    el['camera-device-select'].addEventListener('change', (e) => {
-      state.selectedDeviceId = e.target.value;
-      startWebcamStream();
-    });
-    el['btn-flip-camera'].addEventListener('click', () => {
-      state.selectedDeviceId = '';
-      state.facingMode = state.facingMode === 'environment' ? 'user' : 'environment';
-      startWebcamStream();
-    });
-    el['camera-res-select'].addEventListener('change', () => startWebcamStream());
-    el['btn-toggle-torch'].addEventListener('click', () => toggleTorch());
-
-    // CCTV & Custom IP Camera Stream Controls
-    el['cctv-channel-select'].addEventListener('change', (e) => {
-      state.cctvChannel = e.target.value;
-      const isCustom = state.cctvChannel === 'custom';
-      el['ipcam-url-input'].classList.toggle('hidden', !isCustom);
-      el['btn-connect-ipcam'].classList.toggle('hidden', !isCustom);
-      scheduleRecognition(true);
-    });
-    if (el['btn-connect-ipcam']) {
-      el['btn-connect-ipcam'].addEventListener('click', () => connectCustomIpCam());
-    }
-
-    // Virtual Stage Controls
-    el['chk-stage-motion'].addEventListener('change', (e) => {
-      state.stageHandMotion = e.target.checked;
-      scheduleRecognition(true);
-    });
-    el['btn-stage-rotate'].addEventListener('click', () => {
-      state.stageAngle = (state.stageAngle + 0.14) % (Math.PI * 2);
-      scheduleRecognition(true);
-    });
-
-    // Threshold, Auto-Cart & Eco Gate
-    el['threshold-slider'].addEventListener('input', (e) => {
-      const val = Number(e.target.value);
-      state.threshold = val / 100;
-      el['threshold-label'].textContent = `${val}%`;
-      scheduleRecognition(true);
-    });
-    el['chk-auto-cart'].addEventListener('change', (e) => {
-      state.autoAddCart = e.target.checked;
-    });
-    el['chk-eco-sleep'].addEventListener('change', (e) => {
-      state.ecoGateEnabled = e.target.checked;
-      scheduleRecognition(true);
-    });
-
-    // HUD & Recognized Product Card Actions
-    el['hud-add-cart-btn'].addEventListener('click', () => {
-      if (state.currentMatch) addToCart(state.currentMatch.id, 1);
-    });
-    el['btn-rec-add-cart'].addEventListener('click', () => {
-      if (state.currentMatch) addToCart(state.currentMatch.id, 1);
-    });
-    el['btn-rec-stock-plus'].addEventListener('click', () => {
-      if (state.currentMatch) adjustProductStock(state.currentMatch.id, 1);
-    });
-    el['btn-rec-stock-minus'].addEventListener('click', () => {
-      if (state.currentMatch) adjustProductStock(state.currentMatch.id, -1);
-    });
-    el['btn-rec-edit'].addEventListener('click', () => {
-      if (!state.currentMatch) return;
-      const p = state.currentMatch;
-      switchTab('register', true);
-      el['reg-id'].value = p.id;
-      el['reg-name'].value = p.name;
-      el['reg-price'].value = p.price;
-      el['reg-stock'].value = p.stock;
-      el['reg-sku'].value = p.sku;
-      el['reg-barcode'].value = p.barcode || '';
-      el['reg-category'].value = p.category || '';
-      el['reg-unit'].value = p.unit || '件';
-      el['reg-location'].value = p.location || 'A-01';
-      el['reg-spec'].value = p.spec || '';
-      state.regDescriptors = Array.isArray(p.descriptors) ? [...p.descriptors] : [];
-      state.regThumbnail = p.thumbnail || '';
-      state.regManualCaptured = true;
-      el['reg-preview-img'].src = state.regThumbnail;
-      el['reg-sample-count'].textContent = `樣本數: ${state.regDescriptors.length} 組`;
-    });
-
-    el['btn-train-extra-angle'].addEventListener('click', async () => {
-      if (!state.currentMatch) return;
-      const sourceElem = getActiveVideoSourceElement();
-      const sig = VisionEngine.captureFrameSignature(sourceElem, getRoiRect(sourceElem), true);
-      const p = state.currentMatch;
-      const combined = [...(p.descriptors || []), ...(sig.augmentedDescriptors || [sig.descriptor])];
-      p.descriptors = VisionEngine.deduplicateDescriptors(combined, 24);
-      VisionEngine.ensureProductCache(p);
-      try {
-        await fetch(`/api/products/${encodeURIComponent(p.id)}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ newDescriptor: sig.descriptor })
-        });
-      } catch (_) {}
-      notifyPeers();
-      showToast(`📸 已為「${p.name}」新增多尺度角度樣本（目前共 ${p.descriptors.length} 組）`);
-    });
-
-    // Registration Form Buttons
-    el['btn-capture-frame'].addEventListener('click', async () => {
-      captureForRegistration(false, true);
-      await upsertRegistrationProduct(false);
-      showToast('📸 已擷取目前取景框畫面特徵並同步更新建檔');
-    });
-    el['btn-add-angle-sample'].addEventListener('click', async () => {
-      if (state.sourceMode === 'photo' && el['native-camera-input']) {
-        state.pendingAngleAppend = true;
-        el['native-camera-input'].click();
-      } else {
-        captureForRegistration(true, true);
-        await upsertRegistrationProduct(false);
-      }
-    });
-    el['btn-fill-demo-new'].addEventListener('click', () => {
-      const unregIdx = VisionEngine.VIRTUAL_STAGE_ITEMS.findIndex(
-        (item) => !state.products.some((p) => p.sku === item.sku)
-      );
-      if (unregIdx >= 0) {
-        state.stageItemIndex = unregIdx;
-        renderStageTray();
-      }
-      const item = VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex];
-      fillRegistrationFormFromPreset(item);
-      setTimeout(() => captureForRegistration(false, true), 50);
-      showToast('已自動將鏡頭對準新商品並填入範例規格，請點擊「完成拍照建檔」');
-    });
-    el['btn-reset-reg-form'].addEventListener('click', () => resetRegistrationForm());
-    el['register-product-form'].addEventListener('submit', handleRegistrationSubmit);
-
-    // Inventory Search, Filter & Delegated Actions
-    el['inv-search-input'].addEventListener('input', () => renderInventoryList());
-    el['inv-filter-select'].addEventListener('change', () => renderInventoryList());
-    el['inventory-list-container'].addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-action]');
-      if (!btn) return;
-      const id = btn.getAttribute('data-id');
-      const action = btn.getAttribute('data-action');
-      if (action === 'inv-plus') adjustProductStock(id, 1);
-      else if (action === 'inv-minus') adjustProductStock(id, -1);
-      else if (action === 'inv-edit') openEditProductInRegister(id, false);
-      else if (action === 'inv-angle') openEditProductInRegister(id, true);
-      else if (action === 'inv-cart') addToCart(id, 1);
-      else if (action === 'inv-del') deleteProduct(id);
-    });
-
-    // Export Inventory JSON Backup
-    el['btn-export-inventory'].addEventListener('click', () => {
-      const jsonStr = JSON.stringify({ products: state.products, orders: state.orders }, null, 2);
-      triggerFileDownload(`vision-pos-backup-${Date.now()}.json`, jsonStr, 'application/json;charset=utf-8');
-    });
-
-    // Export Inventory Excel-Ready UTF-8 BOM CSV
-    if (el['btn-export-csv']) {
-      el['btn-export-csv'].addEventListener('click', () => {
-        const csvEsc = (v) => `"${String(v != null ? v : '').replace(/"/g, '""')}"`;
-        const rows = ['\uFEFFSKU,條碼,產品名稱,分類,單價(NT$),庫存數量,單位,儲位,產品介紹'];
-        for (const p of state.products) {
-          rows.push([
-            csvEsc(p.sku || ''),
-            csvEsc(p.barcode || ''),
-            csvEsc(p.name || ''),
-            csvEsc(p.category || ''),
-            Number(p.price) || 0,
-            Number(p.stock) || 0,
-            csvEsc(p.unit || '件'),
-            csvEsc(p.location || 'A-01'),
-            csvEsc(p.spec || '')
-          ].join(','));
+    // 5. Unregistered Card -> Jump to Register (📸 擷取目前畫面並建檔)
+    if (el['btn-jump-register']) {
+      el['btn-jump-register'].addEventListener('click', function () {
+        if (!hasValidOpticalSource() && el['native-camera-input']) {
+          el['native-camera-input'].click();
+          return;
         }
-        triggerFileDownload(`vision-pos-inventory-${Date.now()}.csv`, rows.join('\r\n'), 'text/csv;charset=utf-8');
-      });
-    }
-
-    // Export Orders Ledger CSV
-    if (el['btn-export-orders-csv']) {
-      el['btn-export-orders-csv'].addEventListener('click', async () => {
-        try {
-          const res = await fetch('/api/orders/export');
-          if (res.ok) {
-            const csvText = await res.text();
-            triggerFileDownload(`vision-pos-orders-${Date.now()}.csv`, csvText, 'text/csv;charset=utf-8');
-            return;
-          }
-        } catch (_) {}
-        const csvEsc = (v) => `"${String(v != null ? v : '').replace(/"/g, '""')}"`;
-        const rows = ['\uFEFF訂單編號,交易時間,付款方式,總件數,小計(NT$),折扣(NT$),實收總額(NT$),購買明細'];
-        for (const o of state.orders) {
-          const detail = (o.items || []).map((i) => `${i.name}x${i.quantity}`).join('; ');
-          rows.push([
-            csvEsc(o.id),
-            csvEsc(new Date(o.createdAt || Date.now()).toISOString()),
-            csvEsc(o.paymentMethod || 'cash'),
-            o.totalQty || 0,
-            o.subtotal || 0,
-            o.discount || 0,
-            o.total || 0,
-            csvEsc(detail)
-          ].join(','));
-        }
-        triggerFileDownload(`vision-pos-orders-${Date.now()}.csv`, rows.join('\r\n'), 'text/csv;charset=utf-8');
-      });
-    }
-
-    // Batch Import Inventory from JSON or CSV
-    if (el['inv-import-input']) {
-      el['inv-import-input'].addEventListener('change', async (e) => {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        try {
-          const text = (await file.text()).replace(/^\uFEFF/, '');
-          let importedProducts = [];
-          if (file.name.toLowerCase().endsWith('.json') || text.trim().startsWith('{') || text.trim().startsWith('[')) {
-            const parsed = JSON.parse(text);
-            importedProducts = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.products) ? parsed.products : []);
-          } else {
-            // Parse CSV rows (supports quoted fields)
-            const parseCsvLine = (line) => {
-              const out = [];
-              let cur = '';
-              let inQuotes = false;
-              for (let i = 0; i < line.length; i++) {
-                const ch = line[i];
-                if (ch === '"') {
-                  if (inQuotes && line[i + 1] === '"') {
-                    cur += '"';
-                    i++;
-                  } else {
-                    inQuotes = !inQuotes;
-                  }
-                } else if (ch === ',' && !inQuotes) {
-                  out.push(cur);
-                  cur = '';
-                } else {
-                  cur += ch;
-                }
-              }
-              out.push(cur);
-              return out;
-            };
-            const lines = text.split(/\r?\n/).filter((l) => l.trim());
-            if (lines.length >= 2) {
-              const nowTs = Date.now();
-              for (let r = 1; r < lines.length; r++) {
-                const cols = parseCsvLine(lines[r]);
-                const name = (cols[2] || '').trim();
-                if (!name) continue;
-                importedProducts.push({
-                  sku: (cols[0] || '').trim() || `SKU-IMP-${r}`,
-                  barcode: (cols[1] || '').trim(),
-                  name,
-                  category: (cols[3] || '').trim() || '匯入商品',
-                  price: Math.max(0, Number(cols[4]) || 0),
-                  stock: Math.max(0, Number(cols[5]) || 0),
-                  unit: (cols[6] || '').trim() || '件',
-                  location: (cols[7] || '').trim() || 'A-01',
-                  spec: (cols[8] || '').trim(),
-                  updatedAt: nowTs
-                });
-              }
-            }
-          }
-
-          if (importedProducts.length === 0) {
-            showToast('檔案中未找到可匯入的商品資料', 'warn');
-            e.target.value = '';
-            return;
-          }
-
-          const now = Date.now();
-          let count = 0;
-          for (const item of importedProducts) {
-            if (!item || !item.name) continue;
-            const idx = state.products.findIndex(
-              (p) => (item.id && p.id === item.id) || (item.sku && p.sku === item.sku)
-            );
-            if (idx >= 0) {
-              state.products[idx] = {
-                ...state.products[idx],
-                ...item,
-                id: state.products[idx].id,
-                descriptors:
-                  Array.isArray(item.descriptors) && item.descriptors.length > 0
-                    ? item.descriptors
-                    : state.products[idx].descriptors,
-                updatedAt: now
-              };
-              VisionEngine.ensureProductCache(state.products[idx]);
-            } else {
-              const created = {
-                id: item.id || ('prd-' + now.toString(36) + '-' + Math.random().toString(36).slice(2, 6)),
-                sku: item.sku || `SKU-${state.products.length + 101}`,
-                barcode: item.barcode || '',
-                name: String(item.name).trim(),
-                category: item.category || '匯入商品',
-                price: Number(item.price) || 0,
-                stock: Number.isFinite(Number(item.stock)) ? Number(item.stock) : 10,
-                unit: item.unit || '件',
-                location: item.location || 'A-01',
-                spec: item.spec || '',
-                thumbnail: item.thumbnail || '',
-                descriptors: Array.isArray(item.descriptors) ? item.descriptors : [],
-                descriptorVersion: 2,
-                isCameraRegistered: Boolean(item.isCameraRegistered),
-                createdAt: now,
-                updatedAt: now
-              };
-              VisionEngine.ensureProductCache(created);
-              state.products.unshift(created);
-            }
-            count++;
-          }
-
-          invalidateRecognitionUICache();
-          notifyPeers();
-          renderAll();
-          scheduleRecognition(true);
-          try {
-            await fetch('/api/products/bulk', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ products: importedProducts })
-            });
-          } catch (_) {}
-          showToast(`📂 成功匯入/更新 ${count} 筆商品資料！`);
-        } catch (err) {
-          showToast('匯入檔案解析失敗，請確認 JSON 或 CSV 格式正確', 'danger');
-        }
-        e.target.value = '';
-      });
-    }
-
-    el['btn-reset-demo'].addEventListener('click', async () => {
-      if (!isActionArmed('reset:demo')) {
-        el['btn-reset-demo'].textContent = '⚠️ 再點確認重置';
-        setTimeout(() => {
-          if (el['btn-reset-demo']) el['btn-reset-demo'].textContent = '🔄 重置預設庫';
-        }, 3200);
-        showToast('⚠️ 再點一次「確認重置」將還原為預設 5 款展示商品庫', 'warn');
-        return;
-      }
-      el['btn-reset-demo'].textContent = '🔄 重置預設庫';
-      const defaultCatalog = VisionEngine.buildDefaultCatalog();
-      defaultCatalog.forEach((p) => VisionEngine.ensureProductCache(p));
-      state.products = defaultCatalog;
-      state.orders = [];
-      state.cart = [];
-      invalidateRecognitionUICache();
-      try {
-        await fetch('/api/reset', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Admin-Pin': state.adminPin
-          },
-          body: JSON.stringify({ products: defaultCatalog })
-        });
-      } catch (_) {}
-      notifyPeers();
-      renderAll();
-      scheduleRecognition(true);
-      showToast('已重置回預設 5 款建檔商品與 2 款待建檔測試商品');
-    });
-
-    // Cart, Electronic Receipt & Checkout Actions
-    el['cart-items-container'].addEventListener('click', (e) => {
-      const minusBtn = e.target.closest('button[data-cart-minus]');
-      const plusBtn = e.target.closest('button[data-cart-plus]');
-      if (minusBtn) {
-        const id = minusBtn.getAttribute('data-cart-minus');
-        const item = state.cart.find((c) => c.productId === id);
-        if (item) updateCartQty(id, item.quantity - 1);
-      } else if (plusBtn) {
-        const id = plusBtn.getAttribute('data-cart-plus');
-        const item = state.cart.find((c) => c.productId === id);
-        if (item) updateCartQty(id, item.quantity + 1);
-      }
-    });
-
-    el['btn-clear-cart'].addEventListener('click', () => {
-      state.cart = [];
-      renderCart();
-      syncCartAndBroadcast();
-    });
-    el['cart-discount-input'].addEventListener('input', () => {
-      renderCart();
-      syncCartAndBroadcast();
-    });
-
-    document.querySelectorAll('.pay-method-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        state.paymentMethod = btn.getAttribute('data-pay');
-        document.querySelectorAll('.pay-method-btn').forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-        syncCartAndBroadcast();
-      });
-    });
-
-    el['btn-checkout-submit'].addEventListener('click', () => submitCheckout());
-
-    if (el['orders-history-list']) {
-      el['orders-history-list'].addEventListener('click', (e) => {
-        const card = e.target.closest('[data-receipt-id]');
-        if (!card) return;
-        const ordId = card.getAttribute('data-receipt-id');
-        const ord = state.orders.find((o) => o.id === ordId);
-        if (ord) openReceiptModal(ord);
-      });
-    }
-    if (el['btn-close-receipt']) {
-      el['btn-close-receipt'].addEventListener('click', () => {
-        el['receipt-modal'].classList.add('hidden');
-      });
-    }
-    if (el['receipt-modal']) {
-      el['receipt-modal'].addEventListener('click', (e) => {
-        if (e.target === el['receipt-modal']) el['receipt-modal'].classList.add('hidden');
-      });
-    }
-    if (el['btn-print-receipt']) {
-      el['btn-print-receipt'].addEventListener('click', () => {
-        if (window.VisionPOSAndroid && typeof window.VisionPOSAndroid.printReceipt === 'function') {
-          window.VisionPOSAndroid.printReceipt();
-        } else {
-          window.print();
+        resetRegistrationForm();
+        switchTab('register', true);
+        captureForRegistration(false, true);
+        if (el['reg-name']) {
+          setTimeout(function () {
+            el['reg-name'].focus();
+          }, 120);
         }
       });
     }
 
-    // USB / Bluetooth HID Barcode Scanner Keyboard Wedge (<45ms rapid keystrokes + Enter)
-    // & Standard Enter shortcut for current visual match
-    let hidBuffer = '';
-    let hidLastKeyTime = 0;
-    window.addEventListener('keydown', (e) => {
-      const activeTag = document.activeElement ? document.activeElement.tagName : '';
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)) return;
+    // 6. Recognized Product Card Merchant Actions (-1/+1 Stock, Edit, Extra Angle, Delete)
+    if (el['btn-rec-stock-minus']) {
+      el['btn-rec-stock-minus'].addEventListener('click', function () {
+        if (state.currentMatch) adjustProductStock(state.currentMatch.id, -1);
+      });
+    }
+    if (el['btn-rec-stock-plus']) {
+      el['btn-rec-stock-plus'].addEventListener('click', function () {
+        if (state.currentMatch) adjustProductStock(state.currentMatch.id, 1);
+      });
+    }
+    if (el['btn-rec-edit']) {
+      el['btn-rec-edit'].addEventListener('click', function () {
+        openEditForCurrentMatch();
+      });
+    }
+    if (el['btn-train-extra-angle']) {
+      el['btn-train-extra-angle'].addEventListener('click', function () {
+        if (!state.currentMatch) return;
+        if (state.sourceMode === 'webcam' && state.mediaStream) {
+          appendExtraAngleToProduct(state.currentMatch);
+        } else if (el['native-camera-input']) {
+          state.pendingAngleProductId = state.currentMatch.id;
+          el['native-camera-input'].click();
+        }
+      });
+    }
+    if (el['btn-rec-delete']) {
+      el['btn-rec-delete'].addEventListener('click', function () {
+        deleteRecognizedProduct();
+      });
+    }
 
-      const now = performance.now();
+    // 7. Registration Form Controls
+    if (el['btn-capture-frame']) {
+      el['btn-capture-frame'].addEventListener('click', function () {
+        if (!hasValidOpticalSource() && el['native-camera-input']) {
+          el['native-camera-input'].click();
+          return;
+        }
+        if (captureForRegistration(false, true)) {
+          showToast('📸 已擷取目前取景框畫面');
+        }
+      });
+    }
+    if (el['btn-add-angle-sample']) {
+      el['btn-add-angle-sample'].addEventListener('click', function () {
+        if (state.sourceMode === 'webcam' && state.mediaStream) {
+          captureForRegistration(true, true);
+        } else if (el['native-camera-input']) {
+          state.pendingAngleAppend = true;
+          el['native-camera-input'].click();
+        }
+      });
+    }
+    if (el['btn-reset-reg-form']) {
+      el['btn-reset-reg-form'].addEventListener('click', function () {
+        resetRegistrationForm();
+        if (hasValidOpticalSource()) {
+          captureForRegistration(false, false);
+        }
+      });
+    }
+    if (el['register-product-form']) {
+      el['register-product-form'].addEventListener('submit', handleRegistrationSubmit);
+    }
+
+    // 8. USB / Bluetooth HID Barcode Scanner Keyboard Wedge (<55ms keystrokes + Enter)
+    var hidBuffer = '';
+    var hidLastKeyTime = 0;
+    window.addEventListener('keydown', function (e) {
+      var activeTag = document.activeElement ? document.activeElement.tagName : '';
+      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
+
+      var now = performance.now();
       if (e.key && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
         if (now - hidLastKeyTime > 55) {
           hidBuffer = '';
@@ -2966,68 +2042,88 @@
         return;
       }
 
-      if (e.key === 'Enter') {
-        if (hidBuffer.length >= 4 && now - hidLastKeyTime < 80) {
-          e.preventDefault();
-          const scannedCode = hidBuffer.trim().toLowerCase();
-          hidBuffer = '';
-          const matchedProd = state.products.find(
-            (p) =>
-              (p.barcode && String(p.barcode).trim().toLowerCase() === scannedCode) ||
-              (p.sku && String(p.sku).trim().toLowerCase() === scannedCode)
-          );
-          if (matchedProd) {
-            switchTab('scan');
-            state.currentMatch = matchedProd;
-            state.currentSimilarity = 1.0;
-            state.matchHistory = [matchedProd.id, matchedProd.id];
-            invalidateRecognitionUICache();
-            updateRecognitionUI({
-              matched: true,
-              product: matchedProd,
-              bestCandidate: matchedProd,
-              similarity: 1.0,
-              margin: 1.0,
-              exactBarcode: true,
-              topCandidates: [{ product: matchedProd, similarity: 1.0 }]
-            });
-            addToCart(matchedProd.id, 1, false);
-          } else {
-            showToast(`⚠️ 條碼「${scannedCode}」未建檔`, 'warn');
-          }
+      if (e.key === 'Enter' && hidBuffer.length >= 4 && now - hidLastKeyTime < 80) {
+        e.preventDefault();
+        var rawCode = hidBuffer.trim();
+        var codeLower = rawCode.toLowerCase();
+        hidBuffer = '';
+        state.lastDetectedBarcode = rawCode;
+        state.lastBarcodeTime = Date.now();
+
+        if (state.activeTab === 'register' && el['reg-barcode']) {
+          el['reg-barcode'].value = rawCode;
+          showToast('⚡ 已帶入條碼：' + rawCode);
           return;
         }
-        hidBuffer = '';
-        if (state.activeTab === 'scan' && state.currentMatch) {
-          e.preventDefault();
-          addToCart(state.currentMatch.id, 1);
+
+        var matchedProd = state.products.find(function (p) {
+          return (
+            (p.barcode && String(p.barcode).trim().toLowerCase() === codeLower) ||
+            (p.sku && String(p.sku).trim().toLowerCase() === codeLower)
+          );
+        });
+
+        switchTab('scan', true);
+        invalidateRecognitionUICache();
+        if (matchedProd) {
+          state.currentMatch = matchedProd;
+          state.currentSimilarity = 1.0;
+          state.matchHistory = [matchedProd.id, matchedProd.id];
+          updateRecognitionUI({
+            matched: true,
+            exactBarcode: true,
+            product: matchedProd,
+            bestCandidate: matchedProd,
+            similarity: 1.0,
+            margin: 1.0,
+            topCandidates: [{ product: matchedProd, similarity: 1.0 }]
+          });
+          triggerHaptic(25);
+          playTone(1080, 55, 'sine');
+        } else {
+          state.currentMatch = null;
+          state.matchHistory = [null, null];
+          updateRecognitionUI(
+            {
+              matched: false,
+              exactBarcode: false,
+              product: null,
+              bestCandidate: null,
+              similarity: 0,
+              margin: 0,
+              topCandidates: []
+            },
+            rawCode
+          );
+          triggerHaptic(45);
+          playTone(440, 85, 'sawtooth');
+          showToast('⚠️ 條碼「' + rawCode + '」未建檔', 'warn');
         }
       }
     });
 
-    // Automatic Offline Outbox Replay on Network Recovery
-    window.addEventListener('online', () => {
+    // 9. Automatic Offline Outbox Replay on Network Recovery
+    window.addEventListener('online', function () {
       flushOutboxToServer();
     });
 
-    // 10-Second Background Camera Sensor Auto-Release & Seamless Foreground Resume
-    document.addEventListener('visibilitychange', async () => {
+    // 10. 10-Second Background Camera Sensor Auto-Release & Seamless Foreground Resume
+    document.addEventListener('visibilitychange', async function () {
       if (document.hidden) {
         cancelScheduledRecognition();
         clearBgCameraReleaseTimer();
-        updatePowerTelemetryUI();
+        updateHudCameraStatus();
 
         if (state.sourceMode === 'webcam' && state.mediaStream) {
-          bgCameraReleaseTimer = setTimeout(() => {
+          bgCameraReleaseTimer = setTimeout(function () {
             bgCameraReleaseTimer = null;
             if (document.hidden && state.sourceMode === 'webcam' && state.mediaStream) {
               stopWebcamStream();
               state.autoPausedWebcamInBg = true;
               state.torchOn = false;
-              if (el['active-source-badge']) {
-                el['active-source-badge'].textContent = '省電待機：已釋放鏡頭';
-              }
-              updatePowerTelemetryUI();
+              if (el['btn-toggle-torch']) el['btn-toggle-torch'].classList.remove('active');
+              renderStageCanvasFrame();
+              updateHudCameraStatus();
             }
           }, BG_CAMERA_RELEASE_MS);
         }
@@ -3042,62 +2138,29 @@
       }
     });
 
-    // Battery Status API Integration (< 20% unplugged -> 10 FPS Battery Saver)
+    // 11. Battery Status API Integration (< 20% unplugged -> 10 FPS Battery Saver)
     if (navigator && typeof navigator.getBattery === 'function') {
-      navigator.getBattery().then((battery) => {
-        const syncBatteryState = () => {
-          state.lowBatteryMode = !battery.charging && battery.level <= 0.20;
-          updatePowerTelemetryUI();
-        };
-        syncBatteryState();
-        battery.addEventListener('levelchange', syncBatteryState);
-        battery.addEventListener('chargingchange', syncBatteryState);
-      }).catch(() => {});
-    }
-
-    // Hardware BarcodeDetector status check
-    if ('BarcodeDetector' in window) {
-      el['barcode-hw-status'].textContent = '✅ 已啟用原生硬體 BarcodeDetector + USB 條碼槍雙引擎加速';
-    } else {
-      el['barcode-hw-status'].textContent = '✅ 使用 CCVD-144 v3 白平衡視覺指紋引擎 (< 0.15ms)';
+      navigator
+        .getBattery()
+        .then(function (battery) {
+          var syncBatteryState = function () {
+            state.lowBatteryMode = !battery.charging && battery.level <= 0.20;
+            updateHudCameraStatus();
+          };
+          syncBatteryState();
+          battery.addEventListener('levelchange', syncBatteryState);
+          battery.addEventListener('chargingchange', syncBatteryState);
+        })
+        .catch(function () {});
     }
   }
 
-  // Boot Application + Kiosk Mode + Customer Native Camera Deep-Link + PWA Service Worker
-  window.addEventListener('DOMContentLoaded', async () => {
+  // Boot Merchant Application
+  window.addEventListener('DOMContentLoaded', async function () {
     bindElements();
     setupEvents();
+    renderStageCanvasFrame();
     await initDataStore();
-
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const urlMode = params.get('mode');
-      const savedRole = localStorage.getItem(ROLE_STORAGE_KEY);
-      if (urlMode === 'customer' || (!urlMode && savedRole === 'customer')) {
-        applyCustomerKioskMode(true);
-      } else if (urlMode === 'admin') {
-        applyCustomerKioskMode(false);
-      }
-
-      const targetSku = params.get('sku');
-      if (targetSku) {
-        const matchedProd = state.products.find(
-          (p) => p.sku && p.sku.toLowerCase() === targetSku.toLowerCase()
-        );
-        if (matchedProd) {
-          const stageIdx = VisionEngine.VIRTUAL_STAGE_ITEMS.findIndex(
-            (it) => it.sku === matchedProd.sku
-          );
-          if (stageIdx >= 0) state.stageItemIndex = stageIdx;
-          state.currentMatch = matchedProd;
-          if (params.get('add') === '1') {
-            addToCart(matchedProd.id, 1, false);
-          } else {
-            showToast(`📱 已透過相機載入「${matchedProd.name}」即時資訊！`);
-          }
-        }
-      }
-    } catch (_) {}
 
     // Register Offline-First PWA Service Worker on HTTP/HTTPS server origins
     if (
@@ -3105,9 +2168,10 @@
       (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
       window.location.hostname !== 'visionpos.local'
     ) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      navigator.serviceWorker.register('/sw.js').catch(function () {});
     }
 
-    scheduleRecognition(true);
+    // Automatically start live optical camera on launch (gracefully falls back to standby guide if unavailable)
+    await startWebcamStream(true);
   });
 })();

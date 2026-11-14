@@ -3,551 +3,260 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
-  <title>VisionPOS Edge — 極速視覺辨識庫存管理、即時產品資訊與 POS 結帳系統</title>
-  <meta name="description" content="支援所有手機、平板、筆電、電腦、監控與攝影機的零延遲視覺拍照建檔、即時庫存管理、即時產品資訊與購物車結帳系統。" />
+  <title>VisionPOS 店家商品掃描與建檔系統</title>
+  <meta name="description" content="店家端極速視覺與條碼商品掃描查詢、相機拍照即時建檔系統。" />
   <meta name="theme-color" content="#0b0f14" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
 <body>
-  <!-- Top Header: Brand, Real-Time Performance/Energy Telemetry, and Mode Switcher -->
-  <header class="topbar" role="banner">
-    <div class="brand-group">
-      <div class="brand-mark" aria-hidden="true">VP</div>
-      <div>
-        <h1 class="brand-title">
-          VisionPOS Edge
-          <span class="badge badge-emerald" id="sync-status-badge">即時同步連線中</span>
-        </h1>
-        <p class="brand-subtitle">64×64 白平衡視覺指紋引擎 (CCVD-144 v3) · 跨裝置即時庫存與 POS 結帳系統</p>
-      </div>
-    </div>
+  <!-- Hidden Native Camera Inputs (Used for high-res photo scan & registration capture across all Android phones) -->
+  <input type="file" id="native-scan-input" accept="image/*" capture="environment" class="hidden" />
+  <input type="file" id="native-camera-input" accept="image/*" capture="environment" class="hidden" />
 
-    <!-- Real-Time Hardware & Energy Telemetry Strip -->
-    <div class="telemetry-strip" aria-label="系統即時效能與節能指標">
-      <div class="telemetry-chip kiosk-admin-only" title="單幀視覺特徵擷取與比對延遲">
-        <span>辨識延遲</span>
-        <strong id="metric-latency">0.32 ms</strong>
-      </div>
-      <div class="telemetry-chip kiosk-admin-only" title="智慧幀差移動偵測動態調節 FPS">
-        <span class="status-dot" id="power-mode-dot"></span>
-        <span id="metric-power-mode">高速辨識 (18 FPS)</span>
-      </div>
-      <div class="telemetry-chip kiosk-admin-only" title="相較傳統 CNN 模型節省之運算與電力比例">
-        <span>節能效率</span>
-        <strong id="metric-energy-saved">95% 省電</strong>
-      </div>
-      <div class="telemetry-chip kiosk-admin-only" title="已建檔可辨識產品數 / 連線設備數">
-        <span>產品庫</span>
-        <strong id="metric-product-count">5 筆</strong>
-      </div>
-      <button type="button" class="btn btn-secondary btn-sm" id="btn-role-toggle" title="切換店長後台模式 / 顧客純掃描自助模式">
-        🔓 店長模式
-      </button>
-    </div>
+  <!-- Merchant 2-Function Workspace: Optical Viewport directly at the top (Zero blocks above Optical Viewport) -->
+  <main class="merchant-workspace">
+    <!-- SECTION 1: Direct Top Optical Viewport -->
+    <section class="viewport-section" aria-label="光學取景區">
+      <div class="viewport-container" id="viewport-container">
+        <video id="camera-video" class="viewport-video hidden" playsinline muted autoplay></video>
+        <canvas id="stage-canvas" class="viewport-canvas" width="640" height="480"></canvas>
 
-    <!-- Primary Mode Tabs -->
-    <nav class="mode-nav" aria-label="主要功能切換">
-      <button type="button" class="mode-tab active" data-tab="scan" id="tab-btn-scan">
-        <span>🔍 即時掃描辨識</span>
-      </button>
-      <button type="button" class="mode-tab kiosk-admin-only" data-tab="register" id="tab-btn-register">
-        <span>📸 相機拍照建檔</span>
-      </button>
-      <button type="button" class="mode-tab kiosk-admin-only" data-tab="inventory" id="tab-btn-inventory">
-        <span>📦 即時庫存管理</span>
-        <span class="tab-badge" id="nav-inv-count">5</span>
-      </button>
-      <button type="button" class="mode-tab kiosk-admin-only" data-tab="devices" id="tab-btn-devices">
-        <span>📹 設備與監控接入</span>
-      </button>
-    </nav>
-  </header>
-
-  <!-- 3-Column Adaptive Workspace -->
-  <main class="workspace">
-    <!-- COLUMN 1: Multi-Source Camera Viewport & Live Visual Recognition HUD -->
-    <section class="panel" aria-label="光學取景與即時視覺辨識區">
-      <div class="panel-header">
-        <div class="panel-title">
-          <span>🎥 光學取景與相機掃描</span>
-          <span class="badge badge-info" id="active-source-badge">互動測試舞台</span>
-        </div>
-        <div style="display:flex; gap:6px; align-items:center;">
-          <input type="file" id="native-scan-input" accept="image/*" capture="environment" class="hidden" />
-          <input type="file" id="native-camera-input" accept="image/*" capture="environment" class="hidden" />
-          <label class="btn btn-primary btn-sm" for="native-scan-input" style="cursor:pointer;">
-            🔍 手機拍照掃描
-          </label>
-          <label class="btn btn-secondary btn-sm kiosk-admin-only" for="native-camera-input" id="quick-snap-register-btn" style="cursor:pointer;">
-            📸 手機拍照建檔
-          </label>
-        </div>
-      </div>
-
-      <div class="panel-body">
-        <!-- Prominent Mobile Camera Direct Trigger Bar (100% compatible with Android APK, file:// & https://) -->
-        <div class="mobile-cam-trigger-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
-          <label for="native-scan-input" class="btn btn-primary" style="cursor:pointer; padding:10px; font-size:13px; text-align:center;">
-            🔍 點此開手機相機：拍照掃描商品
-          </label>
-          <label for="native-camera-input" class="btn btn-secondary kiosk-admin-only" style="cursor:pointer; padding:10px; font-size:13px; text-align:center; border-color:var(--accent-primary);">
-            📸 點此開手機相機：拍照建檔新商品
-          </label>
-        </div>
-
-        <!-- 4 Video Source Modes: Virtual Stage, Live Camera (WebRTC), IP Cam / CCTV, Photo -->
-        <div class="source-switcher" role="group" aria-label="影像輸入來源選擇">
-          <button type="button" class="source-btn active kiosk-admin-only" data-source="virtual" id="src-btn-virtual">
-            🎭 擬真鏡頭舞台
-          </button>
-          <button type="button" class="source-btn" data-source="webcam" id="src-btn-webcam">
-            📱 即時連續鏡頭
-          </button>
-          <button type="button" class="source-btn kiosk-admin-only" data-source="ipcam" id="src-btn-ipcam">
-            📹 監控/IP攝影機
-          </button>
-          <label for="native-scan-input" class="source-btn" id="src-btn-photo" style="cursor:pointer; display:block;">
-            🖼️ 相機拍照辨識
-          </label>
-        </div>
-
-        <!-- Hardware Camera Controls (Shown when Real Camera is active) -->
-        <div class="camera-controls-bar hidden" id="webcam-controls-bar">
-          <select id="camera-device-select" class="select-control" style="flex:1; min-width:140px;" aria-label="選擇攝影機鏡頭">
-            <option value="">自動偵測鏡頭 (後置優先)</option>
-          </select>
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-flip-camera" title="切換前後鏡頭">
-            🔄 切換前後鏡
-          </button>
-          <select id="camera-res-select" class="select-control" aria-label="選擇取樣解析度">
-            <option value="360">360p 極速省電</option>
-            <option value="480" selected>480p 標準平衡</option>
-            <option value="720">720p 高清取景</option>
-          </select>
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-torch" title="開啟手機補光燈">
-            🔦 補光
-          </button>
-        </div>
-
-        <!-- IP Camera / CCTV Stream Controls (Shown when IP Cam is active) -->
-        <div class="camera-controls-bar hidden" id="ipcam-controls-bar">
-          <select id="cctv-channel-select" class="select-control" aria-label="選擇監控通道">
-            <option value="ch1">CH-01 收銀台俯視監控鏡頭 (自動巡檢)</option>
-            <option value="ch2">CH-02 智慧貨架即時監控 (A區專櫃)</option>
-            <option value="ch3">CH-03 倉儲進貨通道攝影機</option>
-            <option value="custom">自訂 MJPEG / HLS / HTTP 串流網址</option>
-          </select>
-          <input type="url" id="ipcam-url-input" class="input-control hidden" placeholder="輸入 http://192.168.1.100:8080/video" style="flex:1;" />
-          <button type="button" class="btn btn-secondary btn-sm hidden" id="btn-connect-ipcam">連線</button>
-        </div>
-
-        <!-- Main Optical Viewport -->
-        <div class="viewport-container" id="viewport-container">
-          <video id="camera-video" class="viewport-video hidden" playsinline muted autoplay></video>
-          <canvas id="stage-canvas" class="viewport-canvas" width="640" height="480"></canvas>
-
-          <!-- Tactical HUD Overlay -->
-          <div class="hud-overlay">
-            <div class="hud-top-row">
-              <div class="hud-pill">
-                <span class="status-dot" id="hud-scan-dot"></span>
-                <span id="hud-status-text">ROI 64×64 視覺追蹤中</span>
-              </div>
-              <div class="hud-pill">
-                <span>信心度: <strong id="hud-confidence-val">--%</strong></span>
-              </div>
+        <!-- Optical HUD Overlay -->
+        <div class="hud-overlay">
+          <div class="hud-top-row">
+            <div class="hud-pill">
+              <span class="status-dot" id="hud-scan-dot"></span>
+              <span id="hud-status-text">啟動相機中...</span>
             </div>
 
-            <!-- ROI Target Reticle -->
-            <div class="roi-reticle" id="roi-reticle">
-              <span class="roi-corner tl"></span>
-              <span class="roi-corner tr"></span>
-              <span class="roi-corner bl"></span>
-              <span class="roi-corner br"></span>
-            </div>
-
-            <!-- Instant Bottom HUD Match Bar (Customer View: Name, Price, Intro, Add to Cart ONLY) -->
-            <div class="hud-match-banner" id="hud-match-banner">
-              <div style="min-width:0; flex:1;">
-                <div style="font-size:15px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="hud-match-title">
-                  請將相機對準商品...
-                </div>
-                <div style="font-size:12px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="hud-match-sub">
-                  掃描商品後將顯示產品介紹
-                </div>
-                <span class="hidden" id="hud-match-stock"></span>
-              </div>
-              <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
-                <div style="font-size:16px; font-weight:700; color:var(--accent-primary); font-family:var(--font-mono);" id="hud-match-price">
-                  --
-                </div>
-                <button type="button" class="btn btn-primary btn-sm" id="hud-add-cart-btn" disabled>
-                  🛒 加入購物車
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Interactive Virtual Stage Controls (Allows instant testing of existing + unregistered new items) -->
-        <div class="stage-tray" id="virtual-stage-tray">
-          <div class="stage-tray-header">
-            <span>🎯 <strong>切換鏡頭前商品測試</strong>：</span>
-            <div style="display:flex; gap:6px; align-items:center;">
-              <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer; font-size:12px;">
-                <input type="checkbox" id="chk-stage-motion" />
-                <span>模擬手持微動</span>
+            <!-- In-Viewfinder Compact Camera Controls -->
+            <div class="hud-cam-actions">
+              <button type="button" class="hud-action-btn" id="btn-live-webcam" title="切換即時連續鏡頭">
+                🎥 即時
+              </button>
+              <label for="native-scan-input" class="hud-action-btn" title="使用系統相機拍照辨識">
+                📷 拍照
               </label>
-              <button type="button" class="btn btn-secondary btn-sm" id="btn-stage-rotate" title="旋轉商品角度測試特徵不變性">
-                ↻ 旋轉角度
+              <button type="button" class="hud-action-btn" id="btn-flip-camera" title="切換前後鏡頭">
+                🔄 鏡頭
+              </button>
+              <button type="button" class="hud-action-btn" id="btn-toggle-torch" title="開關補光燈">
+                🔦 補光
               </button>
             </div>
           </div>
-          <div class="stage-objects-scroll" id="stage-objects-list"></div>
-        </div>
 
-        <!-- Hidden Backend Telemetry & Controls (Preserved for DOM bindings without cluttering Customer Scan View) -->
-        <div class="hidden">
-          <span id="motion-delta-text"></span>
-          <canvas id="fingerprint-canvas" width="420" height="38"></canvas>
-          <span id="threshold-label">80%</span>
-          <input type="range" id="threshold-slider" min="65" max="95" value="80" />
-          <input type="checkbox" id="chk-auto-cart" />
-          <input type="checkbox" id="chk-eco-sleep" checked />
+          <!-- ROI Target Reticle -->
+          <div class="roi-reticle" id="roi-reticle">
+            <span class="roi-corner tl"></span>
+            <span class="roi-corner tr"></span>
+            <span class="roi-corner bl"></span>
+            <span class="roi-corner br"></span>
+          </div>
+
+          <!-- Instant Bottom HUD Status Banner -->
+          <div class="hud-match-banner" id="hud-match-banner">
+            <div style="min-width:0; flex:1;">
+              <div class="hud-match-title" id="hud-match-title">未建檔</div>
+              <div class="hud-match-sub" id="hud-match-sub">請將鏡頭對準商品進行掃描或建檔</div>
+            </div>
+            <div class="hud-match-right">
+              <span class="hud-sim-chip" id="hud-confidence-val">--%</span>
+              <div class="hud-match-price" id="hud-match-price">未建檔</div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- COLUMN 2: Customer Scan Product Card (Strictly Name, Price, Intro, Add to Cart) & Backend Tabs -->
-    <section class="panel" aria-label="即時產品資訊與後台建檔管理">
-      <!-- TAB VIEW 1: CUSTOMER SCAN VIEW (ONLY Product Name, Product Price, Product Intro, Add to Cart) -->
+    <!-- SECTION 2: Merchant Function Switcher & Active View (ONLY Scan Product & Register Product) -->
+    <section class="merchant-main-panel" aria-label="商品掃描資訊與建檔區">
+      <!-- Strictly 2 Functions: 掃描商品 & 商品建檔 -->
+      <nav class="merchant-tabs" aria-label="店家功能切換">
+        <button type="button" class="merchant-tab active" data-tab="scan" id="tab-btn-scan">
+          🔍 掃描商品
+        </button>
+        <button type="button" class="merchant-tab" data-tab="register" id="tab-btn-register">
+          📸 商品建檔
+          <span class="tab-badge" id="nav-inv-count">0</span>
+        </button>
+      </nav>
+
+      <!-- VIEW 1: 掃描商品 (If registered -> List Product Info; If unregistered -> Show 未建檔) -->
       <div id="view-scan" class="tab-view">
-        <div class="panel-header">
-          <div class="panel-title">
-            <span>🛍️ 掃描商品資訊</span>
+        <!-- Registered Product Information Card (有建檔：列出完整商品資訊) -->
+        <div class="panel merchant-card hidden" id="recognized-product-card">
+          <div class="panel-body">
+            <div class="rec-header">
+              <img id="rec-img" class="rec-thumb" src="" alt="商品縮圖" />
+              <div class="rec-meta">
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:4px;">
+                  <span class="badge badge-emerald" id="rec-match-type">已建檔商品</span>
+                  <span class="badge badge-info" id="rec-category">一般商品</span>
+                  <span style="font-size:12px; color:var(--text-muted); font-family:var(--font-mono);" id="rec-similarity">99%</span>
+                </div>
+                <h2 class="rec-name" id="rec-name">--</h2>
+                <div class="rec-price" id="rec-price">NT$ 0</div>
+              </div>
+            </div>
+
+            <!-- Merchant Detailed Product Info Table -->
+            <div class="merchant-info-grid">
+              <div class="info-cell">
+                <span class="info-label">庫存數量</span>
+                <div class="stock-inline-row">
+                  <strong class="info-val" id="rec-stock">0 件</strong>
+                  <div class="stock-step-btns">
+                    <button type="button" class="btn-step" id="btn-rec-stock-minus" title="庫存 -1">−</button>
+                    <button type="button" class="btn-step" id="btn-rec-stock-plus" title="庫存 +1">＋</button>
+                  </div>
+                </div>
+              </div>
+              <div class="info-cell">
+                <span class="info-label">存放儲位</span>
+                <strong class="info-val" id="rec-location">--</strong>
+              </div>
+              <div class="info-cell">
+                <span class="info-label">商品編號 (SKU)</span>
+                <strong class="info-val mono" id="rec-sku">--</strong>
+              </div>
+              <div class="info-cell">
+                <span class="info-label">國際條碼 / QR</span>
+                <strong class="info-val mono" id="rec-barcode">--</strong>
+              </div>
+            </div>
+
+            <!-- Product Description / Spec -->
+            <div class="spec-box">
+              <div class="info-label" style="margin-bottom:4px;">商品介紹 / 規格備註</div>
+              <p class="rec-spec" id="rec-spec">--</p>
+            </div>
+
+            <!-- Merchant Quick Maintenance Actions for this Registered Product -->
+            <div class="merchant-card-actions">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-rec-edit">
+                ✏️ 編輯建檔資料
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-train-extra-angle">
+                📸 補拍多角度特徵
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-rec-delete">
+                🗑️ 刪除建檔
+              </button>
+            </div>
           </div>
-          <span class="hidden" id="scan-match-badge"></span>
-          <button type="button" class="hidden" id="btn-train-extra-angle"></button>
         </div>
 
-        <div class="panel-body">
-          <!-- Customer Streamlined Product Card: ONLY Name, Price, Description, Add to Cart -->
-          <div class="recognized-card active-match" id="recognized-product-card">
-            <div class="rec-header">
-              <img id="rec-img" class="rec-thumb" src="" alt="產品縮圖" />
-              <div class="rec-meta">
-                <!-- 1. 產品名稱 -->
-                <h2 class="rec-name" id="rec-name" style="font-size:19px; margin-bottom:6px;">衣索比亞 耶加雪菲 精品咖啡豆 (250g)</h2>
-                <!-- 2. 產品價格 -->
-                <div style="font-size:22px; font-weight:800; color:var(--accent-primary); font-family:var(--font-mono); margin-bottom:8px;" id="rec-price">
-                  NT$ 480
+        <!-- Unregistered Product Card (無建檔：顯示未建檔) -->
+        <div class="panel unregistered-card" id="unregistered-prompt-card">
+          <div class="panel-body" style="text-align:center; padding:26px 16px;">
+            <span class="badge badge-amber" style="font-size:13px; padding:4px 12px; margin-bottom:10px;">⚠️ 查無商品資料</span>
+            <h2 class="unreg-title">未建檔</h2>
+            <p class="unreg-desc" id="unreg-subtext">目前掃描畫面中的商品尚未建立檔案</p>
+            <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:16px;">
+              <button type="button" class="btn btn-primary" id="btn-jump-register">
+                📸 擷取目前畫面並建檔
+              </button>
+              <label for="native-camera-input" class="btn btn-secondary" style="cursor:pointer;">
+                📷 開啟系統相機拍照建檔
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: 商品建檔 (Merchant Product Registration Form) -->
+      <div id="view-register" class="tab-view hidden">
+        <div class="panel">
+          <div class="panel-body">
+            <!-- Captured Snapshot & 144-D Visual Descriptor Status -->
+            <div class="reg-capture-bar">
+              <img id="reg-preview-img" class="rec-thumb" src="" alt="建檔縮圖預覽" />
+              <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:4px;">
+                  <span class="badge badge-emerald" id="reg-descriptor-status">準備擷取畫面特徵</span>
+                  <span style="font-size:12px; color:var(--text-muted); font-family:var(--font-mono);" id="reg-sample-count">樣本: 0 組</span>
+                </div>
+                <p style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">
+                  將商品置於上方取景框中央擷取，可補拍 2～3 個不同角度提升辨識精準度。
+                </p>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                  <button type="button" class="btn btn-primary btn-sm" id="btn-capture-frame">
+                    📸 擷取目前鏡頭畫面
+                  </button>
+                  <label for="native-camera-input" class="btn btn-secondary btn-sm" style="cursor:pointer;">
+                    📷 系統相機實拍
+                  </label>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-add-angle-sample">
+                    ➕ 補拍角度 (+1)
+                  </button>
                 </div>
               </div>
             </div>
 
-            <!-- 3. 產品介紹 -->
-            <div style="margin-top:12px; padding:12px; background:var(--bg-canvas); border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
-              <div style="font-size:12px; color:var(--text-muted); margin-bottom:4px;">產品介紹</div>
-              <p class="rec-spec" id="rec-spec" style="font-size:14px; color:var(--text-primary); line-height:1.6;">
-                250g / 水洗淺焙 / 柑橘茉莉花香 / 單向排氣閥鋁箔袋
-              </p>
-            </div>
+            <!-- Merchant Product Registration Form -->
+            <form id="register-product-form" class="form-grid" novalidate>
+              <input type="hidden" id="reg-id" value="" />
 
-            <!-- 4. 加入購物車 -->
-            <div style="margin-top:14px;">
-              <button type="button" class="btn btn-primary" style="width:100%; padding:12px; font-size:15px;" id="btn-rec-add-cart">
-                🛒 加入購物車
-              </button>
-            </div>
-
-            <!-- Hidden elements preserved for backend state sync -->
-            <div class="hidden">
-              <span id="rec-category"></span>
-              <span id="rec-sku"></span>
-              <span id="rec-similarity"></span>
-              <span id="rec-stock"></span>
-              <span id="rec-location"></span>
-              <button type="button" id="btn-rec-stock-plus"></button>
-              <button type="button" id="btn-rec-stock-minus"></button>
-              <button type="button" id="btn-rec-edit"></button>
-            </div>
-          </div>
-
-          <!-- Unregistered Product Prompt Banner (Displays 未建檔 when not found in inventory) -->
-          <div class="recognized-card hidden" id="unregistered-prompt-card" style="border-color: var(--accent-amber); text-align:center; padding:24px 16px;">
-            <span class="badge badge-amber" style="font-size:14px; padding:4px 12px; margin-bottom:10px;">⚠️ 未建檔</span>
-            <h3 style="font-size:20px; font-weight:800; color:var(--accent-amber); margin-top:4px;">未建檔</h3>
-            <p style="font-size:13px; color:var(--text-secondary); margin-top:6px; margin-bottom:14px;">
-              未掃描到庫存中的商品
-            </p>
-            <div class="kiosk-admin-only" style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
-              <button type="button" class="btn btn-primary btn-sm" id="btn-instant-register">
-                ⚡ 一鍵立即建檔此商品
-              </button>
-              <button type="button" class="btn btn-secondary btn-sm" id="btn-jump-register">
-                📸 編輯詳情後建檔
-              </button>
-            </div>
-          </div>
-
-          <div id="top-candidates-list" class="hidden"></div>
-        </div>
-      </div>
-
-      <!-- TAB VIEW 2: CAMERA PHOTO BACKEND REGISTRATION (手機拍照後台建檔) -->
-      <div id="view-register" class="tab-view hidden">
-        <div class="panel-header">
-          <div class="panel-title">
-            <span>📸 相機拍照快速建檔 (後台商品登錄)</span>
-          </div>
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-fill-demo-new">
-            ✨ 自動帶入鏡頭前新商品資訊
-          </button>
-        </div>
-
-        <div class="panel-body">
-          <!-- Captured Snapshot & Visual Descriptor Status -->
-          <div style="display:flex; gap:12px; align-items:center; background:var(--bg-elevated); padding:12px; border-radius:var(--radius-md); border:1px solid var(--border-subtle); margin-bottom:12px;">
-            <img id="reg-preview-img" class="rec-thumb" src="" alt="建檔預覽圖" />
-            <div style="flex:1;">
-              <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
-                <span class="badge badge-emerald" id="reg-descriptor-status">已擷取 144 維視覺特徵</span>
-                <span style="font-size:12px; color:var(--text-muted); font-family:var(--font-mono);" id="reg-sample-count">樣本數: 1 組</span>
+              <div class="form-field full">
+                <label class="form-label" for="reg-name">商品名稱 *</label>
+                <input type="text" id="reg-name" class="input-control" placeholder="請輸入商品名稱（例如：阿里山高山烏龍茶 150g）" required />
               </div>
-              <p style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">
-                對準商品按下「拍照擷取畫面特徵」，可多角度連拍 2~3 張讓辨識更精準。
-              </p>
-              <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <label for="native-camera-input" class="btn btn-primary btn-sm" style="cursor:pointer;">
-                  📱 開手機相機實拍
-                </label>
-                <button type="button" class="btn btn-secondary btn-sm" id="btn-capture-frame">
-                  📸 擷取目前畫面
+
+              <div class="form-field">
+                <label class="form-label" for="reg-price">銷售單價 (NT$) *</label>
+                <input type="number" id="reg-price" class="input-control" placeholder="例如：350" value="" min="0" step="1" />
+              </div>
+
+              <div class="form-field">
+                <label class="form-label" for="reg-stock">庫存數量 *</label>
+                <input type="number" id="reg-stock" class="input-control" placeholder="例如：20" value="10" min="0" step="1" />
+              </div>
+
+              <div class="form-field">
+                <label class="form-label" for="reg-sku">商品編號 (SKU)</label>
+                <input type="text" id="reg-sku" class="input-control" placeholder="留空自動編號或手動輸入" />
+              </div>
+
+              <div class="form-field">
+                <label class="form-label" for="reg-barcode">國際條碼 / QR Code</label>
+                <input type="text" id="reg-barcode" class="input-control" placeholder="掃描自動帶入或手動輸入" />
+              </div>
+
+              <div class="form-field">
+                <label class="form-label" for="reg-category">商品分類</label>
+                <input type="text" id="reg-category" class="input-control" placeholder="例如：飲品 / 零食 / 日用品" value="一般商品" />
+              </div>
+
+              <div class="form-field">
+                <label class="form-label" for="reg-unit">單位 / 存放儲位</label>
+                <div style="display:flex; gap:6px;">
+                  <input type="text" id="reg-unit" class="input-control" placeholder="單位" value="件" style="width:68px;" />
+                  <input type="text" id="reg-location" class="input-control" placeholder="儲位 (如 A-01)" value="A-01" style="flex:1;" />
+                </div>
+              </div>
+
+              <div class="form-field full">
+                <label class="form-label" for="reg-spec">商品介紹 / 規格備註</label>
+                <textarea id="reg-spec" class="input-control" rows="2" placeholder="輸入規格、容量、產地、保存期限或店家備註..."></textarea>
+              </div>
+
+              <div class="form-field full" style="display:flex; gap:8px; margin-top:4px;">
+                <button type="submit" class="btn btn-primary" style="flex:2; padding:11px; font-size:14px;" id="btn-submit-reg">
+                  ✅ 儲存商品建檔
                 </button>
-                <button type="button" class="btn btn-secondary btn-sm" id="btn-add-angle-sample">
-                  ➕ 補拍多角度 (+1)
+                <button type="button" class="btn btn-secondary" id="btn-reset-reg-form">
+                  清除重填
                 </button>
               </div>
-            </div>
-          </div>
-
-          <!-- Registration Form -->
-          <form id="register-product-form" class="form-grid" novalidate>
-            <input type="hidden" id="reg-id" value="" />
-            <div class="form-field full">
-              <label class="form-label" for="reg-name">產品名稱 *</label>
-              <input type="text" id="reg-name" class="input-control" placeholder="例如：LumixPocket 4K 口袋運動攝影機" />
-            </div>
-
-            <div class="form-field">
-              <label class="form-label" for="reg-price">銷售單價 (NT$) *</label>
-              <input type="number" id="reg-price" class="input-control" placeholder="例如：5490" value="199" min="0" step="1" />
-            </div>
-
-            <div class="form-field">
-              <label class="form-label" for="reg-stock">初始庫存數量 *</label>
-              <input type="number" id="reg-stock" class="input-control" placeholder="例如：15" value="20" min="0" step="1" />
-            </div>
-
-            <div class="form-field">
-              <label class="form-label" for="reg-sku">產品編號 (SKU)</label>
-              <input type="text" id="reg-sku" class="input-control" placeholder="自動產生或手動輸入" />
-            </div>
-
-            <div class="form-field">
-              <label class="form-label" for="reg-barcode">國際條碼 / QR Code (選填)</label>
-              <input type="text" id="reg-barcode" class="input-control" placeholder="例如：4710982009011" />
-            </div>
-
-            <div class="form-field">
-              <label class="form-label" for="reg-category">產品分類</label>
-              <input type="text" id="reg-category" class="input-control" placeholder="例如：攝影器材 / 精品咖啡" value="精選商品" />
-            </div>
-
-            <div class="form-field">
-              <label class="form-label" for="reg-unit">計量單位 / 儲位</label>
-              <div style="display:flex; gap:6px;">
-                <input type="text" id="reg-unit" class="input-control" placeholder="單位(件)" value="件" style="width:70px;" />
-                <input type="text" id="reg-location" class="input-control" placeholder="儲位(如 B-04)" value="B-04" style="flex:1;" />
-              </div>
-            </div>
-
-            <div class="form-field full">
-              <label class="form-label" for="reg-spec">完整產品資訊與規格描述</label>
-              <textarea id="reg-spec" class="input-control" rows="2" placeholder="輸入產品特色、容量、產地、保固或成分等詳細資訊..."></textarea>
-            </div>
-
-            <div class="form-field full" style="display:flex; flex-direction:row; gap:8px; margin-top:4px;">
-              <button type="submit" class="btn btn-primary" style="flex:2;">
-                ✅ 完成拍照建檔並立即啟用掃描辨識
-              </button>
-              <button type="button" class="btn btn-secondary" id="btn-reset-reg-form">
-                清除重填
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <!-- TAB VIEW 3: REAL-TIME INVENTORY MANAGEMENT (即時庫存管理) -->
-      <div id="view-inventory" class="tab-view hidden">
-        <div class="panel-header">
-          <div class="panel-title">
-            <span>📦 即時庫存清單與盤點</span>
-          </div>
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <input type="file" id="inv-import-input" accept=".json,.csv" class="hidden" />
-            <label for="inv-import-input" class="btn btn-secondary btn-sm" id="btn-import-inventory" style="cursor:pointer;" title="匯入 JSON 或 CSV 商品檔">
-              📂 匯入
-            </label>
-            <button type="button" class="btn btn-secondary btn-sm" id="btn-export-csv" title="匯出 Excel 相容 CSV 報表">
-              📊 CSV
-            </button>
-            <button type="button" class="btn btn-secondary btn-sm" id="btn-export-inventory" title="匯出完整 JSON 備份">
-              ⬇️ JSON
-            </button>
-            <button type="button" class="btn btn-secondary btn-sm" id="btn-reset-demo" title="重置回預設展示商品庫">
-              🔄 重置預設庫
-            </button>
-          </div>
-        </div>
-
-        <div class="panel-body">
-          <div style="display:flex; gap:8px; margin-bottom:10px;">
-            <input type="search" id="inv-search-input" class="input-control" placeholder="🔍 搜尋產品名稱、SKU、條碼或分類..." style="flex:1;" />
-            <select id="inv-filter-select" class="select-control" aria-label="篩選庫存狀態">
-              <option value="all">全部商品</option>
-              <option value="low">⚠️ 低庫存預警</option>
-            </select>
-          </div>
-
-          <div class="inventory-list" id="inventory-list-container"></div>
-        </div>
-      </div>
-
-      <!-- TAB VIEW 4: MULTI-DEVICE & CCTV CAMERA ARCHITECTURE (跨設備與監控支援) -->
-      <div id="view-devices" class="tab-view hidden">
-        <div class="panel-header">
-          <div class="panel-title">
-            <span>📹 跨平台設備、監控串流與極致節能架構</span>
-          </div>
-        </div>
-
-        <div class="panel-body" style="display:flex; flex-direction:column; gap:12px;">
-          <div style="background:var(--bg-elevated); padding:12px; border-radius:var(--radius-md); border:1px solid var(--border-subtle);">
-            <h3 style="font-size:14px; font-weight:700; margin-bottom:6px; color:var(--accent-primary);">
-              🌐 全平台設備即開即用支援狀態
-            </h3>
-            <p style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">
-              系統透過標準 WebRTC MediaDevices、Offscreen Canvas 與 Server-Sent Events (SSE) 即時推播，無需安裝肥大 App 即可在所有終端毫秒級同步：
-            </p>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:12px;">
-              <div class="stat-box">
-                <strong>📱 手機 / 平板 (iOS & Android)</strong>
-                <span style="color:var(--text-secondary); display:block; margin-top:2px;">支援前後鏡頭切換、手電筒補光、原生相機快門、PWA 安裝</span>
-              </div>
-              <div class="stat-box">
-                <strong>💻 筆電 / 桌上型電腦</strong>
-                <span style="color:var(--text-secondary); display:block; margin-top:2px;">支援內建 Webcam、USB 工業攝影機、外接條碼槍與鍵盤快捷鍵</span>
-              </div>
-              <div class="stat-box">
-                <strong>📹 監控 / IP 攝影機 (CCTV)</strong>
-                <span style="color:var(--text-secondary); display:block; margin-top:2px;">支援 MJPEG / HLS / HTTP 快照串流與收銀台俯視 ROI 框選辨識</span>
-              </div>
-              <div class="stat-box">
-                <strong>⚡ 硬體條碼加速引擎</strong>
-                <span style="color:var(--text-secondary); display:block; margin-top:2px;" id="barcode-hw-status">自動偵測 BarcodeDetector API 並聯加速</span>
-              </div>
-            </div>
-          </div>
-
-          <div style="background:var(--bg-elevated); padding:12px; border-radius:var(--radius-md); border:1px solid var(--border-subtle);">
-            <h3 style="font-size:14px; font-weight:700; margin-bottom:6px; color:var(--accent-amber);">
-              🌱 極致效能與硬體節能引擎控制 (Eco-Performance Engine)
-            </h3>
-            <div style="display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--text-secondary);">
-              <div>• <strong>64×64 極小取樣</strong>：每幀僅處理 4,096 像素，相較 1080p 減少 <strong>99.8%</strong> 記憶體頻寬。</div>
-              <div>• <strong>零垃圾回收記憶體池 (Zero-GC Arena)</strong>：預先配置固定 <code>Float32Array(144)</code>，掃描過程 0 物件生成。</div>
-              <div>• <strong>16×16 幀差法靜止休眠 (Motion Gate)</strong>：畫面無移動時自動降至 2.5 FPS 省電待機，商品移入瞬間 0ms 喚醒至 20 FPS。</div>
-            </div>
+            </form>
           </div>
         </div>
       </div>
     </section>
-
-    <!-- COLUMN 3: Real-Time Shopping Cart, Instant Checkout & Receipt History -->
-    <aside class="panel cart-column" aria-label="即時購物車與結帳系統">
-      <div class="panel-header">
-        <div class="panel-title">
-          <span>🛒 即時購物車與結帳</span>
-          <span class="badge badge-emerald" id="cart-count-badge">0 件</span>
-        </div>
-        <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-cart">
-          清空
-        </button>
-      </div>
-
-      <div class="panel-body">
-        <!-- Cart Items List -->
-        <div class="cart-items-list" id="cart-items-container"></div>
-
-        <!-- Totals & Discount -->
-        <div class="cart-summary">
-          <div class="summary-line">
-            <span>商品小計 (<span id="summary-qty">0</span> 件)</span>
-            <span style="font-family:var(--font-mono);" id="summary-subtotal">NT$ 0</span>
-          </div>
-          <div class="summary-line" style="align-items:center;">
-            <span>折扣折抵 (NT$)</span>
-            <input type="number" id="cart-discount-input" class="input-control" value="0" min="0" step="10" style="width:86px; padding:3px 6px; text-align:right; font-family:var(--font-mono);" />
-          </div>
-          <div class="summary-line total">
-            <span>應付總額</span>
-            <span style="color:var(--accent-primary);" id="summary-total">NT$ 0</span>
-          </div>
-        </div>
-
-        <!-- Payment Method Selector -->
-        <div class="payment-methods" role="radiogroup" aria-label="付款方式">
-          <button type="button" class="pay-method-btn active" data-pay="cash">💵 現金結帳</button>
-          <button type="button" class="pay-method-btn" data-pay="card">💳 感應刷卡</button>
-          <button type="button" class="pay-method-btn" data-pay="mobile">📱 行動支付</button>
-        </div>
-
-        <button type="button" class="btn btn-primary" style="width:100%; padding:11px; font-size:14px;" id="btn-checkout-submit" disabled>
-          ⚡ 立即結帳並同步扣減庫存
-        </button>
-
-        <!-- Recent Order / Receipt History -->
-        <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border-subtle);">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:6px; flex-wrap:wrap;">
-            <h3 style="font-size:13px; font-weight:700; color:var(--text-secondary);">🧾 即時結帳明細紀錄</h3>
-            <div style="display:flex; align-items:center; gap:6px;">
-              <span style="font-size:12px; font-family:var(--font-mono); color:var(--accent-primary);" id="today-revenue-text">今日營收: NT$ 0</span>
-              <button type="button" class="btn btn-secondary btn-sm kiosk-admin-only" id="btn-export-orders-csv" style="padding:2px 7px; font-size:11px;" title="匯出訂單明細 CSV">📊 帳務</button>
-            </div>
-          </div>
-          <div id="orders-history-list" style="display:flex; flex-direction:column; gap:6px; max-height:190px; overflow-y:auto;"></div>
-        </div>
-      </div>
-    </aside>
   </main>
-
-  <!-- Printable Electronic Receipt Modal -->
-  <div id="receipt-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="receipt-modal-title">
-    <div class="receipt-card">
-      <div class="receipt-no-print" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <strong id="receipt-modal-title" style="font-size:14px;">🧾 電子交易憑證 / 收據明細</strong>
-        <button type="button" class="btn btn-secondary btn-sm" id="btn-close-receipt">關閉</button>
-      </div>
-      <div class="receipt-paper" id="receipt-paper-content"></div>
-      <div class="receipt-no-print" style="display:flex; gap:8px; margin-top:12px;">
-        <button type="button" class="btn btn-primary" style="flex:1;" id="btn-print-receipt">🖨️ 列印 / 儲存收據</button>
-      </div>
-    </div>
-  </div>
 
   <!-- Toast Notifications Container -->
   <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
