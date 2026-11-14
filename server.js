@@ -657,9 +657,18 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // 8b. Direct Download Route for Signed Android APK & Standalone HTML Bundle
+  // 8b. Direct Download Route for Universal Signed Android APK & Standalone HTML Bundle
   if (
     (pathname === '/VisionPOS-Xiaomi15.apk' || pathname === '/VisionPOS-Xiaomi15.html') &&
+    (req.method === 'GET' || req.method === 'HEAD')
+  ) {
+    const redirectTarget = pathname.endsWith('.apk') ? '/VisionPOS-Android.apk' : '/VisionPOS-Android.html';
+    res.writeHead(302, { Location: redirectTarget });
+    res.end();
+    return;
+  }
+  if (
+    (pathname === '/VisionPOS-Android.apk' || pathname === '/VisionPOS-Android.html') &&
     (req.method === 'GET' || req.method === 'HEAD')
   ) {
     const bundleName = pathname.slice(1);

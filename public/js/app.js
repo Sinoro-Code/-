@@ -545,10 +545,17 @@
         el['sync-status-badge'].textContent = '離線極速模式 (自動佇列同步)';
       }
     } else {
-      el['sync-status-badge'].textContent =
-        window.location.hostname === 'visionpos.local'
-          ? 'Xiaomi 15 原生 APK 離線極速引擎'
-          : '本地極速模式 (支援跨分頁同步)';
+      if (window.location.hostname === 'visionpos.local') {
+        let devLabel = 'Android';
+        try {
+          if (window.VisionPOSAndroid && typeof window.VisionPOSAndroid.getDeviceInfo === 'function') {
+            devLabel = window.VisionPOSAndroid.getDeviceInfo() || 'Android';
+          }
+        } catch (_) {}
+        el['sync-status-badge'].textContent = `${devLabel} · 原生 APK 極速引擎`;
+      } else {
+        el['sync-status-badge'].textContent = '本地極速模式 (支援跨分頁同步)';
+      }
     }
 
     renderAll();
@@ -799,6 +806,64 @@
           audio: false
         });
       }
+
+      // Multi-Lens Android Flagship Guard (Samsung Galaxy S/Ultra, OPPO, vivo, Pixel, Sony, Motorola):
+      // If facingMode:'environment' picked an ultra-wide/macro/depth auxiliary lens without Torch/AF,
+      // automatically switch to the primary 1x rear camera ('camera2 0' / non-ultra/macro back lens).
+      if (state.facingMode === 'environment' && !state.selectedDeviceId && navigator.mediaDevices.enumerateDevices) {
+        try {
+          const firstTrack = stream.getVideoTracks()[0];
+          const label0 = ((firstTrack && firstTrack.label) || '').toLowerCase();
+          const caps0 = firstTrack && firstTrack.getCapabilities ? firstTrack.getCapabilities() : {};
+          const looksAuxiliary = /ultra|wide-angle|0\.5|0\.6|macro|tele|depth|tof|mono/i.test(label0);
+          if (looksAuxiliary || (!caps0.torch && /camera2\s+[2-9]/i.test(label0))) {
+            const allDevs = await navigator.mediaDevices.enumerateDevices();
+            const backCams = allDevs.filter(
+              (d) =>
+                d.kind === 'videoinput' &&
+                /back|rear|environment|後|0/i.test(d.label || '') &&
+                !/front|user|前|ultra|macro|tele|depth|tof/i.test(d.label || '')
+            );
+            const primaryRear =
+              backCams.find((d) => /camera2\s*0|main|0,\s*facing\s*back/i.test(d.label || '')) || backCams[0];
+            if (primaryRear && firstTrack && primaryRear.deviceId && primaryRear.deviceId !== (firstTrack.getSettings && firstTrack.getSettings().deviceId)) {
+              const betterStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                  deviceId: { exact: primaryRear.deviceId },
+                  width: { ideal: width },
+                  height: { ideal: height },
+                  frameRate: { ideal: 24, max: 30 }
+                },
+                audio: false
+              });
+              stream.getTracks().forEach((t) => t.stop());
+              stream = betterStream;
+            }
+          }
+        } catch (_) {}
+      }
+
+      // Enable Continuous Autofocus / Exposure / White-Balance on Android Camera2 WebRTC tracks
+      try {
+        const activeTrack = stream.getVideoTracks()[0];
+        if (activeTrack && activeTrack.getCapabilities && activeTrack.applyConstraints) {
+          const caps = activeTrack.getCapabilities();
+          const adv = {};
+          if (Array.isArray(caps.focusMode) && caps.focusMode.indexOf('continuous') !== -1) {
+            adv.focusMode = 'continuous';
+          }
+          if (Array.isArray(caps.exposureMode) && caps.exposureMode.indexOf('continuous') !== -1) {
+            adv.exposureMode = 'continuous';
+          }
+          if (Array.isArray(caps.whiteBalanceMode) && caps.whiteBalanceMode.indexOf('continuous') !== -1) {
+            adv.whiteBalanceMode = 'continuous';
+          }
+          if (Object.keys(adv).length > 0) {
+            activeTrack.applyConstraints({ advanced: [adv] }).catch(() => {});
+          }
+        }
+      } catch (_) {}
+
       state.mediaStream = stream;
       state.autoPausedWebcamInBg = false;
 
@@ -1857,6 +1922,13 @@
     }
 
     playTone(960, 45, 'sine');
+    try {
+      if (window.VisionPOSAndroid && typeof window.VisionPOSAndroid.vibrate === 'function') {
+        window.VisionPOSAndroid.vibrate(18);
+      } else if (navigator.vibrate) {
+        navigator.vibrate(18);
+      }
+    } catch (_) {}
     if (isAuto) {
       showToast(`⚡ 自動掃描入車：${product.name} ×1`);
     } else {
@@ -1947,7 +2019,7 @@
         (i) => `
           <div style="display:flex; justify-content:space-between; gap:8px; margin:4px 0;">
             <span style="flex:1; word-break:break-all;">${escapeHtml(i.name)} ×${i.quantity}</span>
-            <span style="white-space:nowrap;">NT$ ${Number(i.lineTotal ?? i.price * i.quantity).toLocaleString()}</span>
+            <span style="white-space:nowrap;">NT$ ${Number(i.lineTotal != null ? i.lineTotal : i.price * i.quantity).toLocaleString()}</span>
           </div>
         `
       )
@@ -2170,11 +2242,17 @@
 
     if (typeof createImageBitmap === 'function') {
       try {
-        // Specify ONLY resizeWidth so browser preserves portrait/landscape aspect ratio & EXIF orientation
-        const bitmap = await createImageBitmap(file, {
-          resizeWidth: 720,
-          resizeQuality: 'low'
-        });
+        // Specify ONLY resizeWidth + imageOrientation:'from-image' so all Android OEM cameras preserve EXIF rotation
+        let bitmap;
+        try {
+          bitmap = await createImageBitmap(file, {
+            resizeWidth: 720,
+            resizeQuality: 'low',
+            imageOrientation: 'from-image'
+          });
+        } catch (_) {
+          bitmap = await createImageBitmap(file);
+        }
         drawSourceOntoPhotoBuffer(bitmap);
         if (typeof bitmap.close === 'function') bitmap.close();
         state.hasLoadedPhoto = true;
@@ -2596,7 +2674,7 @@
     // Export Inventory Excel-Ready UTF-8 BOM CSV
     if (el['btn-export-csv']) {
       el['btn-export-csv'].addEventListener('click', () => {
-        const csvEsc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+        const csvEsc = (v) => `"${String(v != null ? v : '').replace(/"/g, '""')}"`;
         const rows = ['\uFEFFSKU,條碼,產品名稱,分類,單價(NT$),庫存數量,單位,儲位,產品介紹'];
         for (const p of state.products) {
           rows.push([
@@ -2626,7 +2704,7 @@
             return;
           }
         } catch (_) {}
-        const csvEsc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+        const csvEsc = (v) => `"${String(v != null ? v : '').replace(/"/g, '""')}"`;
         const rows = ['\uFEFF訂單編號,交易時間,付款方式,總件數,小計(NT$),折扣(NT$),實收總額(NT$),購買明細'];
         for (const o of state.orders) {
           const detail = (o.items || []).map((i) => `${i.name}x${i.quantity}`).join('; ');
@@ -2737,7 +2815,7 @@
                 name: String(item.name).trim(),
                 category: item.category || '匯入商品',
                 price: Number(item.price) || 0,
-                stock: Number(item.stock) ?? 10,
+                stock: Number.isFinite(Number(item.stock)) ? Number(item.stock) : 10,
                 unit: item.unit || '件',
                 location: item.location || 'A-01',
                 spec: item.spec || '',
@@ -2862,7 +2940,11 @@
     }
     if (el['btn-print-receipt']) {
       el['btn-print-receipt'].addEventListener('click', () => {
-        window.print();
+        if (window.VisionPOSAndroid && typeof window.VisionPOSAndroid.printReceipt === 'function') {
+          window.VisionPOSAndroid.printReceipt();
+        } else {
+          window.print();
+        }
       });
     }
 

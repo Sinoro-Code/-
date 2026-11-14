@@ -2,13 +2,22 @@ package com.visionpos.edge;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
 import android.content.ClipData;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import android.print.PrintAttributes;
+import android.print.PrintDocumentAdapter;
+import android.print.PrintManager;
 import android.provider.MediaStore;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -30,13 +39,17 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
- * VisionPOS Edge — Xiaomi 15 (Android 15 / HyperOS) Hardware-Accelerated Native Wrapper
- * Serves VisionPOS-Xiaomi15.html over a virtual HTTPS origin (https://visionpos.local/)
- * so WebRTC Live Camera, Torch, BarcodeDetector, IndexedDB, and Native Leica Camera
- * capture work 100% offline with sub-millisecond inference latency.
+ * VisionPOS Edge — Universal Android Native Wrapper (Android 5.0 API 21 through Android 15/16+)
+ * Compatible across Samsung OneUI, Google Pixel, OPPO ColorOS, vivo OriginOS, ASUS ZenUI,
+ * Sony Xperia, Xiaomi/Redmi/POCO HyperOS/MIUI, Honor/Huawei, Motorola, Sharp, and Android POS terminals.
+ *
+ * Serves VisionPOS-Android.html over virtual HTTPS origin (https://visionpos.local/)
+ * so WebRTC Live Camera, Torch, BarcodeDetector, IndexedDB, PrintManager, Vibrator,
+ * and OEM Native Camera capture work 100% offline across all Android phones.
  */
 public class MainActivity extends Activity {
     private static final int REQ_CAMERA_PERMISSION = 1001;
@@ -54,7 +67,7 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         Window window = getWindow();
-        if (window != null) {
+        if (window != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
             window.setStatusBarColor(Color.parseColor("#0B0F14"));
             window.setNavigationBarColor(Color.parseColor("#0B0F14"));
@@ -62,6 +75,8 @@ public class MainActivity extends Activity {
 
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.parseColor("#0B0F14"));
+        // Respect status bar, punch-hole/notch cutouts, and gesture navigation bar across Android 5-15+
+        root.setFitsSystemWindows(true);
 
         webView = new WebView(this);
         webView.setBackgroundColor(Color.parseColor("#0B0F14"));
@@ -73,11 +88,36 @@ public class MainActivity extends Activity {
         ));
         setContentView(root);
 
-        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+        ensureCameraPermission();
+        webView.loadUrl(APP_URL);
+    }
+
+    private boolean hasCameraPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true; // Granted at install time on Android 5.x (API 21-22)
+        }
+        return checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void ensureCameraPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !hasCameraPermission()) {
             requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA_PERMISSION);
         }
+    }
 
-        webView.loadUrl(APP_URL);
+    private void grantUriToResolvedPackages(Intent intent, Uri uri, int flags) {
+        if (intent == null || uri == null) return;
+        try {
+            List<ResolveInfo> resolved = getPackageManager().queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY);
+            if (resolved != null) {
+                for (ResolveInfo info : resolved) {
+                    if (info.activityInfo != null && info.activityInfo.packageName != null) {
+                        grantUriPermission(info.activityInfo.packageName, uri, flags);
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     private void configureWebView(WebView wv) {
@@ -91,6 +131,7 @@ public class MainActivity extends Activity {
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
         settings.setSupportZoom(false);
+        settings.setTextZoom(100);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
@@ -106,7 +147,7 @@ public class MainActivity extends Activity {
                     String path = url.getPath();
                     if (path == null || "/".equals(path) || "/index.html".equals(path)) {
                         try {
-                            InputStream is = getAssets().open("VisionPOS-Xiaomi15.html");
+                            InputStream is = getAssets().open("VisionPOS-Android.html");
                             Map<String, String> headers = new HashMap<>();
                             headers.put("Access-Control-Allow-Origin", "*");
                             headers.put("Cache-Control", "no-cache");
@@ -131,11 +172,13 @@ public class MainActivity extends Activity {
             @Override
             public void onPermissionRequest(final PermissionRequest request) {
                 runOnUiThread(() -> {
-                    if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                    if (hasCameraPermission()) {
                         request.grant(request.getResources());
-                    } else {
+                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         pendingWebPermission = request;
                         requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA_PERMISSION);
+                    } else {
+                        request.deny();
                     }
                 });
             }
@@ -168,7 +211,6 @@ public class MainActivity extends Activity {
                     if (wantsImage) {
                         File captureDir = new File(getCacheDir(), "captures");
                         if (!captureDir.exists()) captureDir.mkdirs();
-                        // Clean up captures older than 10 minutes to keep app storage near zero
                         File[] oldFiles = captureDir.listFiles();
                         long cutoff = System.currentTimeMillis() - 600_000L;
                         if (oldFiles != null) {
@@ -184,25 +226,30 @@ public class MainActivity extends Activity {
                         pendingCameraCaptureFile = new File(captureDir, fileName);
                         pendingCameraCaptureUri = CaptureFileProvider.buildUriForFile("captures", fileName);
 
+                        int permFlags = Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION;
                         cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
                         cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, pendingCameraCaptureUri);
                         cameraIntent.setClipData(ClipData.newRawUri("", pendingCameraCaptureUri));
-                        cameraIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        cameraIntent.addFlags(permFlags);
+                        // Explicit package grant for Huawei EMUI, older Samsung OneUI, ColorOS & Android 5-7 cameras
+                        grantUriToResolvedPackages(cameraIntent, pendingCameraCaptureUri, permFlags);
                     }
 
                     if (captureRequested && cameraIntent != null) {
-                        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                            requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA_PERMISSION);
+                        ensureCameraPermission();
+                        try {
+                            startActivityForResult(cameraIntent, REQ_FILE_CHOOSER);
+                            return true;
+                        } catch (ActivityNotFoundException ignored) {
+                            // Fall through to document/gallery chooser if device has no camera app
                         }
-                        startActivityForResult(cameraIntent, REQ_FILE_CHOOSER);
-                        return true;
                     }
 
                     Intent contentIntent = new Intent(Intent.ACTION_GET_CONTENT);
                     contentIntent.addCategory(Intent.CATEGORY_OPENABLE);
                     contentIntent.setType(wantsImage ? "image/*" : "*/*");
 
-                    Intent chooser = Intent.createChooser(contentIntent, wantsImage ? "選擇商品照片或拍照" : "選擇匯入檔案");
+                    Intent chooser = Intent.createChooser(contentIntent, wantsImage ? "選擇商品照片或開啟相機" : "選擇匯入檔案");
                     if (cameraIntent != null) {
                         chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{cameraIntent});
                     }
@@ -261,6 +308,15 @@ public class MainActivity extends Activity {
                     for (int i = 0; i < count; i++) {
                         results[i] = data.getClipData().getItemAt(i).getUri();
                     }
+                } else if (data.getExtras() != null && data.getExtras().get("data") instanceof Bitmap
+                        && pendingCameraCaptureFile != null && pendingCameraCaptureUri != null) {
+                    // Fallback for OEM cameras returning inline Bitmap thumbnail instead of EXTRA_OUTPUT
+                    Bitmap bmp = (Bitmap) data.getExtras().get("data");
+                    try (FileOutputStream fos = new FileOutputStream(pendingCameraCaptureFile)) {
+                        bmp.compress(Bitmap.CompressFormat.JPEG, 92, fos);
+                        results = new Uri[]{pendingCameraCaptureUri};
+                    } catch (Exception ignored) {
+                    }
                 }
             }
         }
@@ -278,7 +334,7 @@ public class MainActivity extends Activity {
                     "(function(){var m=document.getElementById('receipt-modal');if(m&&!m.classList.contains('hidden')){m.classList.add('hidden');return 'closed';}return '';})()",
                     val -> {
                         if (val != null && val.contains("closed")) return;
-                        if (webView.canGoBack()) {
+                        if (webView != null && webView.canGoBack()) {
                             webView.goBack();
                         } else {
                             MainActivity.super.onBackPressed();
@@ -290,7 +346,67 @@ public class MainActivity extends Activity {
         super.onBackPressed();
     }
 
+    @Override
+    protected void onDestroy() {
+        if (webView != null) {
+            try {
+                webView.loadUrl("about:blank");
+                webView.destroy();
+            } catch (Exception ignored) {
+            }
+            webView = null;
+        }
+        super.onDestroy();
+    }
+
     public class AndroidBridge {
+        @JavascriptInterface
+        public String getDeviceInfo() {
+            String brand = Build.BRAND != null ? Build.BRAND.trim() : "";
+            String model = Build.MODEL != null ? Build.MODEL.trim() : "Android";
+            String label = model;
+            if (!brand.isEmpty() && !model.toLowerCase().startsWith(brand.toLowerCase())) {
+                label = Character.toUpperCase(brand.charAt(0)) + brand.substring(1) + " " + model;
+            }
+            return label + " (Android " + Build.VERSION.RELEASE + ")";
+        }
+
+        @JavascriptInterface
+        @SuppressWarnings("deprecation")
+        public void vibrate(final int durationMs) {
+            try {
+                Vibrator vib = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                if (vib != null && vib.hasVibrator()) {
+                    int ms = Math.max(10, Math.min(200, durationMs));
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        vib.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE));
+                    } else {
+                        vib.vibrate(ms);
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        @JavascriptInterface
+        @SuppressWarnings("deprecation")
+        public void printReceipt() {
+            runOnUiThread(() -> {
+                try {
+                    if (webView == null) return;
+                    PrintManager pm = (PrintManager) getSystemService(Context.PRINT_SERVICE);
+                    if (pm != null) {
+                        PrintDocumentAdapter adapter = Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
+                                ? webView.createPrintDocumentAdapter("VisionPOS_Receipt")
+                                : webView.createPrintDocumentAdapter();
+                        pm.print("VisionPOS 電子收據", adapter, new PrintAttributes.Builder().build());
+                    }
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "無法啟動列印服務: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+
         @JavascriptInterface
         public void saveTextFile(final String filename, final String content, final String mimeType) {
             runOnUiThread(() -> {
@@ -308,6 +424,7 @@ public class MainActivity extends Activity {
                     share.putExtra(Intent.EXTRA_STREAM, uri);
                     share.setClipData(ClipData.newRawUri(safeName, uri));
                     share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    grantUriToResolvedPackages(share, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
                     startActivity(Intent.createChooser(share, "儲存或分享匯出檔案：" + safeName));
                 } catch (Exception e) {
                     Toast.makeText(MainActivity.this, "匯出失敗: " + e.getMessage(), Toast.LENGTH_SHORT).show();
