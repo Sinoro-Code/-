@@ -4,6 +4,7 @@ set -euo pipefail
 
 PROJECT_DIR="/home/antigravity/vision-pos"
 GDRIVE_HTML_ID="1y4hkJb9nrZS9nlV6l8wELAlIIUpYiLPV"
+GDRIVE_APK_ID="1dZmFn4sKbfw6mg4GbXYtR08YvyjuFIU5"
 STANDALONE_HTML="$PROJECT_DIR/VisionPOS-Xiaomi15.html"
 APK_FILE="$PROJECT_DIR/VisionPOS-Xiaomi15.apk"
 
@@ -23,21 +24,16 @@ for old_id in $DUP_HTML_IDS; do
 done
 
 echo "[3/5] 正在同步更新 Google 雲端硬碟 Android 安裝檔 VisionPOS-Xiaomi15.apk 並清理重複舊檔..."
-EXISTING_APK_IDS=$(gdrive readonly search --name-contains "VisionPOS-Xiaomi15.apk" | awk '{print $1}' | grep -E '^[a-zA-Z0-9][a-zA-Z0-9_-]{20,}$' || true)
-PRIMARY_APK_ID=$(echo "$EXISTING_APK_IDS" | head -n 1 | tr -d '[:space:]')
-
-if [[ -n "$PRIMARY_APK_ID" ]]; then
-  echo "  -> 偵測到既有雲端 APK (ID: $PRIMARY_APK_ID)，執行原地覆寫更新..."
-  gdrive mutate update "$PRIMARY_APK_ID" "$APK_FILE" --mime-type "application/vnd.android.package-archive"
-  EXTRA_APK_IDS=$(echo "$EXISTING_APK_IDS" | tail -n +2 || true)
-  for dup_apk in $EXTRA_APK_IDS; do
-    if [[ -n "$dup_apk" && "$dup_apk" != "$PRIMARY_APK_ID" ]]; then
-      echo "  -> 移除雲端硬碟重複 APK 舊檔 ID: $dup_apk"
-      gdrive mutate trash "$dup_apk" || true
-    fi
+if gdrive mutate update "$GDRIVE_APK_ID" "$APK_FILE" --mime-type "application/vnd.android.package-archive" 2>/dev/null; then
+  PRIMARY_APK_ID="$GDRIVE_APK_ID"
+  echo "  -> 已原地覆寫更新雲端 APK (ID: $PRIMARY_APK_ID)"
+  DUP_APK_IDS=$(gdrive readonly search --name-contains "VisionPOS-Xiaomi15.apk" | awk '{print $1}' | grep -E '^[a-zA-Z0-9][a-zA-Z0-9_-]{20,}$' | grep -v "^${PRIMARY_APK_ID}$" || true)
+  for dup_apk in $DUP_APK_IDS; do
+    echo "  -> 移除雲端硬碟重複 APK 舊檔 ID: $dup_apk"
+    gdrive mutate trash "$dup_apk" || true
   done
 else
-  echo "  -> 雲端硬碟尚無 APK，正在首次上傳 VisionPOS-Xiaomi15.apk ..."
+  echo "  -> 原 APK ID 不存在，正在重新上傳 VisionPOS-Xiaomi15.apk ..."
   gdrive mutate upload "$APK_FILE" --mime-type "application/vnd.android.package-archive"
   PRIMARY_APK_ID=$(gdrive readonly search --name-contains "VisionPOS-Xiaomi15.apk" | awk '{print $1}' | grep -E '^[a-zA-Z0-9][a-zA-Z0-9_-]{20,}$' | head -n 1 || true)
 fi
