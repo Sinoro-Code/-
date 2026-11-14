@@ -7,8 +7,9 @@
   <meta name="description" content="支援所有手機、平板、筆電、電腦、監控與攝影機的零延遲視覺拍照建檔、即時庫存管理、即時產品資訊與購物車結帳系統。" />
   <meta name="theme-color" content="#0b0f14" />
   
+  
   <style>
-:root{--bg-canvas:hsl(215,28%,7%);--bg-surface:hsl(215,24%,11%);--bg-elevated:hsl(215,22%,15%);--bg-interactive:hsl(215,20%,19%);--bg-glass:hsla(215,26%,10%,0.86);--text-primary:hsl(210,25%,96%);--text-secondary:hsl(214,15%,72%);--text-muted:hsl(215,14%,52%);--accent-primary:hsl(158,78%,42%);--accent-primary-hover:hsl(158,78%,48%);--accent-primary-soft:hsla(158,78%,42%,0.14);--accent-amber:hsl(38,92%,54%);--accent-amber-soft:hsla(38,92%,54%,0.15);--accent-danger:hsl(352,82%,58%);--accent-danger-soft:hsla(352,82%,58%,0.15);--accent-info:hsl(198,88%,52%);--accent-info-soft:hsla(198,88%,52%,0.14);--border-subtle:hsla(214,20%,82%,0.09);--border-strong:hsla(214,20%,82%,0.16);--radius-sm:6px;--radius-md:10px;--radius-lg:14px;--shadow-card:0 10px 28px -8px rgba(0,0,0,0.55);--font-sans:'Inter',-apple-system,BlinkMacSystemFont,'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;--font-mono:'JetBrains Mono','SF Mono','Fira Code',ui-monospace,monospace}*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}html,body{min-height:100%;background-color:var(--bg-canvas);color:var(--text-primary);font-family:var(--font-sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer;border:none;background:none}.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 18px;background:var(--bg-surface);border-bottom:1px solid var(--border-subtle);position:sticky;top:0;z-index:40;flex-wrap:wrap}.brand-group{display:flex;align-items:center;gap:10px}.brand-mark{width:34px;height:34px;border-radius:var(--radius-sm);background:var(--accent-primary-soft);color:var(--accent-primary);display:grid;place-items:center;font-weight:700;border:1px solid hsla(158,78%,42%,0.25)}.brand-title{font-size:15px;font-weight:700;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px}.brand-subtitle{font-size:12px;color:var(--text-muted)}.telemetry-strip{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.telemetry-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:var(--radius-sm);background:var(--bg-elevated);border:1px solid var(--border-subtle);font-size:12px;font-family:var(--font-mono);color:var(--text-secondary)}.telemetry-chip strong{color:var(--text-primary);font-weight:600}.status-dot{width:7px;height:7px;border-radius:50%;background:var(--accent-primary);display:inline-block}.status-dot.eco{background:var(--accent-amber)}.status-dot.offline{background:var(--accent-info)}.mode-nav{display:flex;align-items:center;gap:4px;background:var(--bg-canvas);padding:4px;border-radius:var(--radius-md);border:1px solid var(--border-subtle)}.mode-tab{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;color:var(--text-secondary);transition:background-color 0.15s ease,color 0.15s ease}.mode-tab:hover{color:var(--text-primary);background:var(--bg-elevated)}.mode-tab.active{background:var(--accent-primary);color:#04130d}.mode-tab .tab-badge{padding:1px 6px;border-radius:99px;font-size:12px;font-family:var(--font-mono);background:rgba(0,0,0,0.22);color:inherit}.workspace{display:grid;grid-template-columns:minmax(340px,1.15fr) minmax(340px,1.15fr) minmax(310px,0.85fr);gap:14px;padding:14px 18px 28px;max-width:1720px;margin:0 auto;align-items:start}@media (max-width:1280px){.workspace{grid-template-columns:1fr 1fr}.cart-column{grid-column:1 / -1}}@media (max-width:860px){.workspace{grid-template-columns:1fr;padding:10px 12px 80px}.topbar{padding:10px 12px}.mode-nav{width:100%;overflow-x:auto}.mode-tab{flex:1;justify-content:center;white-space:nowrap}}.panel{background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden}.panel-header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border-subtle);background:var(--bg-elevated);flex-wrap:wrap}.panel-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}.panel-body{padding:14px 16px}.source-switcher{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}.source-btn{padding:7px 8px;border-radius:var(--radius-sm);background:var(--bg-elevated);border:1px solid var(--border-subtle);font-size:12px;font-weight:600;color:var(--text-secondary);text-align:center;transition:all 0.14s ease}.source-btn:hover{background:var(--bg-interactive);color:var(--text-primary)}.source-btn.active{background:var(--accent-primary-soft);color:var(--accent-primary);border-color:hsla(158,78%,42%,0.45)}.camera-controls-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}.select-control,.input-control{background:var(--bg-canvas);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:6px 10px;font-size:13px;color:var(--text-primary);outline:none;transition:border-color 0.15s ease}.select-control:focus,.input-control:focus,textarea.input-control:focus{border-color:var(--accent-primary)}.viewport-container{position:relative;width:100%;aspect-ratio:4 / 3;background:#06080c;border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--border-strong);user-select:none;contain:layout paint}.viewport-video,.viewport-canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.viewport-video.mirrored{transform:scaleX(-1)}.hud-overlay{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;padding:12px}.hud-top-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.hud-pill{background:rgba(8,12,18,0.90);padding:4px 9px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.14);font-family:var(--font-mono);font-size:12px;color:var(--text-primary);display:inline-flex;align-items:center;gap:6px}.roi-reticle{position:absolute;top:50%;left:50%;width:58%;height:68%;transform:translate(-50%,-50%);border:1.5px dashed rgba(255,255,255,0.28);border-radius:12px;transition:border-color 0.15s ease,transform 0.15s ease}.roi-reticle.matched{border-color:var(--accent-primary);border-style:solid;box-shadow:0 0 0 2px hsla(158,78%,42%,0.35),inset 0 0 18px hsla(158,78%,42%,0.16)}.roi-corner{position:absolute;width:18px;height:18px;border-color:var(--accent-primary);border-style:solid;border-width:0}.roi-corner.tl{top:-2px;left:-2px;border-top-width:3px;border-left-width:3px;border-top-left-radius:8px}.roi-corner.tr{top:-2px;right:-2px;border-top-width:3px;border-right-width:3px;border-top-right-radius:8px}.roi-corner.bl{bottom:-2px;left:-2px;border-bottom-width:3px;border-left-width:3px;border-bottom-left-radius:8px}.roi-corner.br{bottom:-2px;right:-2px;border-bottom-width:3px;border-right-width:3px;border-bottom-right-radius:8px}.hud-match-banner{background:rgba(9,14,20,0.95);border:1px solid var(--border-strong);border-radius:var(--radius-md);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;pointer-events:auto;transition:opacity 0.15s ease,transform 0.15s ease}.hud-match-banner.matched-state{border-color:hsla(158,78%,42%,0.55)}.stage-tray{margin-top:10px;background:var(--bg-canvas);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:10px}.stage-tray-header{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:8px;flex-wrap:wrap;gap:6px}.stage-objects-scroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}.stage-obj-btn{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--radius-sm);background:var(--bg-surface);border:1px solid var(--border-subtle);font-size:12px;color:var(--text-secondary);transition:all 0.12s ease}.stage-obj-btn:hover{background:var(--bg-elevated);color:var(--text-primary)}.stage-obj-btn.active{background:var(--bg-interactive);color:var(--text-primary);border-color:var(--accent-primary)}.stage-obj-dot{width:9px;height:9px;border-radius:50%}.recognized-card{background:var(--bg-elevated);border:1px solid var(--border-strong);border-radius:var(--radius-md);padding:14px;margin-bottom:14px;transition:border-color 0.15s ease}.recognized-card.active-match{border-color:hsla(158,78%,42%,0.5)}.rec-header{display:flex;gap:14px;align-items:center}.rec-thumb{width:72px;height:72px;border-radius:var(--radius-md);object-fit:cover;background:var(--bg-canvas);border:1px solid var(--border-strong);flex-shrink:0}.rec-meta{flex:1;min-width:0}.rec-category-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap}.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;font-family:var(--font-mono)}.badge-emerald{background:var(--accent-primary-soft);color:var(--accent-primary)}.badge-amber{background:var(--accent-amber-soft);color:var(--accent-amber)}.badge-danger{background:var(--accent-danger-soft);color:var(--accent-danger)}.badge-info{background:var(--accent-info-soft);color:var(--accent-info)}.rec-name{font-size:17px;font-weight:700;color:var(--text-primary);line-height:1.3;margin-bottom:4px}.rec-spec{font-size:12px;color:var(--text-secondary)}.rec-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border-subtle)}.stat-box{background:var(--bg-canvas);padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--border-subtle)}.stat-label{font-size:12px;color:var(--text-muted);display:block}.stat-value{font-size:16px;font-weight:700;font-family:var(--font-mono);color:var(--text-primary)}.stat-value.price{color:var(--accent-primary)}.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;transition:all 0.14s ease}.btn-primary{background:var(--accent-primary);color:#04150e}.btn-primary:hover:not(:disabled){background:var(--accent-primary-hover);transform:translateY(-1px)}.btn-secondary{background:var(--bg-interactive);color:var(--text-primary);border:1px solid var(--border-strong)}.btn-secondary:hover:not(:disabled){background:hsl(215,20%,24%)}.btn-danger{background:var(--accent-danger-soft);color:var(--accent-danger);border:1px solid hsla(352,82%,58%,0.3)}.btn-sm{padding:5px 10px;font-size:12px}.btn:disabled{opacity:0.45;cursor:not-allowed}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.form-field{display:flex;flex-direction:column;gap:4px}.form-field.full{grid-column:1 / -1}.form-label{font-size:12px;font-weight:600;color:var(--text-secondary)}.inventory-list{display:flex;flex-direction:column;gap:8px;max-height:460px;overflow-y:auto}.inv-item{display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:var(--radius-md);transition:border-color 0.14s ease;content-visibility:auto;contain-intrinsic-size:auto 68px}.inv-item:hover{border-color:var(--border-strong)}.inv-thumb{width:46px;height:46px;border-radius:var(--radius-sm);object-fit:cover;background:var(--bg-canvas);flex-shrink:0}.inv-info{flex:1;min-width:0}.inv-title{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.inv-sub{font-size:12px;color:var(--text-muted);font-family:var(--font-mono)}.inv-actions{display:flex;align-items:center;gap:5px}.cart-items-list{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto;margin-bottom:12px}.cart-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:var(--bg-elevated);border-radius:var(--radius-sm);border:1px solid var(--border-subtle)}.qty-stepper{display:inline-flex;align-items:center;background:var(--bg-canvas);border:1px solid var(--border-strong);border-radius:var(--radius-sm)}.qty-btn{width:26px;height:26px;display:grid;place-items:center;font-weight:700;color:var(--text-secondary)}.qty-btn:hover{color:var(--text-primary);background:var(--bg-interactive)}.qty-val{min-width:28px;text-align:center;font-family:var(--font-mono);font-size:12px;font-weight:600}.cart-summary{background:var(--bg-canvas);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:12px;margin-bottom:12px}.summary-line{display:flex;justify-content:space-between;font-size:13px;color:var(--text-secondary);margin-bottom:6px}.summary-line.total{font-size:18px;font-weight:700;color:var(--text-primary);padding-top:8px;border-top:1px solid var(--border-subtle);margin-bottom:0;font-family:var(--font-mono)}.payment-methods{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}.pay-method-btn{padding:8px;border-radius:var(--radius-sm);background:var(--bg-elevated);border:1px solid var(--border-subtle);font-size:12px;font-weight:600;color:var(--text-secondary);text-align:center}.pay-method-btn.active{background:var(--accent-primary-soft);color:var(--accent-primary);border-color:var(--accent-primary)}.fingerprint-canvas{width:100%;height:38px;background:var(--bg-canvas);border-radius:var(--radius-sm);border:1px solid var(--border-subtle);display:block}.toast-stack{position:fixed;bottom:18px;right:18px;z-index:100;display:flex;flex-direction:column;gap:8px;pointer-events:none}.toast{background:var(--bg-elevated);color:var(--text-primary);border:1px solid var(--border-strong);border-left:4px solid var(--accent-primary);padding:10px 14px;border-radius:var(--radius-sm);box-shadow:var(--shadow-card);font-size:13px;font-weight:500;pointer-events:auto}.hidden{display:none !important}
+:root{--bg-canvas:hsl(215,28%,7%);--bg-surface:hsl(215,24%,11%);--bg-elevated:hsl(215,22%,15%);--bg-interactive:hsl(215,20%,19%);--bg-glass:hsla(215,26%,10%,0.86);--text-primary:hsl(210,25%,96%);--text-secondary:hsl(214,15%,72%);--text-muted:hsl(215,14%,52%);--accent-primary:hsl(158,78%,42%);--accent-primary-hover:hsl(158,78%,48%);--accent-primary-soft:hsla(158,78%,42%,0.14);--accent-amber:hsl(38,92%,54%);--accent-amber-soft:hsla(38,92%,54%,0.15);--accent-danger:hsl(352,82%,58%);--accent-danger-soft:hsla(352,82%,58%,0.15);--accent-info:hsl(198,88%,52%);--accent-info-soft:hsla(198,88%,52%,0.14);--border-subtle:hsla(214,20%,82%,0.09);--border-strong:hsla(214,20%,82%,0.16);--radius-sm:6px;--radius-md:10px;--radius-lg:14px;--shadow-card:0 10px 28px -8px rgba(0,0,0,0.55);--font-sans:'Inter',-apple-system,BlinkMacSystemFont,'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;--font-mono:'JetBrains Mono','SF Mono','Fira Code',ui-monospace,monospace}*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}html,body{min-height:100%;background-color:var(--bg-canvas);color:var(--text-primary);font-family:var(--font-sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer;border:none;background:none}.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 18px;background:var(--bg-surface);border-bottom:1px solid var(--border-subtle);position:sticky;top:0;z-index:40;flex-wrap:wrap}.brand-group{display:flex;align-items:center;gap:10px}.brand-mark{width:34px;height:34px;border-radius:var(--radius-sm);background:var(--accent-primary-soft);color:var(--accent-primary);display:grid;place-items:center;font-weight:700;border:1px solid hsla(158,78%,42%,0.25)}.brand-title{font-size:15px;font-weight:700;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px}.brand-subtitle{font-size:12px;color:var(--text-muted)}.telemetry-strip{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.telemetry-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:var(--radius-sm);background:var(--bg-elevated);border:1px solid var(--border-subtle);font-size:12px;font-family:var(--font-mono);color:var(--text-secondary)}.telemetry-chip strong{color:var(--text-primary);font-weight:600}.status-dot{width:7px;height:7px;border-radius:50%;background:var(--accent-primary);display:inline-block}.status-dot.eco{background:var(--accent-amber)}.status-dot.offline{background:var(--accent-info)}.mode-nav{display:flex;align-items:center;gap:4px;background:var(--bg-canvas);padding:4px;border-radius:var(--radius-md);border:1px solid var(--border-subtle)}.mode-tab{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;color:var(--text-secondary);transition:background-color 0.15s ease,color 0.15s ease}.mode-tab:hover{color:var(--text-primary);background:var(--bg-elevated)}.mode-tab.active{background:var(--accent-primary);color:#04130d}.mode-tab .tab-badge{padding:1px 6px;border-radius:99px;font-size:12px;font-family:var(--font-mono);background:rgba(0,0,0,0.22);color:inherit}.workspace{display:grid;grid-template-columns:minmax(340px,1.15fr) minmax(340px,1.15fr) minmax(310px,0.85fr);gap:14px;padding:14px 18px 28px;max-width:1720px;margin:0 auto;align-items:start}@media (max-width:1280px){.workspace{grid-template-columns:1fr 1fr}.cart-column{grid-column:1 / -1}}@media (max-width:860px){.workspace{grid-template-columns:1fr;padding:10px 12px 80px}.topbar{padding:10px 12px}.mode-nav{width:100%;overflow-x:auto}.mode-tab{flex:1;justify-content:center;white-space:nowrap}}.panel{background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden}.panel-header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border-subtle);background:var(--bg-elevated);flex-wrap:wrap}.panel-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}.panel-body{padding:14px 16px}.source-switcher{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}.source-btn{padding:7px 8px;border-radius:var(--radius-sm);background:var(--bg-elevated);border:1px solid var(--border-subtle);font-size:12px;font-weight:600;color:var(--text-secondary);text-align:center;transition:all 0.14s ease}.source-btn:hover{background:var(--bg-interactive);color:var(--text-primary)}.source-btn.active{background:var(--accent-primary-soft);color:var(--accent-primary);border-color:hsla(158,78%,42%,0.45)}.camera-controls-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}.select-control,.input-control{background:var(--bg-canvas);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:6px 10px;font-size:13px;color:var(--text-primary);outline:none;transition:border-color 0.15s ease}.select-control:focus,.input-control:focus,textarea.input-control:focus{border-color:var(--accent-primary)}.viewport-container{position:relative;width:100%;aspect-ratio:4 / 3;background:#06080c;border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--border-strong);user-select:none;contain:layout paint}.viewport-video,.viewport-canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.viewport-video.mirrored{transform:scaleX(-1)}.hud-overlay{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;padding:12px}.hud-top-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.hud-pill{background:rgba(8,12,18,0.90);padding:4px 9px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.14);font-family:var(--font-mono);font-size:12px;color:var(--text-primary);display:inline-flex;align-items:center;gap:6px}.roi-reticle{position:absolute;top:50%;left:50%;width:58%;height:68%;transform:translate(-50%,-50%);border:1.5px dashed rgba(255,255,255,0.28);border-radius:12px;transition:border-color 0.15s ease,transform 0.15s ease}.roi-reticle.matched{border-color:var(--accent-primary);border-style:solid;box-shadow:0 0 0 2px hsla(158,78%,42%,0.35),inset 0 0 18px hsla(158,78%,42%,0.16)}.roi-corner{position:absolute;width:18px;height:18px;border-color:var(--accent-primary);border-style:solid;border-width:0}.roi-corner.tl{top:-2px;left:-2px;border-top-width:3px;border-left-width:3px;border-top-left-radius:8px}.roi-corner.tr{top:-2px;right:-2px;border-top-width:3px;border-right-width:3px;border-top-right-radius:8px}.roi-corner.bl{bottom:-2px;left:-2px;border-bottom-width:3px;border-left-width:3px;border-bottom-left-radius:8px}.roi-corner.br{bottom:-2px;right:-2px;border-bottom-width:3px;border-right-width:3px;border-bottom-right-radius:8px}.hud-match-banner{background:rgba(9,14,20,0.95);border:1px solid var(--border-strong);border-radius:var(--radius-md);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;pointer-events:auto;transition:opacity 0.15s ease,transform 0.15s ease}.hud-match-banner.matched-state{border-color:hsla(158,78%,42%,0.55)}.stage-tray{margin-top:10px;background:var(--bg-canvas);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:10px}.stage-tray-header{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:8px;flex-wrap:wrap;gap:6px}.stage-objects-scroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}.stage-obj-btn{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--radius-sm);background:var(--bg-surface);border:1px solid var(--border-subtle);font-size:12px;color:var(--text-secondary);transition:all 0.12s ease}.stage-obj-btn:hover{background:var(--bg-elevated);color:var(--text-primary)}.stage-obj-btn.active{background:var(--bg-interactive);color:var(--text-primary);border-color:var(--accent-primary)}.stage-obj-dot{width:9px;height:9px;border-radius:50%}.recognized-card{background:var(--bg-elevated);border:1px solid var(--border-strong);border-radius:var(--radius-md);padding:14px;margin-bottom:14px;transition:border-color 0.15s ease}.recognized-card.active-match{border-color:hsla(158,78%,42%,0.5)}.rec-header{display:flex;gap:14px;align-items:center}.rec-thumb{width:72px;height:72px;border-radius:var(--radius-md);object-fit:cover;background:var(--bg-canvas);border:1px solid var(--border-strong);flex-shrink:0}.rec-meta{flex:1;min-width:0}.rec-category-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap}.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;font-family:var(--font-mono)}.badge-emerald{background:var(--accent-primary-soft);color:var(--accent-primary)}.badge-amber{background:var(--accent-amber-soft);color:var(--accent-amber)}.badge-danger{background:var(--accent-danger-soft);color:var(--accent-danger)}.badge-info{background:var(--accent-info-soft);color:var(--accent-info)}.rec-name{font-size:17px;font-weight:700;color:var(--text-primary);line-height:1.3;margin-bottom:4px}.rec-spec{font-size:12px;color:var(--text-secondary)}.rec-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border-subtle)}.stat-box{background:var(--bg-canvas);padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--border-subtle)}.stat-label{font-size:12px;color:var(--text-muted);display:block}.stat-value{font-size:16px;font-weight:700;font-family:var(--font-mono);color:var(--text-primary)}.stat-value.price{color:var(--accent-primary)}.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;transition:all 0.14s ease}.btn-primary{background:var(--accent-primary);color:#04150e}.btn-primary:hover:not(:disabled){background:var(--accent-primary-hover);transform:translateY(-1px)}.btn-secondary{background:var(--bg-interactive);color:var(--text-primary);border:1px solid var(--border-strong)}.btn-secondary:hover:not(:disabled){background:hsl(215,20%,24%)}.btn-danger{background:var(--accent-danger-soft);color:var(--accent-danger);border:1px solid hsla(352,82%,58%,0.3)}.btn-sm{padding:5px 10px;font-size:12px}.btn:disabled{opacity:0.45;cursor:not-allowed}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.form-field{display:flex;flex-direction:column;gap:4px}.form-field.full{grid-column:1 / -1}.form-label{font-size:12px;font-weight:600;color:var(--text-secondary)}.inventory-list{display:flex;flex-direction:column;gap:8px;max-height:460px;overflow-y:auto}.inv-item{display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:var(--radius-md);transition:border-color 0.14s ease;content-visibility:auto;contain-intrinsic-size:auto 68px}.inv-item:hover{border-color:var(--border-strong)}.inv-thumb{width:46px;height:46px;border-radius:var(--radius-sm);object-fit:cover;background:var(--bg-canvas);flex-shrink:0}.inv-info{flex:1;min-width:0}.inv-title{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.inv-sub{font-size:12px;color:var(--text-muted);font-family:var(--font-mono)}.inv-actions{display:flex;align-items:center;gap:5px}.cart-items-list{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto;margin-bottom:12px}.cart-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:var(--bg-elevated);border-radius:var(--radius-sm);border:1px solid var(--border-subtle)}.qty-stepper{display:inline-flex;align-items:center;background:var(--bg-canvas);border:1px solid var(--border-strong);border-radius:var(--radius-sm)}.qty-btn{width:26px;height:26px;display:grid;place-items:center;font-weight:700;color:var(--text-secondary)}.qty-btn:hover{color:var(--text-primary);background:var(--bg-interactive)}.qty-val{min-width:28px;text-align:center;font-family:var(--font-mono);font-size:12px;font-weight:600}.cart-summary{background:var(--bg-canvas);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:12px;margin-bottom:12px}.summary-line{display:flex;justify-content:space-between;font-size:13px;color:var(--text-secondary);margin-bottom:6px}.summary-line.total{font-size:18px;font-weight:700;color:var(--text-primary);padding-top:8px;border-top:1px solid var(--border-subtle);margin-bottom:0;font-family:var(--font-mono)}.payment-methods{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}.pay-method-btn{padding:8px;border-radius:var(--radius-sm);background:var(--bg-elevated);border:1px solid var(--border-subtle);font-size:12px;font-weight:600;color:var(--text-secondary);text-align:center}.pay-method-btn.active{background:var(--accent-primary-soft);color:var(--accent-primary);border-color:var(--accent-primary)}.fingerprint-canvas{width:100%;height:38px;background:var(--bg-canvas);border-radius:var(--radius-sm);border:1px solid var(--border-subtle);display:block}.toast-stack{position:fixed;bottom:18px;right:18px;z-index:100;display:flex;flex-direction:column;gap:8px;pointer-events:none}.toast{background:var(--bg-elevated);color:var(--text-primary);border:1px solid var(--border-strong);border-left:4px solid var(--accent-primary);padding:10px 14px;border-radius:var(--radius-sm);box-shadow:var(--shadow-card);font-size:13px;font-weight:500;pointer-events:auto}.hidden{display:none !important}body.customer-kiosk-mode .kiosk-admin-only,body.customer-kiosk-mode #virtual-stage-tray{display:none !important}body.customer-kiosk-mode .mobile-cam-trigger-grid{grid-template-columns:1fr !important}body.customer-kiosk-mode .source-switcher{grid-template-columns:repeat(2,1fr) !important}.modal-backdrop{position:fixed;inset:0;z-index:200;background:rgba(5,8,13,0.78);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px}.receipt-card{width:100%;max-width:360px;background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border-strong);border-radius:var(--radius-md);padding:18px;box-shadow:var(--shadow-card)}.receipt-paper{background:#ffffff;color:#111827;border-radius:var(--radius-sm);padding:16px 14px;font-family:var(--font-mono);font-size:12px;line-height:1.55}.receipt-divider{border:none;border-top:1px dashed #9ca3af;margin:8px 0}@media print{body>*:not(#receipt-modal){display:none !important}#receipt-modal{position:static !important;background:#ffffff !important;padding:0 !important;display:block !important}.receipt-card{max-width:100% !important;border:none !important;box-shadow:none !important;padding:0 !important;background:#ffffff !important}.receipt-no-print{display:none !important}}
 </style>
 </head>
 <body>
@@ -21,41 +22,44 @@
           VisionPOS Edge
           <span class="badge badge-emerald" id="sync-status-badge">即時同步連線中</span>
         </h1>
-        <p class="brand-subtitle">64×64 零配置視覺指紋引擎 (CCVD-144) · 跨裝置即時庫存與 POS 結帳系統</p>
+        <p class="brand-subtitle">64×64 白平衡視覺指紋引擎 (CCVD-144 v3) · 跨裝置即時庫存與 POS 結帳系統</p>
       </div>
     </div>
     
     <div class="telemetry-strip" aria-label="系統即時效能與節能指標">
-      <div class="telemetry-chip" title="單幀視覺特徵擷取與比對延遲">
+      <div class="telemetry-chip kiosk-admin-only" title="單幀視覺特徵擷取與比對延遲">
         <span>辨識延遲</span>
         <strong id="metric-latency">0.32 ms</strong>
       </div>
-      <div class="telemetry-chip" title="智慧幀差移動偵測動態調節 FPS">
+      <div class="telemetry-chip kiosk-admin-only" title="智慧幀差移動偵測動態調節 FPS">
         <span class="status-dot" id="power-mode-dot"></span>
-        <span id="metric-power-mode">高速辨識 (20 FPS)</span>
+        <span id="metric-power-mode">高速辨識 (18 FPS)</span>
       </div>
-      <div class="telemetry-chip" title="相較傳統 CNN 模型節省之運算與電力比例">
+      <div class="telemetry-chip kiosk-admin-only" title="相較傳統 CNN 模型節省之運算與電力比例">
         <span>節能效率</span>
-        <strong id="metric-energy-saved">94% 省電</strong>
+        <strong id="metric-energy-saved">95% 省電</strong>
       </div>
-      <div class="telemetry-chip" title="已建檔可辨識產品數 / 連線設備數">
+      <div class="telemetry-chip kiosk-admin-only" title="已建檔可辨識產品數 / 連線設備數">
         <span>產品庫</span>
         <strong id="metric-product-count">5 筆</strong>
       </div>
+      <button type="button" class="btn btn-secondary btn-sm" id="btn-role-toggle" title="切換店長後台模式 / 顧客純掃描自助模式">
+        🔓 店長模式
+      </button>
     </div>
     
     <nav class="mode-nav" aria-label="主要功能切換">
       <button type="button" class="mode-tab active" data-tab="scan" id="tab-btn-scan">
         <span>🔍 即時掃描辨識</span>
       </button>
-      <button type="button" class="mode-tab" data-tab="register" id="tab-btn-register">
+      <button type="button" class="mode-tab kiosk-admin-only" data-tab="register" id="tab-btn-register">
         <span>📸 相機拍照建檔</span>
       </button>
-      <button type="button" class="mode-tab" data-tab="inventory" id="tab-btn-inventory">
+      <button type="button" class="mode-tab kiosk-admin-only" data-tab="inventory" id="tab-btn-inventory">
         <span>📦 即時庫存管理</span>
         <span class="tab-badge" id="nav-inv-count">5</span>
       </button>
-      <button type="button" class="mode-tab" data-tab="devices" id="tab-btn-devices">
+      <button type="button" class="mode-tab kiosk-admin-only" data-tab="devices" id="tab-btn-devices">
         <span>📹 設備與監控接入</span>
       </button>
     </nav>
@@ -75,30 +79,30 @@
           <label class="btn btn-primary btn-sm" for="native-scan-input" style="cursor:pointer;">
             🔍 手機拍照掃描
           </label>
-          <label class="btn btn-secondary btn-sm" for="native-camera-input" id="quick-snap-register-btn" style="cursor:pointer;">
+          <label class="btn btn-secondary btn-sm kiosk-admin-only" for="native-camera-input" id="quick-snap-register-btn" style="cursor:pointer;">
             📸 手機拍照建檔
           </label>
         </div>
       </div>
       <div class="panel-body">
         
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+        <div class="mobile-cam-trigger-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
           <label for="native-scan-input" class="btn btn-primary" style="cursor:pointer; padding:10px; font-size:13px; text-align:center;">
             🔍 點此開手機相機：拍照掃描商品
           </label>
-          <label for="native-camera-input" class="btn btn-secondary" style="cursor:pointer; padding:10px; font-size:13px; text-align:center; border-color:var(--accent-primary);">
+          <label for="native-camera-input" class="btn btn-secondary kiosk-admin-only" style="cursor:pointer; padding:10px; font-size:13px; text-align:center; border-color:var(--accent-primary);">
             📸 點此開手機相機：拍照建檔新商品
           </label>
         </div>
         
         <div class="source-switcher" role="group" aria-label="影像輸入來源選擇">
-          <button type="button" class="source-btn active" data-source="virtual" id="src-btn-virtual">
+          <button type="button" class="source-btn active kiosk-admin-only" data-source="virtual" id="src-btn-virtual">
             🎭 擬真鏡頭舞台
           </button>
           <button type="button" class="source-btn" data-source="webcam" id="src-btn-webcam">
             📱 即時連續鏡頭
           </button>
-          <button type="button" class="source-btn" data-source="ipcam" id="src-btn-ipcam">
+          <button type="button" class="source-btn kiosk-admin-only" data-source="ipcam" id="src-btn-ipcam">
             📹 監控/IP攝影機
           </button>
           <label for="native-scan-input" class="source-btn" id="src-btn-photo" style="cursor:pointer; display:block;">
@@ -261,7 +265,7 @@
             <p style="font-size:13px; color:var(--text-secondary); margin-top:6px; margin-bottom:14px;">
               未掃描到庫存中的商品
             </p>
-            <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+            <div class="kiosk-admin-only" style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
               <button type="button" class="btn btn-primary btn-sm" id="btn-instant-register">
                 ⚡ 一鍵立即建檔此商品
               </button>
@@ -363,9 +367,16 @@
           <div class="panel-title">
             <span>📦 即時庫存清單與盤點</span>
           </div>
-          <div style="display:flex; gap:6px;">
-            <button type="button" class="btn btn-secondary btn-sm" id="btn-export-inventory" title="匯出 JSON 備份">
-              ⬇️ 匯出資料
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <input type="file" id="inv-import-input" accept=".json,.csv" class="hidden" />
+            <label for="inv-import-input" class="btn btn-secondary btn-sm" id="btn-import-inventory" style="cursor:pointer;" title="匯入 JSON 或 CSV 商品檔">
+              📂 匯入
+            </label>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-export-csv" title="匯出 Excel 相容 CSV 報表">
+              📊 CSV
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-export-inventory" title="匯出完整 JSON 備份">
+              ⬇️ JSON
             </button>
             <button type="button" class="btn btn-secondary btn-sm" id="btn-reset-demo" title="重置回預設展示商品庫">
               🔄 重置預設庫
@@ -470,15 +481,31 @@
         </button>
         
         <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border-subtle);">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:6px; flex-wrap:wrap;">
             <h3 style="font-size:13px; font-weight:700; color:var(--text-secondary);">🧾 即時結帳明細紀錄</h3>
-            <span style="font-size:12px; font-family:var(--font-mono); color:var(--accent-primary);" id="today-revenue-text">今日營收: NT$ 0</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span style="font-size:12px; font-family:var(--font-mono); color:var(--accent-primary);" id="today-revenue-text">今日營收: NT$ 0</span>
+              <button type="button" class="btn btn-secondary btn-sm kiosk-admin-only" id="btn-export-orders-csv" style="padding:2px 7px; font-size:11px;" title="匯出訂單明細 CSV">📊 帳務</button>
+            </div>
           </div>
           <div id="orders-history-list" style="display:flex; flex-direction:column; gap:6px; max-height:190px; overflow-y:auto;"></div>
         </div>
       </div>
     </aside>
   </main>
+  
+  <div id="receipt-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="receipt-modal-title">
+    <div class="receipt-card">
+      <div class="receipt-no-print" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <strong id="receipt-modal-title" style="font-size:14px;">🧾 電子交易憑證 / 收據明細</strong>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-close-receipt">關閉</button>
+      </div>
+      <div class="receipt-paper" id="receipt-paper-content"></div>
+      <div class="receipt-no-print" style="display:flex; gap:8px; margin-top:12px;">
+        <button type="button" class="btn btn-primary" style="flex:1;" id="btn-print-receipt">🖨️ 列印 / 儲存收據</button>
+      </div>
+    </div>
+  </div>
   
   <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
   <script>
@@ -510,6 +537,7 @@
     xSrcOffset: new Int32Array(SAMPLE_SIZE),
     lumGrid: new Float32Array(PIXEL_COUNT),
     centerWeights: new Float32Array(PIXEL_COUNT),
+    borderMask: new Uint8Array(PIXEL_COUNT),
     innerCoreMask: new Uint8Array(PIXEL_COUNT),
     zoneBaseLUT: new Uint8Array(PIXEL_COUNT),
     ringIdxLUT: new Uint8Array(PIXEL_COUNT),
@@ -518,6 +546,7 @@
     quadWeightsLUT: new Float32Array(PIXEL_COUNT * 4),
     invTotalWeight: 1,
     invInnerWeight: 1,
+    invBorderCount: 1,
     invRingWeights: new Float32Array(3),
     invQuadWeights: new Float32Array(4),
     invEdgeRingCounts: new Float32Array(8),
@@ -530,6 +559,7 @@
     const invRadiusSq = 1 / (half * half * 1.35);
     let totalW = 0;
     let innerW = 0;
+    let borderCnt = 0;
     const ringSums = new Float32Array(3);
     const quadSums = new Float32Array(4);
     const edgeRingCounts = new Float32Array(8);
@@ -537,6 +567,7 @@
       const dy = y - half;
       const fy = y / 63.0;
       const rowOffset = y * SAMPLE_SIZE;
+      const isBorderY = y < 4 || y >= SAMPLE_SIZE - 4;
       for (let x = 0; x < SAMPLE_SIZE; x++) {
         const dx = x - half;
         const fx = x / 63.0;
@@ -546,6 +577,10 @@
         const w = Math.max(0.22, Math.exp(-(distSq * invRadiusSq) * 1.25));
         arena.centerWeights[i] = w;
         totalW += w;
+        if (isBorderY || x < 4 || x >= SAMPLE_SIZE - 4) {
+          arena.borderMask[i] = 1;
+          borderCnt++;
+        }
         if (distSq <= 440) {
           arena.innerCoreMask[i] = 1;
           innerW += w;
@@ -577,6 +612,7 @@
     }
     arena.invTotalWeight = 1.0 / (totalW || 1);
     arena.invInnerWeight = 1.0 / (innerW || 1);
+    arena.invBorderCount = 1.0 / (borderCnt || 1);
     for (let r = 0; r < 3; r++) arena.invRingWeights[r] = 1.0 / (ringSums[r] || 1);
     for (let q = 0; q < 4; q++) arena.invQuadWeights[q] = 1.0 / (quadSums[q] || 1);
     for (let e = 0; e < 8; e++) arena.invEdgeRingCounts[e] = 1.0 / (edgeRingCounts[e] || 1);
@@ -700,6 +736,7 @@
     vec.fill(0);
     const lumGrid = arena.lumGrid;
     const weights = arena.centerWeights;
+    const borderMask = arena.borderMask;
     const innerMask = arena.innerCoreMask;
     const zoneLUT = arena.zoneBaseLUT;
     const ringLUT = arena.ringIdxLUT;
@@ -707,6 +744,7 @@
     const inv255 = 1.0 / 255.0;
     let meanR = 0, meanG = 0, meanB = 0, meanLum = 0, meanSat = 0;
     let innerR = 0, innerG = 0, innerB = 0, innerLum = 0, innerSat = 0;
+    let bgR = 0, bgG = 0, bgB = 0;
     for (let i = 0; i < PIXEL_COUNT; i++) {
       const p = i << 2;
       const r = rgba[p] * inv255;
@@ -723,6 +761,11 @@
       meanB += b * w;
       meanLum += lum * w;
       meanSat += sat * w;
+      if (borderMask[i]) {
+        bgR += r;
+        bgG += g;
+        bgB += b;
+      }
       if (innerMask[i]) {
         innerR += r * w;
         innerG += g * w;
@@ -737,20 +780,54 @@
     meanB *= invW;
     meanLum *= invW;
     meanSat *= invW;
+    const invBg = arena.invBorderCount;
+    bgR *= invBg;
+    bgG *= invBg;
+    bgB *= invBg;
     const invInnerW = arena.invInnerWeight;
     innerR *= invInnerW;
     innerG *= invInnerW;
     innerB *= invInnerW;
     innerLum *= invInnerW;
     innerSat *= invInnerW;
+    const avgGray = (meanR + meanG + meanB) * 0.3333333;
+    let gainR = 1.0, gainG = 1.0, gainB = 1.0;
+    if (avgGray > 0.05 && avgGray < 0.94 && meanSat < 0.58) {
+      const damp = 0.48 * (1.0 - Math.min(1.0, meanSat * 1.4));
+      gainR = Math.max(0.80, Math.min(1.25, 1.0 + damp * ((avgGray / (meanR + 0.02)) - 1.0)));
+      gainG = Math.max(0.80, Math.min(1.25, 1.0 + damp * ((avgGray / (meanG + 0.02)) - 1.0)));
+      gainB = Math.max(0.80, Math.min(1.25, 1.0 + damp * ((avgGray / (meanB + 0.02)) - 1.0)));
+    }
+    const wbMeanR = Math.min(1.0, meanR * gainR);
+    const wbMeanG = Math.min(1.0, meanG * gainG);
+    const wbMeanB = Math.min(1.0, meanB * gainB);
+    const wbBgR = Math.min(1.0, bgR * gainR);
+    const wbBgG = Math.min(1.0, bgG * gainG);
+    const wbBgB = Math.min(1.0, bgB * gainB);
+    const coreBgDelta =
+      Math.abs(innerR * gainR - wbBgR) +
+      Math.abs(innerG * gainG - wbBgG) +
+      Math.abs(innerB * gainB - wbBgB);
+    const useSaliency = coreBgDelta > 0.14;
     let varRG = 0, varYB = 0, varLum = 0, varSat = 0;
     for (let i = 0; i < PIXEL_COUNT; i++) {
       const p = i << 2;
-      const r = rgba[p] * inv255;
-      const g = rgba[p + 1] * inv255;
-      const b = rgba[p + 2] * inv255;
+      let r = rgba[p] * inv255 * gainR;
+      let g = rgba[p + 1] * inv255 * gainG;
+      let b = rgba[p + 2] * inv255 * gainB;
+      if (r > 1.0) r = 1.0;
+      if (g > 1.0) g = 1.0;
+      if (b > 1.0) b = 1.0;
       const lum = lumGrid[i];
-      const w = weights[i];
+      let sal = 1.0;
+      if (useSaliency) {
+        const dR = r - wbBgR;
+        const dG = g - wbBgG;
+        const dB = b - wbBgB;
+        const bgDiff = (dR < 0 ? -dR : dR) + (dG < 0 ? -dG : dG) + (dB < 0 ? -dB : dB);
+        sal = 0.72 + 0.56 * (bgDiff < 0.5 ? bgDiff * 2.0 : 1.0);
+      }
+      const w = weights[i] * sal;
       const maxC = r > g ? (r > b ? r : b) : (g > b ? g : b);
       const minC = r < g ? (r < b ? r : b) : (g < b ? g : b);
       const delta = maxC - minC;
@@ -788,9 +865,9 @@
       vec[zoneBase + 21 + v0] += vw * vf;
       const rg = r - g;
       const yb = 0.5 * (r + g) - b;
-      const relR = r - meanR;
-      const relG = g - meanG;
-      const relB = b - meanB;
+      const relR = r - wbMeanR;
+      const relG = g - wbMeanG;
+      const relB = b - wbMeanB;
       const relL = lum - meanLum;
       const relS = sat - meanSat;
       const absL = relL < 0 ? -relL : relL;
@@ -808,10 +885,10 @@
       vec[baseRing + 6] += relS * w;
       vec[baseRing + 7] += absL * w;
       const qIdx = i << 2;
-      const qw0 = quadLUT[qIdx];
-      const qw1 = quadLUT[qIdx + 1];
-      const qw2 = quadLUT[qIdx + 2];
-      const qw3 = quadLUT[qIdx + 3];
+      const qw0 = quadLUT[qIdx] * sal;
+      const qw1 = quadLUT[qIdx + 1] * sal;
+      const qw2 = quadLUT[qIdx + 2] * sal;
+      const qw3 = quadLUT[qIdx + 3] * sal;
       vec[72] += rg * qw0; vec[73] += yb * qw0; vec[74] += relR * qw0; vec[75] += relG * qw0; vec[76] += relB * qw0; vec[77] += relL * qw0;
       vec[78] += rg * qw1; vec[79] += yb * qw1; vec[80] += relR * qw1; vec[81] += relG * qw1; vec[82] += relB * qw1; vec[83] += relL * qw1;
       vec[84] += rg * qw2; vec[85] += yb * qw2; vec[86] += relR * qw2; vec[87] += relG * qw2; vec[88] += relB * qw2; vec[89] += relL * qw2;
@@ -952,15 +1029,65 @@
     }
     return keptRaw;
   }
+  let _flatIndex = {
+    count: 0,
+    stampSum: 0,
+    matrix: null,
+    productsRef: null
+  };
+  function ensureFlatCatalogIndex(products) {
+    const n = products.length;
+    if (n < 32) return null; // Below 32 items, direct object cache is already < 0.03 ms
+    let stampSum = 0;
+    for (let i = 0; i < n; i++) {
+      stampSum += (products[i].updatedAt || 0) + ((products[i].descriptors && products[i].descriptors.length) || 0);
+    }
+    if (_flatIndex.productsRef === products && _flatIndex.count === n && _flatIndex.stampSum === stampSum && _flatIndex.matrix) {
+      return _flatIndex.matrix;
+    }
+    const matrix = new Float32Array(n * DESCRIPTOR_DIM);
+    for (let i = 0; i < n; i++) {
+      ensureProductCache(products[i]);
+      const c = products[i]._centroid;
+      if (c) matrix.set(c, i * DESCRIPTOR_DIM);
+    }
+    _flatIndex = { count: n, stampSum, matrix, productsRef: products };
+    return matrix;
+  }
   function matchProducts(liveDescriptor, products, threshold = 0.80, queryDescriptorsOrGetter = null, options = {}) {
     let bestProduct = null;
     let bestScore = -1;
     let secondBestScore = -1;
     const candidates = [];
+    const detectedBarcode = options.detectedBarcode ? String(options.detectedBarcode).trim() : '';
+    if (detectedBarcode && Array.isArray(products)) {
+      const codeLower = detectedBarcode.toLowerCase();
+      for (let i = 0; i < products.length; i++) {
+        const p = products[i];
+        if (
+          (p.barcode && String(p.barcode).trim().toLowerCase() === codeLower) ||
+          (p.sku && String(p.sku).trim().toLowerCase() === codeLower)
+        ) {
+          ensureProductCache(p);
+          return {
+            matched: true,
+            exactBarcode: true,
+            matchedByBarcode: true,
+            barcodeValue: detectedBarcode,
+            product: p,
+            bestCandidate: p,
+            similarity: 1.0,
+            margin: 1.0,
+            topCandidates: [{ product: p, similarity: 1.0 }]
+          };
+        }
+      }
+    }
     const sourceMode = options.sourceMode || 'virtual';
     const activeVirtualPresetId = options.virtualPresetId || null;
     const isRealCameraMode = sourceMode === 'photo' || sourceMode === 'webcam';
     const primaryVec = typeof liveDescriptor === 'string' ? unpackDescriptor(liveDescriptor) : liveDescriptor;
+    const flatMatrix = Array.isArray(products) ? ensureFlatCatalogIndex(products) : null;
     for (let i = 0; i < products.length; i++) {
       const p = products[i];
       const isSyntheticPresetOnly = Boolean(p.virtualPresetId && !p.isCameraRegistered);
@@ -973,7 +1100,15 @@
       const f32List = ensureProductCache(p);
       if (!f32List || f32List.length === 0 || !primaryVec) continue;
       let maxSim = -1;
-      if (f32List.length >= 4 && p._centroid) {
+      if (flatMatrix) {
+        let cDot = 0;
+        const base = i * DESCRIPTOR_DIM;
+        for (let k = 0; k < DESCRIPTOR_DIM; k++) cDot += primaryVec[k] * flatMatrix[base + k];
+        if (cDot < 0.16) {
+          if (cDot > 0) candidates.push({ product: p, similarity: cDot });
+          continue;
+        }
+      } else if (f32List.length >= 4 && p._centroid) {
         let cDot = 0;
         const cVec = p._centroid;
         for (let k = 0; k < DESCRIPTOR_DIM; k++) cDot += primaryVec[k] * cVec[k];
@@ -1028,13 +1163,20 @@
     const effectiveThreshold = isRealCameraMode
       ? Math.min(threshold, 0.64)
       : (bestProduct && (bestProduct.isCameraRegistered || !bestProduct.virtualPresetId) ? Math.min(threshold, 0.68) : threshold);
-    const isMatched = bestProduct !== null && bestScore >= effectiveThreshold;
+    const margin = bestScore - Math.max(0, secondBestScore);
+    const passesMarginGate =
+      candidates.length < 2 ||
+      bestScore >= 0.94 ||
+      margin >= 0.020;
+    const isMatched = bestProduct !== null && bestScore >= effectiveThreshold && passesMarginGate;
     return {
       matched: isMatched,
+      exactBarcode: false,
+      matchedByBarcode: false,
       product: isMatched ? bestProduct : null,
       bestCandidate: bestProduct,
       similarity: bestScore > 0 ? bestScore : 0,
-      margin: bestScore - Math.max(0, secondBestScore),
+      margin,
       topCandidates: candidates.slice(0, 3)
     };
   }
@@ -1618,6 +1760,50 @@
     };
     img.src = dataUrl;
   }
+  let barcodeDetectorInstance = null;
+  let barcodeDetectorSupported = null;
+  let barcodeInFlight = false;
+  function initBarcodeDetector() {
+    if (barcodeDetectorSupported !== null) return barcodeDetectorInstance;
+    if (typeof global.BarcodeDetector !== 'function') {
+      barcodeDetectorSupported = false;
+      return null;
+    }
+    try {
+      barcodeDetectorInstance = new global.BarcodeDetector({
+        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code']
+      });
+      barcodeDetectorSupported = true;
+    } catch (_) {
+      try {
+        barcodeDetectorInstance = new global.BarcodeDetector();
+        barcodeDetectorSupported = true;
+      } catch (_e2) {
+        barcodeDetectorSupported = false;
+        barcodeDetectorInstance = null;
+      }
+    }
+    return barcodeDetectorInstance;
+  }
+  async function detectBarcode(sourceElem) {
+    if (!sourceElem || barcodeInFlight) return null;
+    const detector = initBarcodeDetector();
+    if (!detector) return null;
+    barcodeInFlight = true;
+    try {
+      const codes = await detector.detect(sourceElem);
+      if (Array.isArray(codes) && codes.length > 0 && codes[0].rawValue) {
+        return {
+          rawValue: String(codes[0].rawValue).trim(),
+          format: codes[0].format || 'unknown'
+        };
+      }
+    } catch (_) {
+    } finally {
+      barcodeInFlight = false;
+    }
+    return null;
+  }
   global.VisionEngine = {
     SAMPLE_SIZE,
     ATLAS_SIZE,
@@ -1628,9 +1814,11 @@
     packDescriptorInt8,
     unpackDescriptor,
     ensureProductCache,
+    ensureFlatCatalogIndex,
     deduplicateDescriptors,
     cosineSimilarity144,
     matchProducts,
+    detectBarcode,
     computeMotionDelta,
     resetMotionGate,
     encodeThumbnail128,
@@ -1645,10 +1833,16 @@
 (function () {
   'use strict';
   const STORAGE_KEY = 'vision_pos_edge_store_v1';
+  const CART_STORAGE_KEY = 'vision_pos_cart_v1';
+  const OUTBOX_STORAGE_KEY = 'vision_pos_outbox_v1';
+  const ROLE_STORAGE_KEY = 'vision_pos_role_v1';
+  const ADMIN_PIN_KEY = 'vision_pos_admin_pin_v1';
   const BG_CAMERA_RELEASE_MS = 10000; // 10 seconds background auto-release for camera sensor power saving
   const state = {
     activeTab: 'scan',
     sourceMode: 'virtual', // 'virtual' | 'webcam' | 'ipcam' | 'photo'
+    customerKioskMode: false,
+    adminPin: '1234',
     products: [],
     orders: [],
     cart: [], // { productId, quantity }
@@ -1663,6 +1857,10 @@
     currentSimilarity: 0,
     topCandidates: [],
     liveDescriptor: null,
+    matchHistory: [],
+    lastDetectedBarcode: '',
+    lastBarcodeTime: 0,
+    barcodeTickCounter: 0,
     regDescriptors: [],
     regThumbnail: '',
     regEditingId: '',
@@ -1679,9 +1877,13 @@
     autoPausedWebcamInBg: false,
     cctvChannel: 'ch1',
     cctvTimer: 0,
+    customIpcamUrl: '',
+    customIpcamImg: null,
+    customIpcamActive: false,
     loadedPhotoImage: null,
     hasLoadedPhoto: false,
     pendingAngleAppend: false,
+    armedConfirmMap: {},
     staticFrameStreak: 0,
     isEcoSleeping: false,
     lowBatteryMode: false,
@@ -1701,7 +1903,7 @@
   function bindElements() {
     const ids = [
       'sync-status-badge', 'metric-latency', 'power-mode-dot', 'metric-power-mode',
-      'metric-energy-saved', 'metric-product-count', 'nav-inv-count',
+      'metric-energy-saved', 'metric-product-count', 'nav-inv-count', 'btn-role-toggle',
       'tab-btn-scan', 'tab-btn-register', 'tab-btn-inventory', 'tab-btn-devices',
       'view-scan', 'view-register', 'view-inventory', 'view-devices',
       'active-source-badge', 'native-scan-input', 'native-camera-input', 'quick-snap-register-btn',
@@ -1726,10 +1928,13 @@
       'reg-id', 'reg-name', 'reg-price', 'reg-stock', 'reg-sku', 'reg-barcode',
       'reg-category', 'reg-unit', 'reg-location', 'reg-spec', 'btn-reset-reg-form',
       'inv-search-input', 'inv-filter-select', 'inventory-list-container',
+      'inv-import-input', 'btn-import-inventory', 'btn-export-csv',
       'btn-export-inventory', 'btn-reset-demo', 'barcode-hw-status',
       'cart-count-badge', 'btn-clear-cart', 'cart-items-container',
       'summary-qty', 'summary-subtotal', 'cart-discount-input', 'summary-total',
-      'btn-checkout-submit', 'today-revenue-text', 'orders-history-list', 'toast-stack'
+      'btn-checkout-submit', 'today-revenue-text', 'btn-export-orders-csv',
+      'orders-history-list', 'receipt-modal', 'receipt-paper-content',
+      'btn-close-receipt', 'btn-print-receipt', 'toast-stack'
     ];
     ids.forEach((id) => {
       el[id] = document.getElementById(id);
@@ -1768,6 +1973,74 @@
       div.remove();
     }, 2800);
   }
+  function triggerFileDownload(filename, contentStr, mimeType = 'application/octet-stream') {
+    try {
+      if (
+        window.VisionPOSAndroid &&
+        typeof window.VisionPOSAndroid.saveTextFile === 'function'
+      ) {
+        window.VisionPOSAndroid.saveTextFile(filename, String(contentStr), mimeType);
+        showToast(`📥 已匯出並儲存檔案：${filename}`);
+        return;
+      }
+    } catch (_) {}
+    const blob = new Blob([contentStr], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+  const IDBStore = (function () {
+    let dbPromise = null;
+    function openDB() {
+      if (dbPromise) return dbPromise;
+      if (typeof indexedDB === 'undefined') return Promise.resolve(null);
+      dbPromise = new Promise((resolve) => {
+        try {
+          const req = indexedDB.open('vision_pos_idb_v1', 1);
+          req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('kv')) {
+              db.createObjectStore('kv');
+            }
+          };
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => resolve(null);
+        } catch (_) {
+          resolve(null);
+        }
+      });
+      return dbPromise;
+    }
+    return {
+      async get(key) {
+        const db = await openDB();
+        if (!db) return null;
+        return new Promise((resolve) => {
+          try {
+            const tx = db.transaction('kv', 'readonly');
+            const req = tx.objectStore('kv').get(key);
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => resolve(null);
+          } catch (_) {
+            resolve(null);
+          }
+        });
+      },
+      async set(key, val) {
+        const db = await openDB();
+        if (!db) return;
+        try {
+          const tx = db.transaction('kv', 'readwrite');
+          tx.objectStore('kv').put(val, key);
+        } catch (_) {}
+      }
+    };
+  })();
   let broadcastChannel = null;
   try {
     if ('BroadcastChannel' in window) {
@@ -1776,22 +2049,148 @@
         if (!ev.data) return;
         if (ev.data.type === 'state_updated') {
           loadFromLocalStorage();
+          loadCartFromStorage();
           renderAll();
           scheduleRecognition(true);
+        } else if (ev.data.type === 'cart_updated') {
+          loadCartFromStorage();
+          renderCart();
         }
       };
     }
   } catch (_) {
     broadcastChannel = null;
   }
-  function saveToLocalStorage() {
+  function saveCartToStorage() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        products: state.products,
-        orders: state.orders,
-        updatedAt: Date.now()
-      }));
+      const discount = el['cart-discount-input']
+        ? Math.max(0, Number(el['cart-discount-input'].value) || 0)
+        : state.discount;
+      state.discount = discount;
+      localStorage.setItem(
+        CART_STORAGE_KEY,
+        JSON.stringify({
+          cart: state.cart,
+          discount: state.discount,
+          paymentMethod: state.paymentMethod,
+          updatedAt: Date.now()
+        })
+      );
     } catch (_) {}
+  }
+  function loadCartFromStorage() {
+    try {
+      const raw = localStorage.getItem(CART_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.cart)) {
+        state.cart = parsed.cart.filter((c) => c && c.productId && Number(c.quantity) > 0);
+      }
+      if (typeof parsed.discount === 'number' && el['cart-discount-input']) {
+        state.discount = Math.max(0, parsed.discount);
+        el['cart-discount-input'].value = String(state.discount);
+      }
+      if (parsed.paymentMethod && ['cash', 'card', 'mobile'].includes(parsed.paymentMethod)) {
+        state.paymentMethod = parsed.paymentMethod;
+        document.querySelectorAll('.pay-method-btn').forEach((b) => {
+          b.classList.toggle('active', b.getAttribute('data-pay') === state.paymentMethod);
+        });
+      }
+    } catch (_) {}
+  }
+  function getOutboxQueue() {
+    try {
+      const raw = localStorage.getItem(OUTBOX_STORAGE_KEY);
+      const list = raw ? JSON.parse(raw) : [];
+      return Array.isArray(list) ? list : [];
+    } catch (_) {
+      return [];
+    }
+  }
+  function saveOutboxQueue(list) {
+    try {
+      localStorage.setItem(OUTBOX_STORAGE_KEY, JSON.stringify(list.slice(-150)));
+    } catch (_) {}
+  }
+  function enqueueOutbox(op) {
+    const list = getOutboxQueue();
+    list.push({ ...op, queuedAt: Date.now() });
+    saveOutboxQueue(list);
+  }
+  let isFlushingOutbox = false;
+  async function flushOutboxToServer() {
+    if (isFlushingOutbox) return;
+    const queue = getOutboxQueue();
+    if (queue.length === 0) return;
+    isFlushingOutbox = true;
+    const remaining = [];
+    try {
+      for (const item of queue) {
+        try {
+          if (item.type === 'upsert_product') {
+            const r = await fetch('/api/products', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(item.payload)
+            });
+            if (!r.ok && r.status >= 500) remaining.push(item);
+          } else if (item.type === 'patch_product') {
+            const r = await fetch(`/api/products/${encodeURIComponent(item.id)}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(item.payload)
+            });
+            if (!r.ok && r.status >= 500) remaining.push(item);
+          } else if (item.type === 'delete_product') {
+            const r = await fetch(`/api/products/${encodeURIComponent(item.id)}`, {
+              method: 'DELETE',
+              headers: { 'X-Admin-Pin': state.adminPin }
+            });
+            if (!r.ok && r.status >= 500) remaining.push(item);
+          } else if (item.type === 'checkout') {
+            const r = await fetch('/api/checkout', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(item.payload)
+            });
+            if (!r.ok && r.status >= 500) remaining.push(item);
+          }
+        } catch (_) {
+          remaining.push(item);
+        }
+      }
+      saveOutboxQueue(remaining);
+    } finally {
+      isFlushingOutbox = false;
+    }
+  }
+  function mergeServerProducts(serverProducts) {
+    if (!Array.isArray(serverProducts) || serverProducts.length === 0) return;
+    const byId = new Map();
+    for (const sp of serverProducts) {
+      if (sp && sp.id) byId.set(sp.id, sp);
+    }
+    if (getOutboxQueue().length > 0) {
+      for (const lp of state.products) {
+        if (!lp || !lp.id) continue;
+        const sp = byId.get(lp.id);
+        if (!sp || (lp.updatedAt || 0) > (sp.updatedAt || 0)) {
+          byId.set(lp.id, lp);
+        }
+      }
+    }
+    state.products = Array.from(byId.values());
+  }
+  function saveToLocalStorage() {
+    const snapshot = {
+      products: state.products,
+      orders: state.orders,
+      updatedAt: Date.now()
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+    } catch (_) {}
+    IDBStore.set('store', snapshot);
   }
   function loadFromLocalStorage() {
     try {
@@ -1869,7 +2268,20 @@
     }
   }
   async function initDataStore() {
-    const hasLocal = loadFromLocalStorage();
+    loadCartFromStorage();
+    try {
+      const savedPin = localStorage.getItem(ADMIN_PIN_KEY);
+      if (savedPin) state.adminPin = savedPin;
+    } catch (_) {}
+    let hasLocal = loadFromLocalStorage();
+    if (!hasLocal) {
+      const idbSnap = await IDBStore.get('store');
+      if (idbSnap && Array.isArray(idbSnap.products) && idbSnap.products.length > 0) {
+        state.products = idbSnap.products;
+        state.orders = Array.isArray(idbSnap.orders) ? idbSnap.orders : [];
+        hasLocal = true;
+      }
+    }
     if (!hasLocal) {
       state.products = VisionEngine.buildDefaultCatalog();
       state.products.forEach((p) => VisionEngine.ensureProductCache(p));
@@ -1877,26 +2289,37 @@
     } else {
       migrateProductsToV2();
     }
-    try {
-      const res = await fetch('/api/state');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.products) && data.products.length > 0) {
-          state.products = data.products;
-          state.orders = data.orders || [];
-          migrateProductsToV2();
-          saveToLocalStorage();
-        } else {
-          await fetch('/api/seed', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ products: state.products, force: true })
-          });
+    const isRemoteServerOrigin =
+      (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
+      window.location.hostname !== 'visionpos.local';
+    if (isRemoteServerOrigin) {
+      try {
+        await flushOutboxToServer();
+        const res = await fetch('/api/state');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.products) && data.products.length > 0) {
+            mergeServerProducts(data.products);
+            state.orders = data.orders || state.orders;
+            migrateProductsToV2();
+            saveToLocalStorage();
+          } else {
+            await fetch('/api/seed', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ products: state.products, force: true })
+            });
+          }
+          connectSSE();
         }
-        connectSSE();
+      } catch (_) {
+        el['sync-status-badge'].textContent = '離線極速模式 (自動佇列同步)';
       }
-    } catch (_) {
-      el['sync-status-badge'].textContent = '本地極速模式 (支援跨分頁同步)';
+    } else {
+      el['sync-status-badge'].textContent =
+        window.location.hostname === 'visionpos.local'
+          ? 'Xiaomi 15 原生 APK 離線極速引擎'
+          : '本地極速模式 (支援跨分頁同步)';
     }
     renderAll();
   }
@@ -1904,11 +2327,12 @@
     try {
       const devType = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile-Cam' : 'Desktop-POS';
       const es = new EventSource(`/api/events?deviceType=${encodeURIComponent(devType)}`);
-      es.addEventListener('init', (e) => {
+      es.addEventListener('init', async (e) => {
+        await flushOutboxToServer();
         const { payload } = JSON.parse(e.data);
         if (payload.products && payload.products.length > 0) {
-          state.products = payload.products;
-          state.orders = payload.orders || [];
+          mergeServerProducts(payload.products);
+          state.orders = payload.orders || state.orders;
           state.connectedNodes = payload.connectedClients || 1;
           migrateProductsToV2();
           saveToLocalStorage();
@@ -1975,6 +2399,7 @@
   }
   function notifyPeers() {
     saveToLocalStorage();
+    saveCartToStorage();
     if (broadcastChannel) {
       broadcastChannel.postMessage({ type: 'state_updated', timestamp: Date.now() });
     }
@@ -2198,28 +2623,44 @@
         lighting: 1.0
       });
     } else if (state.sourceMode === 'ipcam') {
-      state.cctvTimer += 0.025;
-      let itemIdx = 0;
-      if (state.cctvChannel === 'ch1') {
-        itemIdx = Math.floor(state.cctvTimer * 0.35) % 5;
-      } else if (state.cctvChannel === 'ch2') {
-        itemIdx = 1;
-      } else if (state.cctvChannel === 'ch3') {
-        itemIdx = 3;
+      if (
+        state.cctvChannel === 'custom' &&
+        state.customIpcamActive &&
+        state.customIpcamImg &&
+        state.customIpcamImg.complete &&
+        state.customIpcamImg.naturalWidth > 0
+      ) {
+        const iw = state.customIpcamImg.naturalWidth;
+        const ih = state.customIpcamImg.naturalHeight;
+        const sc = Math.max(w / iw, h / ih);
+        const dw = iw * sc;
+        const dh = ih * sc;
+        ctx.drawImage(state.customIpcamImg, (w - dw) * 0.5, (h - dh) * 0.5, dw, dh);
+      } else {
+        state.cctvTimer += 0.025;
+        let itemIdx = 0;
+        if (state.cctvChannel === 'ch1') {
+          itemIdx = Math.floor(state.cctvTimer * 0.35) % 5;
+        } else if (state.cctvChannel === 'ch2') {
+          itemIdx = 1;
+        } else if (state.cctvChannel === 'ch3') {
+          itemIdx = 3;
+        }
+        const item = VisionEngine.VIRTUAL_STAGE_ITEMS[itemIdx];
+        VisionEngine.drawVirtualProduct(ctx, w, h, item, {
+          offsetX: Math.sin(state.cctvTimer) * 4,
+          offsetY: 0,
+          angle: 0.02,
+          scale: 0.96,
+          lighting: 0.92
+        });
       }
-      const item = VisionEngine.VIRTUAL_STAGE_ITEMS[itemIdx];
-      VisionEngine.drawVirtualProduct(ctx, w, h, item, {
-        offsetX: Math.sin(state.cctvTimer) * 4,
-        offsetY: 0,
-        angle: 0.02,
-        scale: 0.96,
-        lighting: 0.92
-      });
       ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-      ctx.fillRect(14, h - 38, 290, 24);
+      ctx.fillRect(14, h - 38, 320, 24);
       ctx.fillStyle = '#10b981';
       ctx.font = '12px monospace';
-      ctx.fillText(`CCTV ${state.cctvChannel.toUpperCase()} | RTSP-EDGE | ${new Date().toLocaleTimeString()}`, 22, h - 22);
+      const chLabel = state.cctvChannel === 'custom' && state.customIpcamActive ? 'CUSTOM-STREAM' : state.cctvChannel.toUpperCase();
+      ctx.fillText(`CCTV ${chLabel} | RTSP-EDGE | ${new Date().toLocaleTimeString()}`, 22, h - 22);
     } else if (state.sourceMode === 'photo' && state.hasLoadedPhoto) {
       ctx.drawImage(photoBufferCanvas, 0, 0);
     }
@@ -2437,20 +2878,80 @@
         }
       }
     }
+    if (
+      (state.sourceMode === 'webcam' || state.sourceMode === 'ipcam') &&
+      typeof VisionEngine.detectBarcode === 'function'
+    ) {
+      state.barcodeTickCounter = (state.barcodeTickCounter + 1) & 3;
+      if (state.barcodeTickCounter === 0) {
+        VisionEngine.detectBarcode(sourceElem).then((codeObj) => {
+          if (codeObj && codeObj.rawValue) {
+            state.lastDetectedBarcode = codeObj.rawValue;
+            state.lastBarcodeTime = Date.now();
+            if (state.activeTab === 'register' && el['reg-barcode'] && !el['reg-barcode'].value.trim()) {
+              el['reg-barcode'].value = codeObj.rawValue;
+              showToast(`⚡ 已自動讀取條碼：${codeObj.rawValue}`);
+            }
+          }
+        });
+      }
+    }
+    const freshBarcode =
+      state.lastDetectedBarcode && Date.now() - state.lastBarcodeTime < 1400
+        ? state.lastDetectedBarcode
+        : '';
     const activeVirtualPresetId =
       state.sourceMode === 'virtual' && VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex]
         ? VisionEngine.VIRTUAL_STAGE_ITEMS[state.stageItemIndex].presetId
         : null;
-    const matchRes = VisionEngine.matchProducts(
+    const rawMatchRes = VisionEngine.matchProducts(
       sig.descriptor,
       state.products,
       state.threshold,
       sig.queryDescriptors,
       {
         sourceMode: state.sourceMode,
-        virtualPresetId: activeVirtualPresetId
+        virtualPresetId: activeVirtualPresetId,
+        detectedBarcode: freshBarcode
       }
     );
+    let matchRes = rawMatchRes;
+    if (
+      (state.sourceMode === 'webcam' || state.sourceMode === 'ipcam') &&
+      !rawMatchRes.exactBarcode &&
+      rawMatchRes.similarity < 0.93
+    ) {
+      const frameId = rawMatchRes.matched && rawMatchRes.product ? rawMatchRes.product.id : null;
+      state.matchHistory.push(frameId);
+      if (state.matchHistory.length > 3) state.matchHistory.shift();
+      if (state.matchHistory.length >= 2) {
+        let consensusId = undefined;
+        for (let i = 0; i < state.matchHistory.length; i++) {
+          const candidateId = state.matchHistory[i];
+          let cnt = 0;
+          for (let j = 0; j < state.matchHistory.length; j++) {
+            if (state.matchHistory[j] === candidateId) cnt++;
+          }
+          if (cnt >= 2) {
+            consensusId = candidateId;
+            break;
+          }
+        }
+        if (consensusId !== undefined && consensusId !== frameId) {
+          if (consensusId === null) {
+            matchRes = { ...rawMatchRes, matched: false, product: null };
+          } else {
+            const heldProd = state.products.find((p) => p.id === consensusId);
+            if (heldProd) {
+              matchRes = { ...rawMatchRes, matched: true, product: heldProd };
+            }
+          }
+        }
+      }
+    } else {
+      const instantId = rawMatchRes.matched && rawMatchRes.product ? rawMatchRes.product.id : null;
+      state.matchHistory = [instantId, instantId];
+    }
     const t1 = performance.now();
     state.lastInferenceMs = +(t1 - t0).toFixed(2);
     state.liveDescriptor = sig.descriptor;
@@ -2726,11 +3227,12 @@
     el['reg-sku'].value = savedProduct.sku;
     notifyPeers();
     renderAll();
+    const syncBody = { ...payload, id: savedProduct.id, updatedAt: now };
     try {
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...payload, id: savedProduct.id })
+        body: JSON.stringify(syncBody)
       });
       if (res.ok) {
         const data = await res.json();
@@ -2741,8 +3243,12 @@
           savedProduct = data.product;
           saveToLocalStorage();
         }
+      } else if (res.status >= 500) {
+        enqueueOutbox({ type: 'upsert_product', payload: syncBody });
       }
-    } catch (_) {}
+    } catch (_) {
+      enqueueOutbox({ type: 'upsert_product', payload: syncBody });
+    }
     return savedProduct;
   }
   async function handleRegistrationSubmit(e) {
@@ -2755,6 +3261,7 @@
     state.currentMatch = savedProduct;
     state.currentSimilarity = 0.996;
     state.topCandidates = [{ product: savedProduct, similarity: 0.996 }];
+    state.matchHistory = [savedProduct.id, savedProduct.id];
     invalidateRecognitionUICache();
     updateRecognitionUI({
       matched: true,
@@ -2783,6 +3290,57 @@
     state.regDescriptors = [];
     state.regManualCaptured = false;
   }
+  function openEditProductInRegister(productId, triggerExtraAngle = false) {
+    const p = state.products.find((item) => item.id === productId);
+    if (!p) return;
+    switchTab('register', true);
+    el['reg-id'].value = p.id;
+    el['reg-name'].value = p.name;
+    el['reg-price'].value = p.price;
+    el['reg-stock'].value = p.stock;
+    el['reg-sku'].value = p.sku || '';
+    el['reg-barcode'].value = p.barcode || '';
+    el['reg-category'].value = p.category || '一般商品';
+    el['reg-unit'].value = p.unit || '件';
+    el['reg-location'].value = p.location || 'A-01';
+    el['reg-spec'].value = p.spec || '';
+    state.regDescriptors = Array.isArray(p.descriptors) ? [...p.descriptors] : [];
+    state.regThumbnail = p.thumbnail || '';
+    state.regManualCaptured = true;
+    if (el['reg-preview-img']) el['reg-preview-img'].src = state.regThumbnail;
+    if (el['reg-sample-count']) {
+      el['reg-sample-count'].textContent = `樣本數: ${state.regDescriptors.length || 1} 組`;
+    }
+    if (el['view-register']) {
+      el['view-register'].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    if (triggerExtraAngle) {
+      if (state.sourceMode === 'photo' && el['native-camera-input']) {
+        state.pendingAngleAppend = true;
+        el['native-camera-input'].click();
+      } else {
+        showToast(`📸 請對準「${p.name}」新角度後點擊「➕ 補拍多角度 (+1)」或「📱 開手機相機實拍」`);
+      }
+    } else {
+      showToast(`✏️ 正在編輯「${p.name}」，修改後將即時同步更新`);
+    }
+  }
+  function isActionArmed(armKey) {
+    const now = Date.now();
+    const exp = state.armedConfirmMap[armKey] || 0;
+    if (exp > now) {
+      delete state.armedConfirmMap[armKey];
+      return true;
+    }
+    state.armedConfirmMap[armKey] = now + 3200;
+    setTimeout(() => {
+      if (state.armedConfirmMap[armKey] && state.armedConfirmMap[armKey] <= Date.now()) {
+        delete state.armedConfirmMap[armKey];
+        if (state.activeTab === 'inventory') renderInventoryList();
+      }
+    }, 3300);
+    return false;
+  }
   async function adjustProductStock(productId, delta) {
     const product = state.products.find((p) => p.id === productId);
     if (!product) return;
@@ -2790,12 +3348,17 @@
     product.updatedAt = Date.now();
     invalidateRecognitionUICache();
     try {
-      await fetch(`/api/products/${encodeURIComponent(productId)}`, {
+      const r = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ stock: product.stock })
       });
-    } catch (_) {}
+      if (!r.ok && r.status >= 500) {
+        enqueueOutbox({ type: 'patch_product', id: productId, payload: { stock: product.stock } });
+      }
+    } catch (_) {
+      enqueueOutbox({ type: 'patch_product', id: productId, payload: { stock: product.stock } });
+    }
     notifyPeers();
     renderAll();
     scheduleRecognition(true);
@@ -2803,12 +3366,25 @@
   async function deleteProduct(productId) {
     const product = state.products.find((p) => p.id === productId);
     if (!product) return;
+    if (!isActionArmed('del:' + productId)) {
+      renderInventoryList();
+      showToast(`⚠️ 再點一次「確認?」即可刪除「${product.name}」`, 'warn');
+      return;
+    }
     state.products = state.products.filter((p) => p.id !== productId);
     state.cart = state.cart.filter((c) => c.productId !== productId);
     invalidateRecognitionUICache();
     try {
-      await fetch(`/api/products/${encodeURIComponent(productId)}`, { method: 'DELETE' });
-    } catch (_) {}
+      const r = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
+        method: 'DELETE',
+        headers: { 'X-Admin-Pin': state.adminPin }
+      });
+      if (!r.ok && r.status >= 500) {
+        enqueueOutbox({ type: 'delete_product', id: productId });
+      }
+    } catch (_) {
+      enqueueOutbox({ type: 'delete_product', id: productId });
+    }
     notifyPeers();
     renderAll();
     scheduleRecognition(true);
@@ -2835,34 +3411,45 @@
       container.innerHTML = `<div style="padding:24px; text-align:center; color:var(--text-muted);">沒有符合條件的產品</div>`;
       return;
     }
+    const now = Date.now();
     container.innerHTML = filtered
       .map((p) => {
         const isLow = p.stock <= (p.minStock || 5);
+        const delArmed = (state.armedConfirmMap['del:' + p.id] || 0) > now;
+        const bcTag = p.barcode ? ` · 條碼 ${escapeHtml(p.barcode)}` : '';
         return `
           <div class="inv-item">
             <img class="inv-thumb" src="${p.thumbnail || ''}" alt="${escapeHtml(p.name)}" />
             <div class="inv-info">
               <div class="inv-title">${escapeHtml(p.name)}</div>
               <div class="inv-sub">
-                ${escapeHtml(p.sku)} · 儲位 ${escapeHtml(p.location || 'A-01')} · <strong style="color:var(--accent-primary);">NT$ ${p.price.toLocaleString()}</strong>
+                ${escapeHtml(p.sku)}${bcTag} · 儲位 ${escapeHtml(p.location || 'A-01')} · <strong style="color:var(--accent-primary);">NT$ ${p.price.toLocaleString()}</strong>
               </div>
-              <div style="margin-top:2px;">
+              <div style="margin-top:2px; display:flex; gap:4px; flex-wrap:wrap;">
                 <span class="badge ${isLow ? 'badge-danger' : 'badge-emerald'}">
                   庫存: ${p.stock} ${escapeHtml(p.unit || '件')} ${isLow ? '(低庫存)' : ''}
                 </span>
-                <span class="badge badge-info">特徵樣本 ${(p.descriptors && p.descriptors.length) || 1} 組</span>
+                <span class="badge badge-info">特徵 ${(p.descriptors && p.descriptors.length) || 1} 組</span>
               </div>
             </div>
-            <div class="inv-actions">
+            <div class="inv-actions" style="flex-wrap:wrap; justify-content:flex-end;">
               <button type="button" class="btn btn-secondary btn-sm" data-action="inv-minus" data-id="${p.id}" title="庫存 -1">-1</button>
               <button type="button" class="btn btn-secondary btn-sm" data-action="inv-plus" data-id="${p.id}" title="庫存 +1">+1</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-action="inv-edit" data-id="${p.id}" title="編輯名稱、價格、條碼與介紹">✏️</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-action="inv-angle" data-id="${p.id}" title="補拍多角度特徵">📸</button>
               <button type="button" class="btn btn-primary btn-sm" data-action="inv-cart" data-id="${p.id}" ${p.stock <= 0 ? 'disabled' : ''}>+入車</button>
-              <button type="button" class="btn btn-danger btn-sm" data-action="inv-del" data-id="${p.id}" title="刪除">✕</button>
+              <button type="button" class="btn btn-danger btn-sm" data-action="inv-del" data-id="${p.id}" title="刪除商品">${delArmed ? '確認?' : '✕'}</button>
             </div>
           </div>
         `;
       })
       .join('');
+  }
+  function syncCartAndBroadcast() {
+    saveCartToStorage();
+    if (broadcastChannel) {
+      broadcastChannel.postMessage({ type: 'cart_updated', timestamp: Date.now() });
+    }
   }
   function addToCart(productId, qty = 1, isAuto = false) {
     const product = state.products.find((p) => p.id === productId);
@@ -2888,6 +3475,7 @@
       showToast(`🛒 已加入購物車：${product.name}`);
     }
     renderCart();
+    syncCartAndBroadcast();
   }
   function updateCartQty(productId, newQty) {
     const product = state.products.find((p) => p.id === productId);
@@ -2901,6 +3489,7 @@
       }
     }
     renderCart();
+    syncCartAndBroadcast();
   }
   function renderCart() {
     const container = el['cart-items-container'];
@@ -2950,16 +3539,72 @@
     el['summary-subtotal'].textContent = `NT$ ${subtotal.toLocaleString()}`;
     el['summary-total'].textContent = `NT$ ${total.toLocaleString()}`;
     el['btn-checkout-submit'].disabled = state.cart.length === 0;
+    saveCartToStorage();
+  }
+  function openReceiptModal(order) {
+    if (!order || !el['receipt-modal'] || !el['receipt-paper-content']) return;
+    const payNames = { cash: '現金支付', card: '感應刷卡', mobile: '行動支付' };
+    const dtStr = new Date(order.createdAt || Date.now()).toLocaleString('zh-TW');
+    const itemsHtml = (order.items || [])
+      .map(
+        (i) => `
+          <div style="display:flex; justify-content:space-between; gap:8px; margin:4px 0;">
+            <span style="flex:1; word-break:break-all;">${escapeHtml(i.name)} ×${i.quantity}</span>
+            <span style="white-space:nowrap;">NT$ ${Number(i.lineTotal ?? i.price * i.quantity).toLocaleString()}</span>
+          </div>
+        `
+      )
+      .join('');
+    el['receipt-paper-content'].innerHTML = `
+      <div style="text-align:center; font-weight:700; font-size:15px;">VisionPOS Edge 智慧門市</div>
+      <div style="text-align:center; font-size:11px; color:#4b5563;">電子交易明細憑證</div>
+      <hr class="receipt-divider" />
+      <div>單號：${escapeHtml(order.id)}</div>
+      <div>時間：${escapeHtml(dtStr)}</div>
+      <div>付款：${escapeHtml(payNames[order.paymentMethod] || '現金支付')}</div>
+      <hr class="receipt-divider" />
+      ${itemsHtml}
+      <hr class="receipt-divider" />
+      <div style="display:flex; justify-content:space-between;">
+        <span>小計 (${order.totalQty || 1} 件)</span>
+        <span>NT$ ${Number(order.subtotal || order.total || 0).toLocaleString()}</span>
+      </div>
+      ${
+        Number(order.discount) > 0
+          ? `<div style="display:flex; justify-content:space-between;"><span>折扣折抵</span><span>-NT$ ${Number(order.discount).toLocaleString()}</span></div>`
+          : ''
+      }
+      <div style="display:flex; justify-content:space-between; font-weight:700; font-size:14px; margin-top:4px;">
+        <span>實收總額</span>
+        <span>NT$ ${Number(order.total || 0).toLocaleString()}</span>
+      </div>
+      <hr class="receipt-divider" />
+      <div style="text-align:center; font-size:11px; color:#6b7280;">感謝您的惠顧 · 請妥善保存此明細</div>
+    `;
+    el['receipt-modal'].classList.remove('hidden');
   }
   async function submitCheckout() {
     if (state.cart.length === 0) return;
+    for (const c of state.cart) {
+      const p = state.products.find((prod) => prod.id === c.productId);
+      if (!p || p.stock < c.quantity) {
+        showToast(`「${p ? p.name : ''}」庫存不足`, 'danger');
+        return;
+      }
+    }
+    const now = Date.now();
+    const clientOrderId =
+      'ORD-' + now.toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 5).toUpperCase();
     const discount = Math.max(0, Number(el['cart-discount-input'].value) || 0);
     const payload = {
-      items: state.cart,
+      id: clientOrderId,
+      createdAt: now,
+      items: state.cart.map((c) => ({ ...c })),
       discount,
       paymentMethod: state.paymentMethod
     };
     let completedOrder = null;
+    let syncedOnline = false;
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST',
@@ -2969,8 +3614,10 @@
       if (res.ok) {
         const data = await res.json();
         completedOrder = data.order;
+        syncedOnline = true;
         if (Array.isArray(data.updatedProducts)) {
           data.updatedProducts.forEach((up) => {
+            VisionEngine.ensureProductCache(up);
             const idx = state.products.findIndex((p) => p.id === up.id);
             if (idx >= 0) state.products[idx] = up;
           });
@@ -2982,11 +3629,8 @@
       const orderItems = [];
       for (const c of state.cart) {
         const p = state.products.find((prod) => prod.id === c.productId);
-        if (!p || p.stock < c.quantity) {
-          showToast(`「${p ? p.name : ''}」庫存不足`, 'danger');
-          return;
-        }
         p.stock -= c.quantity;
+        p.updatedAt = now;
         const lineTotal = p.price * c.quantity;
         subtotal += lineTotal;
         orderItems.push({
@@ -3000,8 +3644,8 @@
         });
       }
       completedOrder = {
-        id: 'ORD-' + Date.now().toString(36).toUpperCase(),
-        createdAt: Date.now(),
+        id: clientOrderId,
+        createdAt: now,
         paymentMethod: state.paymentMethod,
         items: orderItems,
         totalQty: orderItems.reduce((a, b) => a + b.quantity, 0),
@@ -3009,6 +3653,9 @@
         discount,
         total: Math.max(0, subtotal - discount)
       };
+      if (!syncedOnline) {
+        enqueueOutbox({ type: 'checkout', payload });
+      }
     }
     if (!state.orders.some((o) => o.id === completedOrder.id)) {
       state.orders.unshift(completedOrder);
@@ -3021,7 +3668,10 @@
     scheduleRecognition(true);
     playTone(1180, 90, 'sine');
     setTimeout(() => playTone(1560, 120, 'sine'), 85);
-    showToast(`🎉 結帳成功！單號 ${completedOrder.id}，實收 NT$ ${completedOrder.total.toLocaleString()}，已即時扣減庫存`);
+    showToast(`🎉 結帳成功！單號 ${completedOrder.id}，實收 NT$ ${completedOrder.total.toLocaleString()}`);
+    if (state.customerKioskMode) {
+      openReceiptModal(completedOrder);
+    }
   }
   function renderOrdersHistory() {
     const container = el['orders-history-list'];
@@ -3034,14 +3684,14 @@
     }
     const payNames = { cash: '現金', card: '刷卡', mobile: '行動支付' };
     container.innerHTML = state.orders
-      .slice(0, 15)
+      .slice(0, 20)
       .map((o) => {
         const timeStr = new Date(o.createdAt).toLocaleTimeString();
         const summaryNames = (o.items || []).map((i) => `${i.name}×${i.quantity}`).join('、');
         return `
-          <div style="padding:8px 10px; background:var(--bg-elevated); border-radius:var(--radius-sm); border:1px solid var(--border-subtle); font-size:12px;">
+          <div data-receipt-id="${escapeHtml(o.id)}" style="cursor:pointer; padding:8px 10px; background:var(--bg-elevated); border-radius:var(--radius-sm); border:1px solid var(--border-subtle); font-size:12px;" title="點擊查看或列印電子收據">
             <div style="display:flex; justify-content:space-between; font-weight:600;">
-              <span style="font-family:var(--font-mono);">${escapeHtml(o.id)}</span>
+              <span style="font-family:var(--font-mono);">🧾 ${escapeHtml(o.id)}</span>
               <span style="color:var(--accent-primary); font-family:var(--font-mono);">NT$ ${Number(o.total).toLocaleString()}</span>
             </div>
             <div style="color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;">
@@ -3130,9 +3780,75 @@
     img.src = objUrl;
   }
   let regInputDebounceTimer = null;
+  let customIpcamPollTimer = null;
+  function applyCustomerKioskMode(enabled) {
+    state.customerKioskMode = Boolean(enabled);
+    document.body.classList.toggle('customer-kiosk-mode', state.customerKioskMode);
+    if (el['btn-role-toggle']) {
+      el['btn-role-toggle'].textContent = state.customerKioskMode
+        ? '🛍️ 顧客自助模式'
+        : '🔓 店長模式';
+    }
+    try {
+      localStorage.setItem(ROLE_STORAGE_KEY, state.customerKioskMode ? 'customer' : 'admin');
+    } catch (_) {}
+    if (state.customerKioskMode && state.activeTab !== 'scan') {
+      switchTab('scan');
+    }
+  }
+  function connectCustomIpCam() {
+    const url = (el['ipcam-url-input'].value || '').trim();
+    if (!url) {
+      showToast('請輸入 MJPEG 或 HTTP 快照串流網址 (例如 http://192.168.1.100:8080/video)', 'warn');
+      return;
+    }
+    if (customIpcamPollTimer) {
+      clearInterval(customIpcamPollTimer);
+      customIpcamPollTimer = null;
+    }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      state.customIpcamImg = img;
+      state.customIpcamUrl = url;
+      state.customIpcamActive = true;
+      scheduleRecognition(true);
+    };
+    img.onerror = () => {
+      state.customIpcamActive = false;
+      showToast('⚠️ 無法連線該攝影機網址（請確認同一區域網路與 CORS 權限），已維持模擬巡檢畫面', 'warn');
+    };
+    img.src = url;
+    showToast('📹 正在連線自訂 IP 攝影機串流...');
+    if (/\.(jpg|jpeg|png|webp)(\?|$)|snapshot|shot\.jpg/i.test(url)) {
+      customIpcamPollTimer = setInterval(() => {
+        if (state.sourceMode !== 'ipcam' || state.cctvChannel !== 'custom' || document.hidden) return;
+        const sep = url.includes('?') ? '&' : '?';
+        img.src = `${url}${sep}_t=${Date.now()}`;
+      }, 250);
+    }
+  }
   function setupEvents() {
+    if (el['btn-role-toggle']) {
+      el['btn-role-toggle'].addEventListener('click', () => {
+        if (!state.customerKioskMode) {
+          applyCustomerKioskMode(true);
+          showToast('🛍️ 已切換為「顧客自助模式」（隱藏後台建檔與庫存管理，返回後台預設 PIN: 1234）');
+        } else {
+          const entered = window.prompt('請輸入店長管理 PIN 碼切換回後台模式（預設：1234）：', '');
+          if (entered === null) return;
+          if (entered.trim() === state.adminPin) {
+            applyCustomerKioskMode(false);
+            showToast('🔓 已解鎖切換回「店長後台模式」');
+          } else {
+            showToast('PIN 碼錯誤，維持顧客自助模式', 'danger');
+          }
+        }
+      });
+    }
     ['scan', 'register', 'inventory', 'devices'].forEach((t) => {
       el[`tab-btn-${t}`].addEventListener('click', () => {
+        if (state.customerKioskMode && t !== 'scan') return;
         switchTab(t);
         if (t === 'register' && el['view-register']) {
           el['view-register'].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -3169,21 +3885,27 @@
       el['native-scan-input'].addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
-        loadMobilePhotoToBuffer(file, () => {
+        loadMobilePhotoToBuffer(file, async () => {
           switchTab('scan');
           const sourceElem = getActiveVideoSourceElement();
+          const codeObj =
+            typeof VisionEngine.detectBarcode === 'function'
+              ? await VisionEngine.detectBarcode(sourceElem)
+              : null;
+          const detectedCode = codeObj && codeObj.rawValue ? codeObj.rawValue : '';
           const sig = VisionEngine.captureFrameSignature(sourceElem, getRoiRect(sourceElem), false);
           const matchRes = VisionEngine.matchProducts(
             sig.descriptor,
             state.products,
             state.threshold,
             sig.queryDescriptors,
-            { sourceMode: 'photo', virtualPresetId: null }
+            { sourceMode: 'photo', virtualPresetId: null, detectedBarcode: detectedCode }
           );
           state.liveDescriptor = sig.descriptor;
           state.currentMatch = matchRes.product;
           state.currentSimilarity = matchRes.similarity;
           state.topCandidates = matchRes.topCandidates;
+          state.matchHistory = matchRes.product ? [matchRes.product.id, matchRes.product.id] : [null, null];
           invalidateRecognitionUICache();
           updateRecognitionUI(matchRes);
           if (matchRes.matched && matchRes.product) {
@@ -3194,7 +3916,12 @@
             }
           } else {
             playTone(440, 90, 'sawtooth');
-            showToast('⚠️ 未建檔：未掃描到庫存中的商品（可點擊下方「⚡ 一鍵立即建檔」）', 'warn');
+            showToast(
+              state.customerKioskMode
+                ? '⚠️ 未建檔：未掃描到庫存中的商品'
+                : '⚠️ 未建檔：未掃描到庫存中的商品（可點擊下方「⚡ 一鍵立即建檔」）',
+              'warn'
+            );
             if (el['unregistered-prompt-card']) {
               el['unregistered-prompt-card'].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
@@ -3215,6 +3942,13 @@
             el['reg-name'].value = '';
           }
           switchTab('register', true);
+          const sourceElem = getActiveVideoSourceElement();
+          if (typeof VisionEngine.detectBarcode === 'function') {
+            const codeObj = await VisionEngine.detectBarcode(sourceElem);
+            if (codeObj && codeObj.rawValue && el['reg-barcode']) {
+              el['reg-barcode'].value = codeObj.rawValue;
+            }
+          }
           captureForRegistration(isAppend, true);
           const autoSaved = await upsertRegistrationProduct(false);
           if (!isAppend && autoSaved) {
@@ -3230,7 +3964,7 @@
         e.target.value = '';
       });
     }
-    ['reg-name', 'reg-price', 'reg-stock', 'reg-spec', 'reg-category', 'reg-unit', 'reg-location'].forEach((fieldId) => {
+    ['reg-name', 'reg-price', 'reg-stock', 'reg-sku', 'reg-barcode', 'reg-spec', 'reg-category', 'reg-unit', 'reg-location'].forEach((fieldId) => {
       if (el[fieldId]) {
         el[fieldId].addEventListener('input', () => {
           const activeId = (el['reg-id'].value || '').trim();
@@ -3240,10 +3974,13 @@
           if (el['reg-name'].value.trim()) prod.name = el['reg-name'].value.trim();
           if (el['reg-price'].value.trim() !== '') prod.price = Math.max(0, Number(el['reg-price'].value) || 0);
           if (el['reg-stock'].value.trim() !== '') prod.stock = Math.max(0, Number(el['reg-stock'].value) || 0);
+          if (el['reg-sku'].value.trim()) prod.sku = el['reg-sku'].value.trim();
+          prod.barcode = el['reg-barcode'].value.trim();
           if (el['reg-spec'].value.trim()) prod.spec = el['reg-spec'].value.trim();
           if (el['reg-category'].value.trim()) prod.category = el['reg-category'].value.trim();
           if (el['reg-unit'].value.trim()) prod.unit = el['reg-unit'].value.trim();
           if (el['reg-location'].value.trim()) prod.location = el['reg-location'].value.trim();
+          prod.updatedAt = Date.now();
           invalidateRecognitionUICache();
           if (regInputDebounceTimer) clearTimeout(regInputDebounceTimer);
           regInputDebounceTimer = setTimeout(() => {
@@ -3271,6 +4008,9 @@
       el['btn-connect-ipcam'].classList.toggle('hidden', !isCustom);
       scheduleRecognition(true);
     });
+    if (el['btn-connect-ipcam']) {
+      el['btn-connect-ipcam'].addEventListener('click', () => connectCustomIpCam());
+    }
     el['chk-stage-motion'].addEventListener('change', (e) => {
       state.stageHandMotion = e.target.checked;
       scheduleRecognition(true);
@@ -3380,21 +4120,195 @@
       const action = btn.getAttribute('data-action');
       if (action === 'inv-plus') adjustProductStock(id, 1);
       else if (action === 'inv-minus') adjustProductStock(id, -1);
+      else if (action === 'inv-edit') openEditProductInRegister(id, false);
+      else if (action === 'inv-angle') openEditProductInRegister(id, true);
       else if (action === 'inv-cart') addToCart(id, 1);
       else if (action === 'inv-del') deleteProduct(id);
     });
     el['btn-export-inventory'].addEventListener('click', () => {
-      const blob = new Blob([JSON.stringify({ products: state.products, orders: state.orders }, null, 2)], {
-        type: 'application/json'
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `vision-pos-backup-${Date.now()}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const jsonStr = JSON.stringify({ products: state.products, orders: state.orders }, null, 2);
+      triggerFileDownload(`vision-pos-backup-${Date.now()}.json`, jsonStr, 'application/json;charset=utf-8');
     });
+    if (el['btn-export-csv']) {
+      el['btn-export-csv'].addEventListener('click', () => {
+        const csvEsc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+        const rows = ['\uFEFFSKU,條碼,產品名稱,分類,單價(NT$),庫存數量,單位,儲位,產品介紹'];
+        for (const p of state.products) {
+          rows.push([
+            csvEsc(p.sku || ''),
+            csvEsc(p.barcode || ''),
+            csvEsc(p.name || ''),
+            csvEsc(p.category || ''),
+            Number(p.price) || 0,
+            Number(p.stock) || 0,
+            csvEsc(p.unit || '件'),
+            csvEsc(p.location || 'A-01'),
+            csvEsc(p.spec || '')
+          ].join(','));
+        }
+        triggerFileDownload(`vision-pos-inventory-${Date.now()}.csv`, rows.join('\r\n'), 'text/csv;charset=utf-8');
+      });
+    }
+    if (el['btn-export-orders-csv']) {
+      el['btn-export-orders-csv'].addEventListener('click', async () => {
+        try {
+          const res = await fetch('/api/orders/export');
+          if (res.ok) {
+            const csvText = await res.text();
+            triggerFileDownload(`vision-pos-orders-${Date.now()}.csv`, csvText, 'text/csv;charset=utf-8');
+            return;
+          }
+        } catch (_) {}
+        const csvEsc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+        const rows = ['\uFEFF訂單編號,交易時間,付款方式,總件數,小計(NT$),折扣(NT$),實收總額(NT$),購買明細'];
+        for (const o of state.orders) {
+          const detail = (o.items || []).map((i) => `${i.name}x${i.quantity}`).join('; ');
+          rows.push([
+            csvEsc(o.id),
+            csvEsc(new Date(o.createdAt || Date.now()).toISOString()),
+            csvEsc(o.paymentMethod || 'cash'),
+            o.totalQty || 0,
+            o.subtotal || 0,
+            o.discount || 0,
+            o.total || 0,
+            csvEsc(detail)
+          ].join(','));
+        }
+        triggerFileDownload(`vision-pos-orders-${Date.now()}.csv`, rows.join('\r\n'), 'text/csv;charset=utf-8');
+      });
+    }
+    if (el['inv-import-input']) {
+      el['inv-import-input'].addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        try {
+          const text = (await file.text()).replace(/^\uFEFF/, '');
+          let importedProducts = [];
+          if (file.name.toLowerCase().endsWith('.json') || text.trim().startsWith('{') || text.trim().startsWith('[')) {
+            const parsed = JSON.parse(text);
+            importedProducts = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.products) ? parsed.products : []);
+          } else {
+            const parseCsvLine = (line) => {
+              const out = [];
+              let cur = '';
+              let inQuotes = false;
+              for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (ch === '"') {
+                  if (inQuotes && line[i + 1] === '"') {
+                    cur += '"';
+                    i++;
+                  } else {
+                    inQuotes = !inQuotes;
+                  }
+                } else if (ch === ',' && !inQuotes) {
+                  out.push(cur);
+                  cur = '';
+                } else {
+                  cur += ch;
+                }
+              }
+              out.push(cur);
+              return out;
+            };
+            const lines = text.split(/\r?\n/).filter((l) => l.trim());
+            if (lines.length >= 2) {
+              const nowTs = Date.now();
+              for (let r = 1; r < lines.length; r++) {
+                const cols = parseCsvLine(lines[r]);
+                const name = (cols[2] || '').trim();
+                if (!name) continue;
+                importedProducts.push({
+                  sku: (cols[0] || '').trim() || `SKU-IMP-${r}`,
+                  barcode: (cols[1] || '').trim(),
+                  name,
+                  category: (cols[3] || '').trim() || '匯入商品',
+                  price: Math.max(0, Number(cols[4]) || 0),
+                  stock: Math.max(0, Number(cols[5]) || 0),
+                  unit: (cols[6] || '').trim() || '件',
+                  location: (cols[7] || '').trim() || 'A-01',
+                  spec: (cols[8] || '').trim(),
+                  updatedAt: nowTs
+                });
+              }
+            }
+          }
+          if (importedProducts.length === 0) {
+            showToast('檔案中未找到可匯入的商品資料', 'warn');
+            e.target.value = '';
+            return;
+          }
+          const now = Date.now();
+          let count = 0;
+          for (const item of importedProducts) {
+            if (!item || !item.name) continue;
+            const idx = state.products.findIndex(
+              (p) => (item.id && p.id === item.id) || (item.sku && p.sku === item.sku)
+            );
+            if (idx >= 0) {
+              state.products[idx] = {
+                ...state.products[idx],
+                ...item,
+                id: state.products[idx].id,
+                descriptors:
+                  Array.isArray(item.descriptors) && item.descriptors.length > 0
+                    ? item.descriptors
+                    : state.products[idx].descriptors,
+                updatedAt: now
+              };
+              VisionEngine.ensureProductCache(state.products[idx]);
+            } else {
+              const created = {
+                id: item.id || ('prd-' + now.toString(36) + '-' + Math.random().toString(36).slice(2, 6)),
+                sku: item.sku || `SKU-${state.products.length + 101}`,
+                barcode: item.barcode || '',
+                name: String(item.name).trim(),
+                category: item.category || '匯入商品',
+                price: Number(item.price) || 0,
+                stock: Number(item.stock) ?? 10,
+                unit: item.unit || '件',
+                location: item.location || 'A-01',
+                spec: item.spec || '',
+                thumbnail: item.thumbnail || '',
+                descriptors: Array.isArray(item.descriptors) ? item.descriptors : [],
+                descriptorVersion: 2,
+                isCameraRegistered: Boolean(item.isCameraRegistered),
+                createdAt: now,
+                updatedAt: now
+              };
+              VisionEngine.ensureProductCache(created);
+              state.products.unshift(created);
+            }
+            count++;
+          }
+          invalidateRecognitionUICache();
+          notifyPeers();
+          renderAll();
+          scheduleRecognition(true);
+          try {
+            await fetch('/api/products/bulk', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ products: importedProducts })
+            });
+          } catch (_) {}
+          showToast(`📂 成功匯入/更新 ${count} 筆商品資料！`);
+        } catch (err) {
+          showToast('匯入檔案解析失敗，請確認 JSON 或 CSV 格式正確', 'danger');
+        }
+        e.target.value = '';
+      });
+    }
     el['btn-reset-demo'].addEventListener('click', async () => {
+      if (!isActionArmed('reset:demo')) {
+        el['btn-reset-demo'].textContent = '⚠️ 再點確認重置';
+        setTimeout(() => {
+          if (el['btn-reset-demo']) el['btn-reset-demo'].textContent = '🔄 重置預設庫';
+        }, 3200);
+        showToast('⚠️ 再點一次「確認重置」將還原為預設 5 款展示商品庫', 'warn');
+        return;
+      }
+      el['btn-reset-demo'].textContent = '🔄 重置預設庫';
       const defaultCatalog = VisionEngine.buildDefaultCatalog();
       defaultCatalog.forEach((p) => VisionEngine.ensureProductCache(p));
       state.products = defaultCatalog;
@@ -3404,7 +4318,10 @@
       try {
         await fetch('/api/reset', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Pin': state.adminPin
+          },
           body: JSON.stringify({ products: defaultCatalog })
         });
       } catch (_) {}
@@ -3429,22 +4346,99 @@
     el['btn-clear-cart'].addEventListener('click', () => {
       state.cart = [];
       renderCart();
+      syncCartAndBroadcast();
     });
-    el['cart-discount-input'].addEventListener('input', () => renderCart());
+    el['cart-discount-input'].addEventListener('input', () => {
+      renderCart();
+      syncCartAndBroadcast();
+    });
     document.querySelectorAll('.pay-method-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         state.paymentMethod = btn.getAttribute('data-pay');
         document.querySelectorAll('.pay-method-btn').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
+        syncCartAndBroadcast();
       });
     });
     el['btn-checkout-submit'].addEventListener('click', () => submitCheckout());
+    if (el['orders-history-list']) {
+      el['orders-history-list'].addEventListener('click', (e) => {
+        const card = e.target.closest('[data-receipt-id]');
+        if (!card) return;
+        const ordId = card.getAttribute('data-receipt-id');
+        const ord = state.orders.find((o) => o.id === ordId);
+        if (ord) openReceiptModal(ord);
+      });
+    }
+    if (el['btn-close-receipt']) {
+      el['btn-close-receipt'].addEventListener('click', () => {
+        el['receipt-modal'].classList.add('hidden');
+      });
+    }
+    if (el['receipt-modal']) {
+      el['receipt-modal'].addEventListener('click', (e) => {
+        if (e.target === el['receipt-modal']) el['receipt-modal'].classList.add('hidden');
+      });
+    }
+    if (el['btn-print-receipt']) {
+      el['btn-print-receipt'].addEventListener('click', () => {
+        window.print();
+      });
+    }
+    let hidBuffer = '';
+    let hidLastKeyTime = 0;
     window.addEventListener('keydown', (e) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
-      if (e.key === 'Enter' && state.activeTab === 'scan' && state.currentMatch) {
-        e.preventDefault();
-        addToCart(state.currentMatch.id, 1);
+      const activeTag = document.activeElement ? document.activeElement.tagName : '';
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)) return;
+      const now = performance.now();
+      if (e.key && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (now - hidLastKeyTime > 55) {
+          hidBuffer = '';
+        }
+        hidBuffer += e.key;
+        hidLastKeyTime = now;
+        return;
       }
+      if (e.key === 'Enter') {
+        if (hidBuffer.length >= 4 && now - hidLastKeyTime < 80) {
+          e.preventDefault();
+          const scannedCode = hidBuffer.trim().toLowerCase();
+          hidBuffer = '';
+          const matchedProd = state.products.find(
+            (p) =>
+              (p.barcode && String(p.barcode).trim().toLowerCase() === scannedCode) ||
+              (p.sku && String(p.sku).trim().toLowerCase() === scannedCode)
+          );
+          if (matchedProd) {
+            switchTab('scan');
+            state.currentMatch = matchedProd;
+            state.currentSimilarity = 1.0;
+            state.matchHistory = [matchedProd.id, matchedProd.id];
+            invalidateRecognitionUICache();
+            updateRecognitionUI({
+              matched: true,
+              product: matchedProd,
+              bestCandidate: matchedProd,
+              similarity: 1.0,
+              margin: 1.0,
+              exactBarcode: true,
+              topCandidates: [{ product: matchedProd, similarity: 1.0 }]
+            });
+            addToCart(matchedProd.id, 1, false);
+          } else {
+            showToast(`⚠️ 條碼「${scannedCode}」未建檔`, 'warn');
+          }
+          return;
+        }
+        hidBuffer = '';
+        if (state.activeTab === 'scan' && state.currentMatch) {
+          e.preventDefault();
+          addToCart(state.currentMatch.id, 1);
+        }
+      }
+    });
+    window.addEventListener('online', () => {
+      flushOutboxToServer();
     });
     document.addEventListener('visibilitychange', async () => {
       if (document.hidden) {
@@ -3487,9 +4481,9 @@
       }).catch(() => {});
     }
     if ('BarcodeDetector' in window) {
-      el['barcode-hw-status'].textContent = '✅ 已啟用原生硬體 BarcodeDetector 雙引擎加速';
+      el['barcode-hw-status'].textContent = '✅ 已啟用原生硬體 BarcodeDetector + USB 條碼槍雙引擎加速';
     } else {
-      el['barcode-hw-status'].textContent = '✅ 使用 CCVD-144 零配置視覺指紋引擎 (< 0.15ms)';
+      el['barcode-hw-status'].textContent = '✅ 使用 CCVD-144 v3 白平衡視覺指紋引擎 (< 0.15ms)';
     }
   }
   window.addEventListener('DOMContentLoaded', async () => {
@@ -3498,6 +4492,13 @@
     await initDataStore();
     try {
       const params = new URLSearchParams(window.location.search);
+      const urlMode = params.get('mode');
+      const savedRole = localStorage.getItem(ROLE_STORAGE_KEY);
+      if (urlMode === 'customer' || (!urlMode && savedRole === 'customer')) {
+        applyCustomerKioskMode(true);
+      } else if (urlMode === 'admin') {
+        applyCustomerKioskMode(false);
+      }
       const targetSku = params.get('sku');
       if (targetSku) {
         const matchedProd = state.products.find(
@@ -3517,6 +4518,13 @@
         }
       }
     } catch (_) {}
+    if (
+      'serviceWorker' in navigator &&
+      (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
+      window.location.hostname !== 'visionpos.local'
+    ) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
     scheduleRecognition(true);
   });
 })();

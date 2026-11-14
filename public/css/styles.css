@@ -894,3 +894,79 @@ button {
 .hidden {
   display: none !important;
 }
+
+/* Customer Self-Checkout Kiosk Mode (Hides all backend registration/inventory controls) */
+body.customer-kiosk-mode .kiosk-admin-only,
+body.customer-kiosk-mode #virtual-stage-tray {
+  display: none !important;
+}
+
+body.customer-kiosk-mode .mobile-cam-trigger-grid {
+  grid-template-columns: 1fr !important;
+}
+
+body.customer-kiosk-mode .source-switcher {
+  grid-template-columns: repeat(2, 1fr) !important;
+}
+
+/* Electronic Receipt Modal & PIN Dialog */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(5, 8, 13, 0.78);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.receipt-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  box-shadow: var(--shadow-card);
+}
+
+.receipt-paper {
+  background: #ffffff;
+  color: #111827;
+  border-radius: var(--radius-sm);
+  padding: 16px 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.receipt-divider {
+  border: none;
+  border-top: 1px dashed #9ca3af;
+  margin: 8px 0;
+}
+
+@media print {
+  body > *:not(#receipt-modal) {
+    display: none !important;
+  }
+  #receipt-modal {
+    position: static !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+  .receipt-card {
+    max-width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+  .receipt-no-print {
+    display: none !important;
+  }
+}

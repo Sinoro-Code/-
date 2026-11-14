@@ -6,6 +6,7 @@
   <title>VisionPOS Edge — 極速視覺辨識庫存管理、即時產品資訊與 POS 結帳系統</title>
   <meta name="description" content="支援所有手機、平板、筆電、電腦、監控與攝影機的零延遲視覺拍照建檔、即時庫存管理、即時產品資訊與購物車結帳系統。" />
   <meta name="theme-color" content="#0b0f14" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
@@ -19,28 +20,31 @@
           VisionPOS Edge
           <span class="badge badge-emerald" id="sync-status-badge">即時同步連線中</span>
         </h1>
-        <p class="brand-subtitle">64×64 零配置視覺指紋引擎 (CCVD-144) · 跨裝置即時庫存與 POS 結帳系統</p>
+        <p class="brand-subtitle">64×64 白平衡視覺指紋引擎 (CCVD-144 v3) · 跨裝置即時庫存與 POS 結帳系統</p>
       </div>
     </div>
 
     <!-- Real-Time Hardware & Energy Telemetry Strip -->
     <div class="telemetry-strip" aria-label="系統即時效能與節能指標">
-      <div class="telemetry-chip" title="單幀視覺特徵擷取與比對延遲">
+      <div class="telemetry-chip kiosk-admin-only" title="單幀視覺特徵擷取與比對延遲">
         <span>辨識延遲</span>
         <strong id="metric-latency">0.32 ms</strong>
       </div>
-      <div class="telemetry-chip" title="智慧幀差移動偵測動態調節 FPS">
+      <div class="telemetry-chip kiosk-admin-only" title="智慧幀差移動偵測動態調節 FPS">
         <span class="status-dot" id="power-mode-dot"></span>
-        <span id="metric-power-mode">高速辨識 (20 FPS)</span>
+        <span id="metric-power-mode">高速辨識 (18 FPS)</span>
       </div>
-      <div class="telemetry-chip" title="相較傳統 CNN 模型節省之運算與電力比例">
+      <div class="telemetry-chip kiosk-admin-only" title="相較傳統 CNN 模型節省之運算與電力比例">
         <span>節能效率</span>
-        <strong id="metric-energy-saved">94% 省電</strong>
+        <strong id="metric-energy-saved">95% 省電</strong>
       </div>
-      <div class="telemetry-chip" title="已建檔可辨識產品數 / 連線設備數">
+      <div class="telemetry-chip kiosk-admin-only" title="已建檔可辨識產品數 / 連線設備數">
         <span>產品庫</span>
         <strong id="metric-product-count">5 筆</strong>
       </div>
+      <button type="button" class="btn btn-secondary btn-sm" id="btn-role-toggle" title="切換店長後台模式 / 顧客純掃描自助模式">
+        🔓 店長模式
+      </button>
     </div>
 
     <!-- Primary Mode Tabs -->
@@ -48,14 +52,14 @@
       <button type="button" class="mode-tab active" data-tab="scan" id="tab-btn-scan">
         <span>🔍 即時掃描辨識</span>
       </button>
-      <button type="button" class="mode-tab" data-tab="register" id="tab-btn-register">
+      <button type="button" class="mode-tab kiosk-admin-only" data-tab="register" id="tab-btn-register">
         <span>📸 相機拍照建檔</span>
       </button>
-      <button type="button" class="mode-tab" data-tab="inventory" id="tab-btn-inventory">
+      <button type="button" class="mode-tab kiosk-admin-only" data-tab="inventory" id="tab-btn-inventory">
         <span>📦 即時庫存管理</span>
         <span class="tab-badge" id="nav-inv-count">5</span>
       </button>
-      <button type="button" class="mode-tab" data-tab="devices" id="tab-btn-devices">
+      <button type="button" class="mode-tab kiosk-admin-only" data-tab="devices" id="tab-btn-devices">
         <span>📹 設備與監控接入</span>
       </button>
     </nav>
@@ -76,32 +80,32 @@
           <label class="btn btn-primary btn-sm" for="native-scan-input" style="cursor:pointer;">
             🔍 手機拍照掃描
           </label>
-          <label class="btn btn-secondary btn-sm" for="native-camera-input" id="quick-snap-register-btn" style="cursor:pointer;">
+          <label class="btn btn-secondary btn-sm kiosk-admin-only" for="native-camera-input" id="quick-snap-register-btn" style="cursor:pointer;">
             📸 手機拍照建檔
           </label>
         </div>
       </div>
 
       <div class="panel-body">
-        <!-- Prominent Mobile Camera Direct Trigger Bar (100% compatible with Android file:// & https://) -->
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+        <!-- Prominent Mobile Camera Direct Trigger Bar (100% compatible with Android APK, file:// & https://) -->
+        <div class="mobile-cam-trigger-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
           <label for="native-scan-input" class="btn btn-primary" style="cursor:pointer; padding:10px; font-size:13px; text-align:center;">
             🔍 點此開手機相機：拍照掃描商品
           </label>
-          <label for="native-camera-input" class="btn btn-secondary" style="cursor:pointer; padding:10px; font-size:13px; text-align:center; border-color:var(--accent-primary);">
+          <label for="native-camera-input" class="btn btn-secondary kiosk-admin-only" style="cursor:pointer; padding:10px; font-size:13px; text-align:center; border-color:var(--accent-primary);">
             📸 點此開手機相機：拍照建檔新商品
           </label>
         </div>
 
         <!-- 4 Video Source Modes: Virtual Stage, Live Camera (WebRTC), IP Cam / CCTV, Photo -->
         <div class="source-switcher" role="group" aria-label="影像輸入來源選擇">
-          <button type="button" class="source-btn active" data-source="virtual" id="src-btn-virtual">
+          <button type="button" class="source-btn active kiosk-admin-only" data-source="virtual" id="src-btn-virtual">
             🎭 擬真鏡頭舞台
           </button>
           <button type="button" class="source-btn" data-source="webcam" id="src-btn-webcam">
             📱 即時連續鏡頭
           </button>
-          <button type="button" class="source-btn" data-source="ipcam" id="src-btn-ipcam">
+          <button type="button" class="source-btn kiosk-admin-only" data-source="ipcam" id="src-btn-ipcam">
             📹 監控/IP攝影機
           </button>
           <label for="native-scan-input" class="source-btn" id="src-btn-photo" style="cursor:pointer; display:block;">
@@ -278,7 +282,7 @@
             <p style="font-size:13px; color:var(--text-secondary); margin-top:6px; margin-bottom:14px;">
               未掃描到庫存中的商品
             </p>
-            <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+            <div class="kiosk-admin-only" style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
               <button type="button" class="btn btn-primary btn-sm" id="btn-instant-register">
                 ⚡ 一鍵立即建檔此商品
               </button>
@@ -393,9 +397,16 @@
           <div class="panel-title">
             <span>📦 即時庫存清單與盤點</span>
           </div>
-          <div style="display:flex; gap:6px;">
-            <button type="button" class="btn btn-secondary btn-sm" id="btn-export-inventory" title="匯出 JSON 備份">
-              ⬇️ 匯出資料
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <input type="file" id="inv-import-input" accept=".json,.csv" class="hidden" />
+            <label for="inv-import-input" class="btn btn-secondary btn-sm" id="btn-import-inventory" style="cursor:pointer;" title="匯入 JSON 或 CSV 商品檔">
+              📂 匯入
+            </label>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-export-csv" title="匯出 Excel 相容 CSV 報表">
+              📊 CSV
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-export-inventory" title="匯出完整 JSON 備份">
+              ⬇️ JSON
             </button>
             <button type="button" class="btn btn-secondary btn-sm" id="btn-reset-demo" title="重置回預設展示商品庫">
               🔄 重置預設庫
@@ -511,15 +522,32 @@
 
         <!-- Recent Order / Receipt History -->
         <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border-subtle);">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:6px; flex-wrap:wrap;">
             <h3 style="font-size:13px; font-weight:700; color:var(--text-secondary);">🧾 即時結帳明細紀錄</h3>
-            <span style="font-size:12px; font-family:var(--font-mono); color:var(--accent-primary);" id="today-revenue-text">今日營收: NT$ 0</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span style="font-size:12px; font-family:var(--font-mono); color:var(--accent-primary);" id="today-revenue-text">今日營收: NT$ 0</span>
+              <button type="button" class="btn btn-secondary btn-sm kiosk-admin-only" id="btn-export-orders-csv" style="padding:2px 7px; font-size:11px;" title="匯出訂單明細 CSV">📊 帳務</button>
+            </div>
           </div>
           <div id="orders-history-list" style="display:flex; flex-direction:column; gap:6px; max-height:190px; overflow-y:auto;"></div>
         </div>
       </div>
     </aside>
   </main>
+
+  <!-- Printable Electronic Receipt Modal -->
+  <div id="receipt-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="receipt-modal-title">
+    <div class="receipt-card">
+      <div class="receipt-no-print" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <strong id="receipt-modal-title" style="font-size:14px;">🧾 電子交易憑證 / 收據明細</strong>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-close-receipt">關閉</button>
+      </div>
+      <div class="receipt-paper" id="receipt-paper-content"></div>
+      <div class="receipt-no-print" style="display:flex; gap:8px; margin-top:12px;">
+        <button type="button" class="btn btn-primary" style="flex:1;" id="btn-print-receipt">🖨️ 列印 / 儲存收據</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Toast Notifications Container -->
   <div class="toast-stack" id="toast-stack" aria-live="polite"></div>

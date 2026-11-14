@@ -46,6 +46,7 @@
     xSrcOffset: new Int32Array(SAMPLE_SIZE),
     lumGrid: new Float32Array(PIXEL_COUNT),
     centerWeights: new Float32Array(PIXEL_COUNT),
+    borderMask: new Uint8Array(PIXEL_COUNT),
     innerCoreMask: new Uint8Array(PIXEL_COUNT),
     zoneBaseLUT: new Uint8Array(PIXEL_COUNT),
     ringIdxLUT: new Uint8Array(PIXEL_COUNT),
@@ -54,6 +55,7 @@
     quadWeightsLUT: new Float32Array(PIXEL_COUNT * 4),
     invTotalWeight: 1,
     invInnerWeight: 1,
+    invBorderCount: 1,
     invRingWeights: new Float32Array(3),
     invQuadWeights: new Float32Array(4),
     invEdgeRingCounts: new Float32Array(8),
@@ -62,12 +64,13 @@
     motionInitialized: false
   };
 
-  // Precompute all polar distances, zone masks, concentric ring weights, and bilinear quadrant weights ONCE
+  // Precompute all polar distances, zone masks, border background ring, concentric ring weights, and bilinear quadrant weights ONCE
   (function initSpatialLUTs() {
     const half = (SAMPLE_SIZE - 1) * 0.5; // 31.5
     const invRadiusSq = 1 / (half * half * 1.35);
     let totalW = 0;
     let innerW = 0;
+    let borderCnt = 0;
     const ringSums = new Float32Array(3);
     const quadSums = new Float32Array(4);
     const edgeRingCounts = new Float32Array(8);
@@ -76,6 +79,7 @@
       const dy = y - half;
       const fy = y / 63.0;
       const rowOffset = y * SAMPLE_SIZE;
+      const isBorderY = y < 4 || y >= SAMPLE_SIZE - 4;
       for (let x = 0; x < SAMPLE_SIZE; x++) {
         const dx = x - half;
         const fx = x / 63.0;
@@ -86,6 +90,11 @@
 
         arena.centerWeights[i] = w;
         totalW += w;
+
+        if (isBorderY || x < 4 || x >= SAMPLE_SIZE - 4) {
+          arena.borderMask[i] = 1;
+          borderCnt++;
+        }
 
         if (distSq <= 440) {
           arena.innerCoreMask[i] = 1;
@@ -122,6 +131,7 @@
 
     arena.invTotalWeight = 1.0 / (totalW || 1);
     arena.invInnerWeight = 1.0 / (innerW || 1);
+    arena.invBorderCount = 1.0 / (borderCnt || 1);
     for (let r = 0; r < 3; r++) arena.invRingWeights[r] = 1.0 / (ringSums[r] || 1);
     for (let q = 0; q < 4; q++) arena.invQuadWeights[q] = 1.0 / (quadSums[q] || 1);
     for (let e = 0; e < 8; e++) arena.invEdgeRingCounts[e] = 1.0 / (edgeRingCounts[e] || 1);
@@ -278,15 +288,17 @@
 
     const lumGrid = arena.lumGrid;
     const weights = arena.centerWeights;
+    const borderMask = arena.borderMask;
     const innerMask = arena.innerCoreMask;
     const zoneLUT = arena.zoneBaseLUT;
     const ringLUT = arena.ringIdxLUT;
     const quadLUT = arena.quadWeightsLUT;
     const inv255 = 1.0 / 255.0;
 
-    // 1. Global & Inner Core color/luminance statistics (Zero sqrt, LUT-masked)
+    // 1. Global, Inner Core & Outer Border Background statistics (Zero sqrt, LUT-masked)
     let meanR = 0, meanG = 0, meanB = 0, meanLum = 0, meanSat = 0;
     let innerR = 0, innerG = 0, innerB = 0, innerLum = 0, innerSat = 0;
+    let bgR = 0, bgG = 0, bgB = 0;
 
     for (let i = 0; i < PIXEL_COUNT; i++) {
       const p = i << 2;
@@ -307,6 +319,12 @@
       meanLum += lum * w;
       meanSat += sat * w;
 
+      if (borderMask[i]) {
+        bgR += r;
+        bgG += g;
+        bgB += b;
+      }
+
       if (innerMask[i]) {
         innerR += r * w;
         innerG += g * w;
@@ -323,6 +341,11 @@
     meanLum *= invW;
     meanSat *= invW;
 
+    const invBg = arena.invBorderCount;
+    bgR *= invBg;
+    bgG *= invBg;
+    bgB *= invBg;
+
     const invInnerW = arena.invInnerWeight;
     innerR *= invInnerW;
     innerG *= invInnerW;
@@ -330,16 +353,53 @@
     innerLum *= invInnerW;
     innerSat *= invInnerW;
 
-    // 2. Single-Pass LUT-Driven Histogram + Radial Rings + Overlapping Quadrants (Zero heap allocations)
+    // Saturation-Damped Von Kries Gray-World White-Balance Gain (neutralizes 2700K/6500K lighting cast
+    // while preserving pure saturated packaging colors)
+    const avgGray = (meanR + meanG + meanB) * 0.3333333;
+    let gainR = 1.0, gainG = 1.0, gainB = 1.0;
+    if (avgGray > 0.05 && avgGray < 0.94 && meanSat < 0.58) {
+      const damp = 0.48 * (1.0 - Math.min(1.0, meanSat * 1.4));
+      gainR = Math.max(0.80, Math.min(1.25, 1.0 + damp * ((avgGray / (meanR + 0.02)) - 1.0)));
+      gainG = Math.max(0.80, Math.min(1.25, 1.0 + damp * ((avgGray / (meanG + 0.02)) - 1.0)));
+      gainB = Math.max(0.80, Math.min(1.25, 1.0 + damp * ((avgGray / (meanB + 0.02)) - 1.0)));
+    }
+
+    const wbMeanR = Math.min(1.0, meanR * gainR);
+    const wbMeanG = Math.min(1.0, meanG * gainG);
+    const wbMeanB = Math.min(1.0, meanB * gainB);
+    const wbBgR = Math.min(1.0, bgR * gainR);
+    const wbBgG = Math.min(1.0, bgG * gainG);
+    const wbBgB = Math.min(1.0, bgB * gainB);
+
+    // Measure foreground-vs-border contrast strength (if uniform full-frame close-up, saliency modulation stays neutral)
+    const coreBgDelta =
+      Math.abs(innerR * gainR - wbBgR) +
+      Math.abs(innerG * gainG - wbBgG) +
+      Math.abs(innerB * gainB - wbBgB);
+    const useSaliency = coreBgDelta > 0.14;
+
+    // 2. Single-Pass White-Balanced + Foreground-Saliency-Weighted Histogram + Rings + Quadrants
     let varRG = 0, varYB = 0, varLum = 0, varSat = 0;
 
     for (let i = 0; i < PIXEL_COUNT; i++) {
       const p = i << 2;
-      const r = rgba[p] * inv255;
-      const g = rgba[p + 1] * inv255;
-      const b = rgba[p + 2] * inv255;
+      let r = rgba[p] * inv255 * gainR;
+      let g = rgba[p + 1] * inv255 * gainG;
+      let b = rgba[p + 2] * inv255 * gainB;
+      if (r > 1.0) r = 1.0;
+      if (g > 1.0) g = 1.0;
+      if (b > 1.0) b = 1.0;
+
       const lum = lumGrid[i];
-      const w = weights[i];
+      let sal = 1.0;
+      if (useSaliency) {
+        const dR = r - wbBgR;
+        const dG = g - wbBgG;
+        const dB = b - wbBgB;
+        const bgDiff = (dR < 0 ? -dR : dR) + (dG < 0 ? -dG : dG) + (dB < 0 ? -dB : dB);
+        sal = 0.72 + 0.56 * (bgDiff < 0.5 ? bgDiff * 2.0 : 1.0);
+      }
+      const w = weights[i] * sal;
 
       const maxC = r > g ? (r > b ? r : b) : (g > b ? g : b);
       const minC = r < g ? (r < b ? r : b) : (g < b ? g : b);
@@ -385,9 +445,9 @@
 
       const rg = r - g;
       const yb = 0.5 * (r + g) - b;
-      const relR = r - meanR;
-      const relG = g - meanG;
-      const relB = b - meanB;
+      const relR = r - wbMeanR;
+      const relG = g - wbMeanG;
+      const relB = b - wbMeanB;
       const relL = lum - meanLum;
       const relS = sat - meanSat;
       const absL = relL < 0 ? -relL : relL;
@@ -410,10 +470,10 @@
 
       // Part B2 [72..95]: Unrolled Bilinear 2x2 Overlapping Quadrants (Zero array allocation!)
       const qIdx = i << 2;
-      const qw0 = quadLUT[qIdx];
-      const qw1 = quadLUT[qIdx + 1];
-      const qw2 = quadLUT[qIdx + 2];
-      const qw3 = quadLUT[qIdx + 3];
+      const qw0 = quadLUT[qIdx] * sal;
+      const qw1 = quadLUT[qIdx + 1] * sal;
+      const qw2 = quadLUT[qIdx + 2] * sal;
+      const qw3 = quadLUT[qIdx + 3] * sal;
 
       vec[72] += rg * qw0; vec[73] += yb * qw0; vec[74] += relR * qw0; vec[75] += relG * qw0; vec[76] += relB * qw0; vec[77] += relL * qw0;
       vec[78] += rg * qw1; vec[79] += yb * qw1; vec[80] += relR * qw1; vec[81] += relG * qw1; vec[82] += relB * qw1; vec[83] += relL * qw1;
@@ -582,12 +642,40 @@
     return keptRaw;
   }
 
+  // Contiguous Float32 Centroid Matrix Index for 10,000+ SKU L1-cache sequential scanning
+  let _flatIndex = {
+    count: 0,
+    stampSum: 0,
+    matrix: null,
+    productsRef: null
+  };
+
+  function ensureFlatCatalogIndex(products) {
+    const n = products.length;
+    if (n < 32) return null; // Below 32 items, direct object cache is already < 0.03 ms
+    let stampSum = 0;
+    for (let i = 0; i < n; i++) {
+      stampSum += (products[i].updatedAt || 0) + ((products[i].descriptors && products[i].descriptors.length) || 0);
+    }
+    if (_flatIndex.productsRef === products && _flatIndex.count === n && _flatIndex.stampSum === stampSum && _flatIndex.matrix) {
+      return _flatIndex.matrix;
+    }
+    const matrix = new Float32Array(n * DESCRIPTOR_DIM);
+    for (let i = 0; i < n; i++) {
+      ensureProductCache(products[i]);
+      const c = products[i]._centroid;
+      if (c) matrix.set(c, i * DESCRIPTOR_DIM);
+    }
+    _flatIndex = { count: n, stampSum, matrix, productsRef: products };
+    return matrix;
+  }
+
   /**
-   * Two-Stage Coarse-to-Fine Cascade Product Matcher:
-   * Stage 1: Evaluates primary 1.0x query against cached Float32 descriptors (with centroid pruning).
-   *          If confident match (>= 0.82) or blank scene (< 0.20), skips 4 extra multi-scale crops (saves 80% CPU).
-   * Stage 2: On boundary/shifted handheld views, lazily computes 4 multi-scale/shift queries from the already-read
-   *          CPU atlas and refines top candidates.
+   * Hybrid Barcode + Two-Stage Coarse-to-Fine Cascade Product Matcher:
+   * - Stage 0: Instant deterministic Barcode / QR / SKU lock (100% confidence in < 0.01 ms).
+   * - Stage 1: Evaluates primary 1.0x query against flat centroid matrix / cached Float32 descriptors.
+   * - Stage 2: Lazily computes 4 multi-scale/shift queries only in handheld shift zone [0.20, 0.82).
+   * - Stage 3: Applies distinctiveness margin gate to reject ambiguous lookalike false snaps.
    */
   function matchProducts(liveDescriptor, products, threshold = 0.80, queryDescriptorsOrGetter = null, options = {}) {
     let bestProduct = null;
@@ -595,10 +683,37 @@
     let secondBestScore = -1;
     const candidates = [];
 
+    // Stage 0: Exact Barcode / QR / SKU match
+    const detectedBarcode = options.detectedBarcode ? String(options.detectedBarcode).trim() : '';
+    if (detectedBarcode && Array.isArray(products)) {
+      const codeLower = detectedBarcode.toLowerCase();
+      for (let i = 0; i < products.length; i++) {
+        const p = products[i];
+        if (
+          (p.barcode && String(p.barcode).trim().toLowerCase() === codeLower) ||
+          (p.sku && String(p.sku).trim().toLowerCase() === codeLower)
+        ) {
+          ensureProductCache(p);
+          return {
+            matched: true,
+            exactBarcode: true,
+            matchedByBarcode: true,
+            barcodeValue: detectedBarcode,
+            product: p,
+            bestCandidate: p,
+            similarity: 1.0,
+            margin: 1.0,
+            topCandidates: [{ product: p, similarity: 1.0 }]
+          };
+        }
+      }
+    }
+
     const sourceMode = options.sourceMode || 'virtual';
     const activeVirtualPresetId = options.virtualPresetId || null;
     const isRealCameraMode = sourceMode === 'photo' || sourceMode === 'webcam';
     const primaryVec = typeof liveDescriptor === 'string' ? unpackDescriptor(liveDescriptor) : liveDescriptor;
+    const flatMatrix = Array.isArray(products) ? ensureFlatCatalogIndex(products) : null;
 
     // Stage 1: Primary Query Pass across all eligible products
     for (let i = 0; i < products.length; i++) {
@@ -615,9 +730,17 @@
       const f32List = ensureProductCache(p);
       if (!f32List || f32List.length === 0 || !primaryVec) continue;
 
-      // Fast centroid pre-check when product has >= 4 samples
+      // Fast centroid pre-check (via contiguous flat matrix on large catalogs, or per-product _centroid)
       let maxSim = -1;
-      if (f32List.length >= 4 && p._centroid) {
+      if (flatMatrix) {
+        let cDot = 0;
+        const base = i * DESCRIPTOR_DIM;
+        for (let k = 0; k < DESCRIPTOR_DIM; k++) cDot += primaryVec[k] * flatMatrix[base + k];
+        if (cDot < 0.16) {
+          if (cDot > 0) candidates.push({ product: p, similarity: cDot });
+          continue;
+        }
+      } else if (f32List.length >= 4 && p._centroid) {
         let cDot = 0;
         const cVec = p._centroid;
         for (let k = 0; k < DESCRIPTOR_DIM; k++) cDot += primaryVec[k] * cVec[k];
@@ -681,13 +804,22 @@
       ? Math.min(threshold, 0.64)
       : (bestProduct && (bestProduct.isCameraRegistered || !bestProduct.virtualPresetId) ? Math.min(threshold, 0.68) : threshold);
 
-    const isMatched = bestProduct !== null && bestScore >= effectiveThreshold;
+    const margin = bestScore - Math.max(0, secondBestScore);
+    // Distinctiveness Margin Gate: when >=2 distinct products compete near the threshold, require >=0.020 margin
+    const passesMarginGate =
+      candidates.length < 2 ||
+      bestScore >= 0.94 ||
+      margin >= 0.020;
+
+    const isMatched = bestProduct !== null && bestScore >= effectiveThreshold && passesMarginGate;
     return {
       matched: isMatched,
+      exactBarcode: false,
+      matchedByBarcode: false,
       product: isMatched ? bestProduct : null,
       bestCandidate: bestProduct,
       similarity: bestScore > 0 ? bestScore : 0,
-      margin: bestScore - Math.max(0, secondBestScore),
+      margin,
       topCandidates: candidates.slice(0, 3)
     };
   }
@@ -1413,6 +1545,55 @@
     img.src = dataUrl;
   }
 
+  // Non-blocking Hardware Barcode / QR Code Detector (parallel Stage-0 exact match accelerator)
+  let barcodeDetectorInstance = null;
+  let barcodeDetectorSupported = null;
+  let barcodeInFlight = false;
+
+  function initBarcodeDetector() {
+    if (barcodeDetectorSupported !== null) return barcodeDetectorInstance;
+    if (typeof global.BarcodeDetector !== 'function') {
+      barcodeDetectorSupported = false;
+      return null;
+    }
+    try {
+      barcodeDetectorInstance = new global.BarcodeDetector({
+        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code']
+      });
+      barcodeDetectorSupported = true;
+    } catch (_) {
+      try {
+        barcodeDetectorInstance = new global.BarcodeDetector();
+        barcodeDetectorSupported = true;
+      } catch (_e2) {
+        barcodeDetectorSupported = false;
+        barcodeDetectorInstance = null;
+      }
+    }
+    return barcodeDetectorInstance;
+  }
+
+  async function detectBarcode(sourceElem) {
+    if (!sourceElem || barcodeInFlight) return null;
+    const detector = initBarcodeDetector();
+    if (!detector) return null;
+    barcodeInFlight = true;
+    try {
+      const codes = await detector.detect(sourceElem);
+      if (Array.isArray(codes) && codes.length > 0 && codes[0].rawValue) {
+        return {
+          rawValue: String(codes[0].rawValue).trim(),
+          format: codes[0].format || 'unknown'
+        };
+      }
+    } catch (_) {
+      // Ignore frame readiness / unsupported source errors gracefully
+    } finally {
+      barcodeInFlight = false;
+    }
+    return null;
+  }
+
   global.VisionEngine = {
     SAMPLE_SIZE,
     ATLAS_SIZE,
@@ -1423,9 +1604,11 @@
     packDescriptorInt8,
     unpackDescriptor,
     ensureProductCache,
+    ensureFlatCatalogIndex,
     deduplicateDescriptors,
     cosineSimilarity144,
     matchProducts,
+    detectBarcode,
     computeMotionDelta,
     resetMotionGate,
     encodeThumbnail128,

@@ -58,6 +58,7 @@ const minCss = compactCss(rawCss);
 const minEngine = compactJsSafe(rawEngine, 'vision-engine.js');
 const minApp = compactJsSafe(rawApp, 'app.js');
 
+html = html.replace('<link rel="icon" href="/icon.svg" type="image/svg+xml" />', '');
 html = html.replace('<link rel="manifest" href="/manifest.json" />', '');
 html = html.replace('<link rel="stylesheet" href="/css/styles.css" />', () => '<style>\n' + minCss + '\n</style>');
 html = html.replace('<script src="/js/vision-engine.js"></script>', () => '<script>\n' + minEngine + '\n</script>');
