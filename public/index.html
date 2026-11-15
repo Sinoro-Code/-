@@ -11,10 +11,6 @@
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
 <body>
-  <!-- Hidden Native Camera Inputs (Used for high-res photo scan & registration capture across all Android phones) -->
-  <input type="file" id="native-scan-input" accept="image/*" capture="environment" class="hidden" />
-  <input type="file" id="native-camera-input" accept="image/*" capture="environment" class="hidden" />
-
   <!-- Merchant 2-Function Workspace: Optical Viewport directly at the top (Zero blocks above Optical Viewport) -->
   <main class="merchant-workspace">
     <!-- SECTION 1: Direct Top Optical Viewport -->
@@ -147,15 +143,12 @@
               <button type="button" class="btn btn-primary" id="btn-jump-register">
                 📸 擷取目前畫面並建檔
               </button>
-              <label for="native-camera-input" class="btn btn-secondary" style="cursor:pointer;">
-                📷 開啟系統相機拍照建檔
-              </label>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- VIEW 2: 商品建檔 (Merchant Product Registration Form) -->
+      <!-- VIEW 2: 庫存 (Merchant Product Inventory & Registration Form) -->
       <div id="view-register" class="tab-view hidden">
         <div class="panel">
           <div class="panel-body">
@@ -174,9 +167,6 @@
                   <button type="button" class="btn btn-primary btn-sm" id="btn-capture-frame">
                     📸 擷取目前鏡頭畫面
                   </button>
-                  <label for="native-camera-input" class="btn btn-secondary btn-sm" style="cursor:pointer;">
-                    📷 系統相機實拍
-                  </label>
                   <button type="button" class="btn btn-secondary btn-sm" id="btn-add-angle-sample">
                     ➕ 補拍角度 (+1)
                   </button>

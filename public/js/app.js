@@ -50,17 +50,14 @@
     regThumbnail: '',
     regManualCaptured: false,
     lastLiveRegPreviewTime: 0,
-    pendingAngleAppend: false,
-    pendingAngleProductId: '',
 
-    // Webcam & Native Photo State
+    // Webcam State
     mediaStream: null,
     facingMode: 'environment',
     selectedDeviceId: '',
     resolutionHeight: 480,
     torchOn: false,
     autoPausedWebcamInBg: false,
-    hasLoadedPhoto: false,
 
     // 2-Tap Armed Confirmation State
     armedConfirmMap: {},
@@ -75,20 +72,10 @@
     connectedNodes: 1
   };
 
-  // Pre-allocated 640x480 buffer canvas so 12MP/50MP mobile camera photos are downscaled ONCE
-  var photoBufferCanvas = document.createElement('canvas');
-  photoBufferCanvas.width = 640;
-  photoBufferCanvas.height = 480;
-  var photoBufferCtx = photoBufferCanvas.getContext('2d', {
-    alpha: false,
-    desynchronized: true
-  });
-
   // Exact DOM Elements cache matching public/index.html
   var el = {};
   function bindElements() {
     var ids = [
-      'native-scan-input', 'native-camera-input',
       'viewport-container', 'camera-video', 'stage-canvas',
       'hud-scan-dot', 'hud-live-badge', 'btn-toggle-torch',
       'roi-reticle',
@@ -559,16 +546,11 @@
     clearBgCameraReleaseTimer();
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      state.sourceMode = state.hasLoadedPhoto ? 'photo' : 'standby';
+      state.sourceMode = 'standby';
       renderStageCanvasFrame();
       updateHudCameraStatus();
       if (!isSilentOrAuto) {
-        showToast('📱 此環境不支援連續串流，已開啟系統相機拍照模式', 'warn');
-        if (state.activeTab === 'register' && el['native-camera-input']) {
-          el['native-camera-input'].click();
-        } else if (el['native-scan-input']) {
-          el['native-scan-input'].click();
-        }
+        showToast('⚠️ 此環境不支援即時相機串流', 'warn');
       }
       return;
     }
@@ -687,19 +669,14 @@
         showToast('✅ 已啟動即時辨識');
       }
     } catch (_) {
-      state.sourceMode = state.hasLoadedPhoto ? 'photo' : 'standby';
+      state.sourceMode = 'standby';
       if (el['camera-video']) el['camera-video'].classList.add('hidden');
       if (el['stage-canvas']) el['stage-canvas'].classList.remove('hidden');
       renderStageCanvasFrame();
       updateHudCameraStatus();
 
       if (!isSilentOrAuto) {
-        showToast('📱 無法開啟連續串流，已切換至系統相機拍照模式', 'warn');
-        if (state.activeTab === 'register' && el['native-camera-input']) {
-          el['native-camera-input'].click();
-        } else if (el['native-scan-input']) {
-          el['native-scan-input'].click();
-        }
+        showToast('⚠️ 無法存取相機鏡頭，請確認已允許相機權限', 'warn');
       }
     }
   }
@@ -751,11 +728,6 @@
     var w = canvas.width;
     var h = canvas.height;
 
-    if (state.sourceMode === 'photo' && state.hasLoadedPhoto) {
-      ctx.drawImage(photoBufferCanvas, 0, 0);
-      return;
-    }
-
     // Clean Merchant Camera Standby Canvas (Zero fake demo items)
     var grad = ctx.createRadialGradient(w * 0.5, h * 0.48, 24, w * 0.5, h * 0.5, w * 0.72);
     grad.addColorStop(0, '#131c2b');
@@ -789,18 +761,12 @@
   }
 
   function hasValidOpticalSource() {
-    if (
+    return Boolean(
       state.sourceMode === 'webcam' &&
       state.mediaStream &&
       el['camera-video'] &&
       el['camera-video'].readyState >= 2
-    ) {
-      return true;
-    }
-    if (state.sourceMode === 'photo' && state.hasLoadedPhoto) {
-      return true;
-    }
-    return false;
+    );
   }
 
   // Exact 4:3 object-fit:cover ROI mapping aligned with .roi-reticle
@@ -886,17 +852,14 @@
     var isLiveActive = isContinuousSourceActive();
 
     if (liveBadge) {
-      liveBadge.classList.toggle(
-        'active',
-        isLiveActive || (state.sourceMode === 'photo' && state.hasLoadedPhoto)
-      );
+      liveBadge.classList.toggle('active', isLiveActive);
     }
 
     if (!dot) return;
     if (
       state.autoPausedWebcamInBg ||
       document.hidden ||
-      (!isLiveActive && !(state.sourceMode === 'photo' && state.hasLoadedPhoto)) ||
+      !isLiveActive ||
       state.isEcoSleeping ||
       state.lowBatteryMode
     ) {
@@ -1245,7 +1208,7 @@
     renderStageCanvasFrame();
     if (!hasValidOpticalSource()) {
       if (el['reg-descriptor-status']) {
-        el['reg-descriptor-status'].textContent = '請先開啟即時鏡頭或系統相機實拍';
+        el['reg-descriptor-status'].textContent = '等待即時鏡頭畫面就緒';
       }
       return false;
     }
@@ -1275,8 +1238,7 @@
       el['reg-sample-count'].textContent = '樣本: ' + state.regDescriptors.length + ' 組';
     }
     if (el['reg-descriptor-status']) {
-      el['reg-descriptor-status'].textContent =
-        state.sourceMode === 'photo' ? '已擷取相片 144 維特徵' : '已鎖定畫面 144 維特徵';
+      el['reg-descriptor-status'].textContent = '已鎖定畫面 144 維特徵';
     }
 
     // Pre-fill detected barcode if barcode input is currently blank
@@ -1552,10 +1514,8 @@
     if (!product) return;
     renderStageCanvasFrame();
     if (!hasValidOpticalSource()) {
-      if (el['native-camera-input']) {
-        state.pendingAngleProductId = product.id;
-        el['native-camera-input'].click();
-      }
+      if (!state.mediaStream) startWebcamStream(true);
+      showToast('⚠️ 相機尚未就緒，請確認已允許相機權限', 'warn');
       return;
     }
 
@@ -1672,68 +1632,6 @@
   }
 
   // ==========================================================================
-  // High-Res Native Mobile Photo Loader (EXIF-aware createImageBitmap + Fallback)
-  // ==========================================================================
-  function drawSourceOntoPhotoBuffer(imgOrBitmap) {
-    var srcW = imgOrBitmap.naturalWidth || imgOrBitmap.width || 640;
-    var srcH = imgOrBitmap.naturalHeight || imgOrBitmap.height || 480;
-    var w = photoBufferCanvas.width;
-    var h = photoBufferCanvas.height;
-    photoBufferCtx.fillStyle = '#090d14';
-    photoBufferCtx.fillRect(0, 0, w, h);
-    var scale = Math.max(w / srcW, h / srcH);
-    var dw = srcW * scale;
-    var dh = srcH * scale;
-    photoBufferCtx.drawImage(imgOrBitmap, (w - dw) * 0.5, (h - dh) * 0.5, dw, dh);
-  }
-
-  async function loadMobilePhotoToBuffer(file, onComplete) {
-    if (!file) return;
-
-    if (typeof createImageBitmap === 'function') {
-      try {
-        var bitmap;
-        try {
-          bitmap = await createImageBitmap(file, {
-            resizeWidth: 720,
-            resizeQuality: 'low',
-            imageOrientation: 'from-image'
-          });
-        } catch (_) {
-          bitmap = await createImageBitmap(file);
-        }
-        drawSourceOntoPhotoBuffer(bitmap);
-        if (typeof bitmap.close === 'function') bitmap.close();
-        stopWebcamStream();
-        state.sourceMode = 'photo';
-        state.hasLoadedPhoto = true;
-        renderStageCanvasFrame();
-        updateHudCameraStatus();
-        if (typeof onComplete === 'function') onComplete();
-        return;
-      } catch (_) {}
-    }
-
-    var objUrl = URL.createObjectURL(file);
-    var img = new Image();
-    img.onload = function () {
-      drawSourceOntoPhotoBuffer(img);
-      URL.revokeObjectURL(objUrl);
-      stopWebcamStream();
-      state.sourceMode = 'photo';
-      state.hasLoadedPhoto = true;
-      renderStageCanvasFrame();
-      updateHudCameraStatus();
-      if (typeof onComplete === 'function') onComplete();
-    };
-    img.onerror = function () {
-      URL.revokeObjectURL(objUrl);
-      showToast('相片讀取失敗，請重試一次', 'danger');
-    };
-    img.src = objUrl;
-  }
-
-  // ==========================================================================
   // Tab Switching & Event Bindings
   // ==========================================================================
   function switchTab(tabName, skipAutoCapture) {
@@ -1790,126 +1688,11 @@
       });
     }
 
-    // 3. Native Photo Scan Input (📷 拍照 -> Match Registered Product or Show 未建檔)
-    if (el['native-scan-input']) {
-      el['native-scan-input'].addEventListener('change', function (e) {
-        var file = e.target.files && e.target.files[0];
-        if (!file) return;
-        loadMobilePhotoToBuffer(file, async function () {
-          switchTab('scan', true);
-          var sourceElem = getActiveVideoSourceElement();
-          var detectedCode = '';
-          if (typeof VisionEngine.detectBarcode === 'function') {
-            var codeObj = await VisionEngine.detectBarcode(sourceElem);
-            if (codeObj && codeObj.rawValue) {
-              detectedCode = codeObj.rawValue;
-              state.lastDetectedBarcode = detectedCode;
-              state.lastBarcodeTime = Date.now();
-            }
-          }
-          var sig = VisionEngine.captureFrameSignature(sourceElem, getRoiRect(sourceElem), false);
-          var matchRes = VisionEngine.matchProducts(
-            sig.descriptor,
-            state.products,
-            state.threshold,
-            sig.queryDescriptors,
-            { sourceMode: 'photo', virtualPresetId: null, detectedBarcode: detectedCode }
-          );
-
-          state.liveDescriptor = sig.descriptor;
-          state.currentMatch = matchRes.matched ? matchRes.product : null;
-          state.currentSimilarity = matchRes.similarity;
-          state.topCandidates = matchRes.topCandidates || [];
-          state.matchHistory = matchRes.product ? [matchRes.product.id, matchRes.product.id] : [null, null];
-
-          invalidateRecognitionUICache();
-          updateRecognitionUI(matchRes, detectedCode);
-
-          if (matchRes.matched && matchRes.product) {
-            triggerHaptic(30);
-            playTone(1080, 60, 'sine');
-            showToast('✅ 已建檔商品：' + matchRes.product.name);
-          } else {
-            triggerHaptic(45);
-            playTone(440, 85, 'sawtooth');
-            showToast('⚠️ 未建檔：查無此商品資料', 'warn');
-          }
-        });
-        e.target.value = '';
-      });
-    }
-
-    // 4. Native Camera Registration Input (📷 系統相機實拍 / 開啟系統相機拍照建檔 / 補拍角度)
-    if (el['native-camera-input']) {
-      el['native-camera-input'].addEventListener('change', function (e) {
-        var file = e.target.files && e.target.files[0];
-        if (!file) return;
-
-        var appendProductId = state.pendingAngleProductId;
-        var isFormAngleAppend = state.pendingAngleAppend;
-        state.pendingAngleProductId = '';
-        state.pendingAngleAppend = false;
-
-        loadMobilePhotoToBuffer(file, async function () {
-          var sourceElem = getActiveVideoSourceElement();
-
-          // Case A: Appending an extra angle directly to an already-recognized product from Scan View
-          if (appendProductId) {
-            var targetProd = state.products.find(function (p) {
-              return p.id === appendProductId;
-            });
-            if (targetProd) {
-              await appendExtraAngleToProduct(targetProd);
-              switchTab('scan', true);
-              state.currentMatch = targetProd;
-              invalidateRecognitionUICache();
-              updateRecognitionUI({
-                matched: true,
-                exactBarcode: false,
-                product: targetProd,
-                bestCandidate: targetProd,
-                similarity: 0.995,
-                margin: 1.0,
-                topCandidates: [{ product: targetProd, similarity: 0.995 }]
-              });
-              return;
-            }
-          }
-
-          // Case B: Capturing new product photo or extra angle inside Registration Form
-          if (!isFormAngleAppend && el['reg-id'] && !el['reg-id'].value) {
-            resetRegistrationForm();
-          }
-          switchTab('register', true);
-
-          if (typeof VisionEngine.detectBarcode === 'function') {
-            var codeObj = await VisionEngine.detectBarcode(sourceElem);
-            if (codeObj && codeObj.rawValue) {
-              state.lastDetectedBarcode = codeObj.rawValue;
-              state.lastBarcodeTime = Date.now();
-              if (el['reg-barcode'] && !el['reg-barcode'].value.trim()) {
-                el['reg-barcode'].value = codeObj.rawValue;
-              }
-            }
-          }
-
-          captureForRegistration(isFormAngleAppend, true);
-          if (!isFormAngleAppend && el['reg-name']) {
-            setTimeout(function () {
-              el['reg-name'].focus();
-            }, 120);
-          }
-        });
-        e.target.value = '';
-      });
-    }
-
-    // 5. Unregistered Card -> Jump to Register (📸 擷取目前畫面並建檔)
+    // 3. Unregistered Card -> Jump to Inventory Registration (📸 擷取目前畫面並建檔)
     if (el['btn-jump-register']) {
       el['btn-jump-register'].addEventListener('click', function () {
-        if (!hasValidOpticalSource() && el['native-camera-input']) {
-          el['native-camera-input'].click();
-          return;
+        if (!state.mediaStream) {
+          startWebcamStream(true);
         }
         resetRegistrationForm();
         switchTab('register', true);
@@ -1922,7 +1705,7 @@
       });
     }
 
-    // 6. Recognized Product Card Merchant Actions (-1/+1 Stock, Edit, Extra Angle, Delete)
+    // 4. Recognized Product Card Merchant Actions (-1/+1 Stock, Edit, Extra Angle, Delete)
     if (el['btn-rec-stock-minus']) {
       el['btn-rec-stock-minus'].addEventListener('click', function () {
         if (state.currentMatch) adjustProductStock(state.currentMatch.id, -1);
@@ -1941,12 +1724,7 @@
     if (el['btn-train-extra-angle']) {
       el['btn-train-extra-angle'].addEventListener('click', function () {
         if (!state.currentMatch) return;
-        if (state.sourceMode === 'webcam' && state.mediaStream) {
-          appendExtraAngleToProduct(state.currentMatch);
-        } else if (el['native-camera-input']) {
-          state.pendingAngleProductId = state.currentMatch.id;
-          el['native-camera-input'].click();
-        }
+        appendExtraAngleToProduct(state.currentMatch);
       });
     }
     if (el['btn-rec-delete']) {
@@ -1955,11 +1733,12 @@
       });
     }
 
-    // 7. Registration Form Controls
+    // 5. Inventory Registration Form Controls
     if (el['btn-capture-frame']) {
       el['btn-capture-frame'].addEventListener('click', function () {
-        if (!hasValidOpticalSource() && el['native-camera-input']) {
-          el['native-camera-input'].click();
+        if (!hasValidOpticalSource()) {
+          if (!state.mediaStream) startWebcamStream(true);
+          showToast('⚠️ 相機尚未就緒，請確認已允許相機權限', 'warn');
           return;
         }
         if (captureForRegistration(false, true)) {
@@ -1969,12 +1748,12 @@
     }
     if (el['btn-add-angle-sample']) {
       el['btn-add-angle-sample'].addEventListener('click', function () {
-        if (state.sourceMode === 'webcam' && state.mediaStream) {
-          captureForRegistration(true, true);
-        } else if (el['native-camera-input']) {
-          state.pendingAngleAppend = true;
-          el['native-camera-input'].click();
+        if (!hasValidOpticalSource()) {
+          if (!state.mediaStream) startWebcamStream(true);
+          showToast('⚠️ 相機尚未就緒，請確認已允許相機權限', 'warn');
+          return;
         }
+        captureForRegistration(true, true);
       });
     }
     if (el['btn-reset-reg-form']) {
