@@ -320,6 +320,11 @@ button {
   color: #04150e;
 }
 
+.tab-icon {
+  flex-shrink: 0;
+  display: inline-block;
+}
+
 .tab-badge {
   padding: 1px 7px;
   border-radius: 99px;

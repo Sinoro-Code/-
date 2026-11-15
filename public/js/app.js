@@ -3,8 +3,8 @@
  * Streamlined Store-Facing Edition:
  * 1. Direct Top Optical Viewport (Zero blocks above viewfinder)
  * 2. Two Core Merchant Functions ONLY:
- *    - 掃描商品 (Scan Product): Lists full product info if registered; displays "未建檔" if unregistered
- *    - 商品建檔 (Register Product): 128x128 WebP thumbnail + CCVD-144 v3 descriptors + Barcode/QR
+ *    - 掃描 (Scan): Lists full product info if registered; displays "未建檔" if unregistered
+ *    - 庫存 (Inventory): 128x128 WebP thumbnail + CCVD-144 v3 descriptors + Barcode/QR registration
  * 3. Universal Android 5.0 (API 21) – Android 15/16+ WebView & Browser Compatibility (ES6-safe)
  * 4. 10-Second Background Camera Sensor Auto-Release & 16x16 Motion-Gated Eco Power Saving
  */
@@ -1765,7 +1765,7 @@
       }
     };
 
-    // 1. Two Merchant Tabs: 掃描商品 & 商品建檔
+    // 1. Two Merchant Tabs: 掃描 & 庫存
     if (el['tab-btn-scan']) {
       el['tab-btn-scan'].addEventListener('click', function () {
         switchTab('scan', false);

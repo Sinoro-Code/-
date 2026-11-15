@@ -49,20 +49,30 @@
       </div>
     </section>
 
-    <!-- SECTION 2: Merchant Function Switcher & Active View (ONLY Scan Product & Register Product) -->
-    <section class="merchant-main-panel" aria-label="商品掃描資訊與建檔區">
-      <!-- Strictly 2 Functions: 掃描商品 & 商品建檔 -->
+    <!-- SECTION 2: Merchant Function Switcher & Active View (ONLY Scan & Inventory) -->
+    <section class="merchant-main-panel" aria-label="掃描與庫存區">
+      <!-- Strictly 2 Functions: 掃描 & 庫存 -->
       <nav class="merchant-tabs" aria-label="店家功能切換">
         <button type="button" class="merchant-tab active" data-tab="scan" id="tab-btn-scan">
-          🔍 掃描商品
+          <svg class="tab-icon scan-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <span>掃描</span>
         </button>
         <button type="button" class="merchant-tab" data-tab="register" id="tab-btn-register">
-          📸 商品建檔
+          <svg class="tab-icon inventory-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M16.5 9.4 7.55 4.24"></path>
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+            <polyline points="3.29 7 12 12 20.71 7"></polyline>
+            <line x1="12" y1="22" x2="12" y2="12"></line>
+          </svg>
+          <span>庫存</span>
           <span class="tab-badge" id="nav-inv-count">0</span>
         </button>
       </nav>
 
-      <!-- VIEW 1: 掃描商品 (If registered -> List Product Info; If unregistered -> Show 未建檔) -->
+      <!-- VIEW 1: 掃描 (If registered -> List Product Info; If unregistered -> Show 未建檔) -->
       <div id="view-scan" class="tab-view">
         <!-- Registered Product Information Card (有建檔：列出完整商品資訊) -->
         <div class="panel merchant-card hidden" id="recognized-product-card">
