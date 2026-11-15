@@ -90,8 +90,7 @@
     var ids = [
       'native-scan-input', 'native-camera-input',
       'viewport-container', 'camera-video', 'stage-canvas',
-      'hud-scan-dot', 'hud-status-text',
-      'btn-live-webcam', 'btn-flip-camera', 'btn-toggle-torch',
+      'hud-scan-dot', 'btn-live-webcam', 'btn-toggle-torch',
       'roi-reticle', 'hud-match-banner', 'hud-match-title', 'hud-match-sub',
       'hud-confidence-val', 'hud-match-price',
       'tab-btn-scan', 'tab-btn-register', 'nav-inv-count',
@@ -686,7 +685,7 @@
       updateHudCameraStatus();
       scheduleRecognition(true);
       if (!isSilentOrAuto) {
-        showToast('🎥 已開啟即時鏡頭掃描');
+        showToast('✅ 已啟動即時辨識');
       }
     } catch (_) {
       state.sourceMode = state.hasLoadedPhoto ? 'photo' : 'standby';
@@ -708,17 +707,17 @@
 
   async function toggleTorch() {
     if (!state.mediaStream) {
-      showToast('請先開啟「🎥 即時」鏡頭再切換補光燈', 'warn');
+      showToast('請先點選左上方「辨識中」啟動鏡頭再開啟閃光燈', 'warn');
       return;
     }
     var track = state.mediaStream.getVideoTracks()[0];
     if (!track || !track.getCapabilities) {
-      showToast('目前鏡頭不支援補光燈控制', 'warn');
+      showToast('目前鏡頭不支援閃光燈控制', 'warn');
       return;
     }
     var caps = track.getCapabilities();
     if (!caps.torch) {
-      showToast('此鏡頭無內建補光燈 (請確認使用後置主鏡頭)', 'warn');
+      showToast('此鏡頭無內建閃光燈', 'warn');
       return;
     }
     state.torchOn = !state.torchOn;
@@ -727,9 +726,9 @@
       if (el['btn-toggle-torch']) {
         el['btn-toggle-torch'].classList.toggle('active', state.torchOn);
       }
-      showToast(state.torchOn ? '🔦 已開啟補光燈' : '🔦 已關閉補光燈');
+      showToast(state.torchOn ? '⚡ 已開啟閃光燈' : '⚡ 已關閉閃光燈');
     } catch (_) {
-      showToast('補光燈切換失敗', 'warn');
+      showToast('閃光燈切換失敗', 'warn');
     }
   }
 
@@ -769,7 +768,7 @@
     ctx.font = '600 17px system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(
-      state.autoPausedWebcamInBg ? '省電待機中（返回畫面即自動恢復鏡頭）' : '請點選上方「🎥 即時」或「📷 拍照」開始掃描',
+      state.autoPausedWebcamInBg ? '省電待機中（返回畫面即自動恢復辨識）' : '請點選左上方「辨識中」啟動相機鏡頭',
       w * 0.5,
       h * 0.5 - 6
     );
@@ -884,33 +883,27 @@
 
   function updateHudCameraStatus() {
     var dot = el['hud-scan-dot'];
-    var txt = el['hud-status-text'];
-    if (!txt) return;
+    var liveBtn = el['btn-live-webcam'];
+    var isLiveActive = isContinuousSourceActive();
 
-    if (state.autoPausedWebcamInBg || document.hidden) {
-      if (dot) dot.className = 'status-dot eco';
-      txt.textContent = state.autoPausedWebcamInBg ? '已釋放鏡頭省電待機' : '背景休眠待機';
-      return;
+    if (liveBtn) {
+      liveBtn.classList.toggle(
+        'active',
+        isLiveActive || (state.sourceMode === 'photo' && state.hasLoadedPhoto)
+      );
     }
-    if (state.sourceMode === 'photo' && state.hasLoadedPhoto) {
-      if (dot) dot.className = 'status-dot';
-      txt.textContent = '📷 相片辨識鎖定中';
-      return;
-    }
-    if (!isContinuousSourceActive()) {
-      if (dot) dot.className = 'status-dot eco';
-      txt.textContent = '點擊 🎥 即時 或 📷 拍照';
-      return;
-    }
-    if (state.isEcoSleeping) {
-      if (dot) dot.className = 'status-dot eco';
-      txt.textContent = 'ECO 靜止省電 (移動即喚醒)';
-    } else if (state.lowBatteryMode) {
-      if (dot) dot.className = 'status-dot eco';
-      txt.textContent = '節能掃描中 (10 FPS)';
+
+    if (!dot) return;
+    if (
+      state.autoPausedWebcamInBg ||
+      document.hidden ||
+      (!isLiveActive && !(state.sourceMode === 'photo' && state.hasLoadedPhoto)) ||
+      state.isEcoSleeping ||
+      state.lowBatteryMode
+    ) {
+      dot.className = 'status-dot eco';
     } else {
-      if (dot) dot.className = 'status-dot';
-      txt.textContent = state.activeTab === 'register' ? '對準商品擷取建檔畫面' : '即時掃描辨識中';
+      dot.className = 'status-dot';
     }
   }
 
@@ -1807,16 +1800,9 @@
       });
     }
 
-    // 2. In-Viewfinder Camera Controls (🎥 即時 / 📷 拍照 / 🔄 鏡頭 / 🔦 補光)
+    // 2. In-Viewfinder Controls (Top-Left: 辨識中 / Top-Right: Flash Icon)
     if (el['btn-live-webcam']) {
       el['btn-live-webcam'].addEventListener('click', function () {
-        startWebcamStream(false);
-      });
-    }
-    if (el['btn-flip-camera']) {
-      el['btn-flip-camera'].addEventListener('click', function () {
-        state.selectedDeviceId = '';
-        state.facingMode = state.facingMode === 'environment' ? 'user' : 'environment';
         startWebcamStream(false);
       });
     }
