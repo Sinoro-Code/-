@@ -9,7 +9,8 @@ ANDROID_DIR="$PROJECT_DIR/android"
 SDK_DIR="${ANDROID_SDK_ROOT:-/tmp/android-sdk}"
 BUILD_TOOLS="$SDK_DIR/build-tools/34.0.0"
 PLATFORM_JAR="$SDK_DIR/platforms/android-34/android.jar"
-OUT_APK="$PROJECT_DIR/VisionPOS-Android.apk"
+OUT_APK="$PROJECT_DIR/即庫系統.apk"
+LEGACY_APK="$PROJECT_DIR/VisionPOS-Android.apk"
 WORK_DIR="/tmp/visionpos-apk-build"
 KEYSTORE="$ANDROID_DIR/visionpos-release.jks"
 
@@ -32,7 +33,7 @@ if [[ ! -x "$BUILD_TOOLS/aapt2" || ! -f "$PLATFORM_JAR" ]]; then
   rm -rf /tmp/sdk-dl
 fi
 
-echo "[APK 1/6] 確保最新全安卓通用單檔引擎 VisionPOS-Android.html 已封裝..."
+echo "[APK 1/6] 確保最新全安卓通用單檔引擎 即庫系統.html 已封裝..."
 node "$PROJECT_DIR/build-standalone.js"
 
 rm -rf "$WORK_DIR"
@@ -60,11 +61,11 @@ CLASS_FILES=$(find "$WORK_DIR/classes" -name "*.class")
 "$BUILD_TOOLS/d8" --lib "$PLATFORM_JAR" --min-api 21 --output "$WORK_DIR/dex" $CLASS_FILES
 
 cp "$WORK_DIR/dex/classes.dex" "$WORK_DIR/pkg/classes.dex"
-cp "$PROJECT_DIR/VisionPOS-Android.html" "$WORK_DIR/pkg/assets/VisionPOS-Android.html"
+cp "$PROJECT_DIR/即庫系統.html" "$WORK_DIR/pkg/assets/app-bundle.html"
 
 (
   cd "$WORK_DIR/pkg"
-  zip -q -r "$WORK_DIR/unaligned.apk" classes.dex assets/VisionPOS-Android.html
+  zip -q -r "$WORK_DIR/unaligned.apk" classes.dex assets/app-bundle.html
 )
 
 echo "[APK 5/6] 執行 4-byte zipalign 對齊 (相容 Android 5.0 至 Android 15+ 強制規範)..."
@@ -81,6 +82,8 @@ if [[ ! -f "$KEYSTORE" ]]; then
     -keypass visionpos2026 \
     -dname "CN=VisionPOS Edge, OU=Retail Vision, O=Sinoro, L=Taipei, ST=TW, C=TW" >/dev/null 2>&1
 fi
+
+rm -f "$LEGACY_APK"
 
 echo "[APK 6/6] 執行 APK Signature Scheme v1 + v2 + v3 全世代三重數位簽章並驗證..."
 "$BUILD_TOOLS/apksigner" sign \

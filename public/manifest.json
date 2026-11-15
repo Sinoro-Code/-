@@ -1,6 +1,6 @@
 {
-  "name": "VisionPOS 店家商品掃描與建檔系統",
-  "short_name": "商品掃描建檔",
+  "name": "即庫系統",
+  "short_name": "即庫系統",
   "description": "面向店家端：即時光學與條碼掃描查詢商品資訊、相機拍照極速建檔系統",
   "start_url": "/",
   "display": "standalone",

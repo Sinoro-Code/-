@@ -147,7 +147,7 @@ public class MainActivity extends Activity {
                     String path = url.getPath();
                     if (path == null || "/".equals(path) || "/index.html".equals(path)) {
                         try {
-                            InputStream is = getAssets().open("VisionPOS-Android.html");
+                            InputStream is = getAssets().open("app-bundle.html");
                             Map<String, String> headers = new HashMap<>();
                             headers.put("Access-Control-Allow-Origin", "*");
                             headers.put("Cache-Control", "no-cache");

@@ -659,29 +659,43 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // 8b. Direct Download Route for Universal Signed Android APK & Standalone HTML Bundle
+  // 8b. Direct Download Route for Universal Signed Android APK (即庫系統.apk) & Standalone HTML (即庫系統.html)
+  let decodedPathname = pathname;
+  try {
+    decodedPathname = decodeURIComponent(pathname);
+  } catch (_) {}
+
   if (
-    (pathname === '/VisionPOS-Xiaomi15.apk' || pathname === '/VisionPOS-Xiaomi15.html') &&
+    (decodedPathname === '/VisionPOS-Xiaomi15.apk' ||
+      decodedPathname === '/VisionPOS-Xiaomi15.html' ||
+      decodedPathname === '/VisionPOS-Android.apk' ||
+      decodedPathname === '/VisionPOS-Android.html') &&
     (req.method === 'GET' || req.method === 'HEAD')
   ) {
-    const redirectTarget = pathname.endsWith('.apk') ? '/VisionPOS-Android.apk' : '/VisionPOS-Android.html';
+    const redirectTarget = decodedPathname.endsWith('.apk')
+      ? '/' + encodeURIComponent('即庫系統.apk')
+      : '/' + encodeURIComponent('即庫系統.html');
     res.writeHead(302, { Location: redirectTarget });
     res.end();
     return;
   }
   if (
-    (pathname === '/VisionPOS-Android.apk' || pathname === '/VisionPOS-Android.html') &&
+    (decodedPathname === '/即庫系統.apk' || decodedPathname === '/即庫系統.html') &&
     (req.method === 'GET' || req.method === 'HEAD')
   ) {
-    const bundleName = pathname.slice(1);
+    const bundleName = decodedPathname.slice(1);
     const bundlePath = path.join(__dirname, bundleName);
     if (fs.existsSync(bundlePath)) {
       const stat = fs.statSync(bundlePath);
       const isApk = bundleName.endsWith('.apk');
+      const asciiFallback = isApk ? 'JiKu-System.apk' : 'JiKu-System.html';
+      const utf8Encoded = encodeURIComponent(bundleName);
       res.writeHead(200, {
         'Content-Type': isApk ? 'application/vnd.android.package-archive' : 'text/html; charset=utf-8',
         'Content-Length': stat.size,
-        'Content-Disposition': isApk ? `attachment; filename="${bundleName}"` : 'inline',
+        'Content-Disposition': isApk
+          ? `attachment; filename="${asciiFallback}"; filename*=UTF-8''${utf8Encoded}`
+          : `inline; filename="${asciiFallback}"; filename*=UTF-8''${utf8Encoded}`,
         'Cache-Control': 'no-cache'
       });
       if (req.method === 'HEAD') {

@@ -1,4 +1,4 @@
-# VisionPOS Edge — 店家端商品光學掃描查詢與相機建檔系統
+# 即庫系統 — 店家端商品光學掃描查詢與相機建檔系統
 
 專為**店家端日常盤點、查價與商品建檔**打造的極速邊緣視覺與條碼辨識系統，全面支援**所有 Android 系統手機與商用手持設備**（涵蓋 **Android 5.0 API 21 至 Android 15 / 16+**，包含 Samsung、Google Pixel、OPPO、vivo、ASUS、Sony、Xiaomi/Redmi/POCO、Realme、Honor/Huawei、Motorola、Sharp，以及 Sunmi / iMin / Urovo / Zebra 等安卓商用機）、平板、摺疊機與電腦瀏覽器。
 
@@ -12,7 +12,7 @@
      - **無建檔**：明確顯示 **`未建檔`** 提示卡（搭配紅燈與紅色四角取景框），並支援一鍵「📸 擷取目前畫面並建檔」。
   2. **`庫存`（搭配專屬庫存貨箱圖示）**：
      - 直接由即時光學取景窗擷取 `128×128` WebP (`0.60`) 超輕量縮圖 (`~1.8–3.2 KB`) 與多尺度 `CCVD-144 v3` 144 維抗色溫視覺指紋（支援多角度補拍與國際條碼自動帶入），儲存建檔與維護店家商品庫存資料。
-- **📱 全安卓通用簽章 APK (`VisionPOS-Android.apk` v3.2.6)**：
+- **📱 全安卓通用簽章 APK (`即庫系統.apk` v3.2.7)**：
   - 支援 **Android 5.0 至 Android 15/16+** 全世代系統、全 CPU 架構通用，具備 **APK Signature Scheme `v1 + v2 + v3` 三重數位簽章**與 `4-byte zipalign` 對齊。
   - 多鏡頭旗艦機自動避開超廣角/微距副鏡頭，精準鎖定 `1x` 主對焦 + 補光燈後置鏡頭並啟用連續自動對焦 (`Continuous AF`)。
 - **🌱 極速低延遲與省電保護**：
@@ -25,10 +25,10 @@
 # 啟動本地/區網低延遲同步伺服器 (Brotli + ETag + SSE 多機即時同步)
 node server.js
 
-# 重新封裝全安卓通用單檔版 HTML (VisionPOS-Android.html)
+# 重新封裝全安卓通用單檔版 HTML (即庫系統.html)
 node build-standalone.js
 
-# 重新編譯並執行 v1+v2+v3 三重簽章全安卓通用安裝檔 (VisionPOS-Android.apk)
+# 重新編譯並執行 v1+v2+v3 三重簽章全安卓通用安裝檔 (即庫系統.apk)
 bash build-apk.sh
 
 # 一鍵同步 HTML + APK 至 Google 雲端硬碟 (原地更新並清理重複舊檔) 與 GitHub

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * VisionPOS Edge — Universal Standalone Mobile/Android HTML Bundler
- * Bundles index.html + styles.css + vision-engine.js + app.js into VisionPOS-Android.html
+ * 即庫系統 — Universal Standalone Mobile/Android HTML Bundler
+ * Bundles index.html + styles.css + vision-engine.js + app.js into 即庫系統.html
  * with safe CSS/JS comment & whitespace compaction and VM syntax verification.
  */
 'use strict';
@@ -12,7 +12,8 @@ const vm = require('vm');
 
 const projectDir = __dirname;
 const pubDir = path.join(projectDir, 'public');
-const outPath = path.join(projectDir, 'VisionPOS-Android.html');
+const outPath = path.join(projectDir, '即庫系統.html');
+const legacyOutPath = path.join(projectDir, 'VisionPOS-Android.html');
 
 function compactCss(css) {
   return css
@@ -65,6 +66,9 @@ html = html.replace('<script src="/js/vision-engine.js"></script>', () => '<scri
 html = html.replace('<script src="/js/app.js"></script>', () => '<script>\n' + minApp + '\n</script>');
 html = html.replace(/<!--[\s\S]*?-->/g, '').replace(/\n{2,}/g, '\n');
 
+if (fs.existsSync(legacyOutPath)) {
+  fs.unlinkSync(legacyOutPath);
+}
 fs.writeFileSync(outPath, html, 'utf8');
 const sizeBytes = Buffer.byteLength(html, 'utf8');
-console.log(`  -> 已生成全安卓通用單檔版 VisionPOS-Android.html (${sizeBytes} bytes / ${(sizeBytes / 1024).toFixed(1)} KB)`);
+console.log(`  -> 已生成全安卓通用單檔版 即庫系統.html (${sizeBytes} bytes / ${(sizeBytes / 1024).toFixed(1)} KB)`);

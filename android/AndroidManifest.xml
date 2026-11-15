@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.visionpos.edge"
-    android:versionCode="326"
-    android:versionName="3.2.6">
+    android:versionCode="327"
+    android:versionName="3.2.7">
 
     <!-- Universal Android Support: Android 5.0 Lollipop (API 21) through Android 15/16+ -->
     <uses-sdk
@@ -43,7 +43,7 @@
     </queries>
 
     <application
-        android:label="VisionPOS Edge"
+        android:label="即庫系統"
         android:icon="@drawable/ic_launcher"
         android:hardwareAccelerated="true"
         android:usesCleartextTraffic="true"
