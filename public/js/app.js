@@ -1825,7 +1825,7 @@
       });
     }
 
-    // 3. Unregistered Card -> Jump to Inventory Registration (📸 擷取目前畫面並建檔)
+    // 3. Fixed Bottom Capture Pill -> Jump to Inventory Registration (📸 拍照)
     if (el['btn-jump-register']) {
       el['btn-jump-register'].addEventListener('click', function () {
         if (!state.mediaStream) {

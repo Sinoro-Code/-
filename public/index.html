@@ -7,8 +7,8 @@
   <meta name="description" content="店家端極速視覺與條碼商品掃描查詢、相機拍照即時建檔系統。" />
   <meta name="theme-color" content="#0b0f14" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-  <link rel="manifest" href="/manifest.json?v=328" />
-  <link rel="stylesheet" href="/css/styles.css?v=328" />
+  <link rel="manifest" href="/manifest.json?v=329" />
+  <link rel="stylesheet" href="/css/styles.css?v=329" />
 </head>
 <body>
   <!-- Merchant 2-Function Workspace: Optical Viewport directly at the top (Zero blocks above Optical Viewport) -->
@@ -139,12 +139,14 @@
             <span class="badge badge-amber" style="font-size:13px; padding:4px 12px; margin-bottom:10px;">⚠️ 查無商品資料</span>
             <h2 class="unreg-title">未建檔</h2>
             <p class="unreg-desc" id="unreg-subtext">目前掃描畫面中的商品尚未建立檔案</p>
-            <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:16px;">
-              <button type="button" class="btn btn-primary" id="btn-jump-register">
-                📸 擷取目前畫面並建檔
-              </button>
-            </div>
           </div>
+        </div>
+
+        <!-- Fixed Bottom Centered Capture Button (外框與顏色同左上角已建檔綠色提示標籤) -->
+        <div class="floating-capture-dock" id="floating-capture-dock">
+          <button type="button" class="btn-capture-pill" id="btn-jump-register">
+            📸 拍照
+          </button>
         </div>
       </div>
 
@@ -239,7 +241,7 @@
   <!-- Toast Notifications Container -->
   <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
 
-  <script src="/js/vision-engine.js?v=328"></script>
-  <script src="/js/app.js?v=328"></script>
+  <script src="/js/vision-engine.js?v=329"></script>
+  <script src="/js/app.js?v=329"></script>
 </body>
 </html>
