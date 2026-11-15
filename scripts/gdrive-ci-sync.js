@@ -98,13 +98,19 @@ async function getAccessToken(creds) {
   throw new Error('GDRIVE_SERVICE_ACCOUNT_JSON 格式不正確（需包含 client_email 與 private_key）');
 }
 
-async function checkFileAccessible(accessToken, fileId) {
+async function checkFileAccessible(accessToken, fileId, throwOnApiDisabled = false) {
   if (!fileId) return null;
   const url = `${DRIVE_API_BASE}/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,name,trashed&supportsAllDrives=true`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    const errText = await res.text();
+    if (throwOnApiDisabled) {
+      throw new Error(`HTTP ${res.status}: ${errText}`);
+    }
+    return null;
+  }
   const info = await res.json();
   if (info.trashed) return null;
   return info;
@@ -193,12 +199,24 @@ async function main() {
   const { accessToken, principal } = await getAccessToken(creds);
   console.log(`✅ 已取得 Google Drive API 授權 (${principal})`);
 
-  const folderInfo = await checkFileAccessible(accessToken, FOLDER_ID);
-  if (!folderInfo) {
+  let folderInfo = null;
+  try {
+    folderInfo = await checkFileAccessible(accessToken, FOLDER_ID, true);
+  } catch (folderErr) {
+    const msg = String(folderErr.message || folderErr);
+    if (msg.includes('accessNotConfigured') || msg.includes('has not been used in project')) {
+      throw new Error(
+        `Google Cloud 專案 (${creds.project_id || 'jiku-sync'}) 尚未啟用 Google Drive API！\n` +
+        `請點擊開啟：https://console.cloud.google.com/apis/library/drive.googleapis.com?project=${encodeURIComponent(creds.project_id || 'jiku-sync')} 並按下「啟用 (Enable)」。\n原始回應: ${msg}`
+      );
+    }
     throw new Error(
       `無法存取 Google 雲端硬碟「即庫系統」資料夾 (ID: ${FOLDER_ID})！\n` +
-      `請開啟 https://drive.google.com/drive/folders/${FOLDER_ID} -> 右鍵「共用」-> 新增「${principal}」並設為「編輯者 (Editor)」。`
+      `請開啟 https://drive.google.com/drive/folders/${FOLDER_ID} -> 右鍵「共用」-> 新增「${principal}」並設為「編輯者 (Editor)」。\n原始回應: ${msg}`
     );
+  }
+  if (!folderInfo) {
+    throw new Error(`雲端資料夾「即庫系統」(${FOLDER_ID}) 位於垃圾桶中，請先還原。`);
   }
 
   const targets = [
