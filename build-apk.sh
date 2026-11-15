@@ -4,9 +4,14 @@
 # V1 (JAR) + V2 + V3 triple-signed universal APK: VisionPOS-Android.apk
 set -euo pipefail
 
-PROJECT_DIR="/home/antigravity/vision-pos"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ANDROID_DIR="$PROJECT_DIR/android"
-SDK_DIR="${ANDROID_SDK_ROOT:-/tmp/android-sdk}"
+CANDIDATE_SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/tmp/android-sdk}}"
+if [[ -x "$CANDIDATE_SDK/build-tools/34.0.0/aapt2" && -f "$CANDIDATE_SDK/platforms/android-34/android.jar" ]]; then
+  SDK_DIR="$CANDIDATE_SDK"
+else
+  SDK_DIR="/tmp/android-sdk"
+fi
 BUILD_TOOLS="$SDK_DIR/build-tools/34.0.0"
 PLATFORM_JAR="$SDK_DIR/platforms/android-34/android.jar"
 OUT_APK="$PROJECT_DIR/即庫系統.apk"

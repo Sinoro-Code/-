@@ -1,0 +1,80 @@
+name: 自動打包即庫系統並同步雲端硬碟
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: jiku-build-sync-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-sync:
+    name: 編譯 APK / HTML 並同步至 Google 雲端硬碟
+    runs-on: ubuntu-latest
+    steps:
+      - name: 檢出專案原始碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 設定 Java 17 (OpenJDK Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 封裝 即庫系統.html 並編譯簽章 即庫系統.apk
+        run: bash ./build-apk.sh
+
+      - name: 上傳 GitHub Actions 建置產物備份
+        uses: actions/upload-artifact@v4
+        with:
+          name: 即庫系統-打包檔案
+          path: |
+            即庫系統.apk
+            即庫系統.html
+          retention-days: 30
+
+      - name: 自動發佈固定網址至 GitHub Releases (latest)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          BUILD_TIME="$(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M:%S')"
+          NOTES="自動打包時間（台灣時間）：${BUILD_TIME} | Commit: ${SHORT_SHA}"
+          if gh release view latest >/dev/null 2>&1; then
+            gh release upload latest "./即庫系統.apk" "./即庫系統.html" --clobber
+            gh release edit latest --title "即庫系統 最新打包版 (${SHORT_SHA})" --notes "${NOTES}"
+          else
+            gh release create latest "./即庫系統.apk" "./即庫系統.html" \
+              --title "即庫系統 最新打包版 (${SHORT_SHA})" \
+              --notes "${NOTES}" \
+              --latest
+          fi
+
+      - name: 自動覆寫同步至 Google 雲端硬碟「即庫系統」資料夾
+        env:
+          GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
+          GDRIVE_FOLDER_ID: '1v9enQ0C-naqv4HCX1zn_p4Wt7NPiOJnd'
+          GDRIVE_APK_FILE_ID: '1dZmFn4sKbfw6mg4GbXYtR08YvyjuFIU5'
+          GDRIVE_HTML_FILE_ID: '1y4hkJb9nrZS9nlV6l8wELAlIIUpYiLPV'
+        run: |
+          if [[ -z "${GDRIVE_SERVICE_ACCOUNT_JSON}" ]]; then
+            echo "⚠️ 尚未設定 GDRIVE_SERVICE_ACCOUNT_JSON Secret，已略過 Google 雲端硬碟同步（GitHub Releases 已更新完成）。"
+            {
+              echo "### ⚠️ 待設定 Google 雲端硬碟服務帳戶金鑰"
+              echo "請於 GitHub 儲存庫 **Settings -> Secrets and variables -> Actions** 新增名為 \`GDRIVE_SERVICE_ACCOUNT_JSON\` 的 Secret，並將雲端硬碟「即庫系統」資料夾共用給該服務帳戶信箱（編輯者權限）。"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node ./scripts/gdrive-ci-sync.js
