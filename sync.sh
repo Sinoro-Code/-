@@ -44,15 +44,17 @@ echo "  -> 即庫系統.apk 連結: $(gdrive readonly url "$PRIMARY_APK_ID")"
 echo "  -> 即庫系統.html 連結: $(gdrive readonly url "$GDRIVE_HTML_ID")"
 
 echo "[3/4] 正在將專案原始碼同步推送至 GitHub (Sinoro-Code/-) ..."
-# 確保移除任何曾被 Git 追蹤的打包產物（保留本地磁碟檔案）
 git rm --cached --ignore-unmatch "即庫系統.apk" "即庫系統.html" "VisionPOS-Android.apk" "VisionPOS-Android.html" >/dev/null 2>&1 || true
 git add -A
 if ! git diff --cached --quiet; then
   git commit -m "chore(repo): sync source code only to GitHub & packaged builds to Google Drive folder"
 fi
 
-# 透過官方 gh 啟動器掛載 GitHub HTTPS 憑證後推送 main
 gh auth status >/dev/null 2>&1 || true
-git push -u origin main
+if git push -u origin main; then
+  echo "  -> 原始碼已成功推送至 https://github.com/Sinoro-Code/-.git (main)"
+else
+  echo "  -> ⚠️ 本地原始碼已提交至 main ($(git rev-parse --short HEAD))；遠端沙盒需將 Sinoro-Code/- 掛載至 Antigravity Project Resources 方可放行 git push 寫入權限。"
+fi
 
-echo "[4/4] 原始碼已同步至 GitHub，打包檔案已同步至 Google 雲端硬碟「即庫系統」資料夾！"
+echo "[4/4] 同步流程執行完畢！"
