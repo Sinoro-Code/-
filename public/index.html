@@ -7,8 +7,8 @@
   <meta name="description" content="店家端極速視覺與條碼商品掃描查詢、相機拍照即時建檔系統。" />
   <meta name="theme-color" content="#0b0f14" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-  <link rel="manifest" href="/manifest.json" />
-  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="manifest" href="/manifest.json?v=328" />
+  <link rel="stylesheet" href="/css/styles.css?v=328" />
 </head>
 <body>
   <!-- Merchant 2-Function Workspace: Optical Viewport directly at the top (Zero blocks above Optical Viewport) -->
@@ -22,8 +22,8 @@
         <!-- Optical HUD Overlay -->
         <div class="hud-overlay signal-amber" id="hud-overlay">
           <div class="hud-top-row">
-            <div class="hud-status-badge state-standby" id="hud-live-badge" aria-hidden="true">
-              <span class="status-dot eco" id="hud-scan-dot"></span>
+            <div class="hud-status-badge state-standby" id="hud-live-badge" style="border-color:#f59f1f" aria-hidden="true">
+              <span class="status-dot eco" id="hud-scan-dot" style="background-color:#f59f1f"></span>
               <span id="hud-live-label">待機中</span>
             </div>
 
@@ -36,10 +36,10 @@
 
           <!-- ROI Target Reticle -->
           <div class="roi-reticle state-standby" id="roi-reticle">
-            <span class="roi-corner tl"></span>
-            <span class="roi-corner tr"></span>
-            <span class="roi-corner bl"></span>
-            <span class="roi-corner br"></span>
+            <span class="roi-corner tl" style="border-color:#f59f1f"></span>
+            <span class="roi-corner tr" style="border-color:#f59f1f"></span>
+            <span class="roi-corner bl" style="border-color:#f59f1f"></span>
+            <span class="roi-corner br" style="border-color:#f59f1f"></span>
           </div>
         </div>
       </div>
@@ -239,7 +239,7 @@
   <!-- Toast Notifications Container -->
   <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
 
-  <script src="/js/vision-engine.js"></script>
-  <script src="/js/app.js"></script>
+  <script src="/js/vision-engine.js?v=328"></script>
+  <script src="/js/app.js?v=328"></script>
 </body>
 </html>

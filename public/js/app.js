@@ -15,6 +15,7 @@
   var STORAGE_KEY = 'vision_pos_edge_store_v1';
   var OUTBOX_STORAGE_KEY = 'vision_pos_outbox_v1';
   var BG_CAMERA_RELEASE_MS = 10000; // 10 seconds background auto-release for camera sensor power saving
+  var STATIC_MOTION_DELTA = 2.6; // Unified motion-gate & continuous-AF ISP noise floor threshold
 
   // Clean dark SVG placeholder so broken image icons never render before first capture
   var EMPTY_THUMB_DATA_URI =
@@ -40,6 +41,7 @@
     topCandidates: [],
     liveDescriptor: null,
     matchHistory: [],
+    pendingHysteresis: false,
     lastDetectedBarcode: '',
     lastBarcodeTime: 0,
     barcodeTickCounter: 0,
@@ -77,6 +79,7 @@
 
   // Exact DOM Elements cache matching public/index.html
   var el = {};
+  var roiCorners = [];
   function bindElements() {
     var ids = [
       'viewport-container', 'camera-video', 'stage-canvas',
@@ -100,6 +103,10 @@
     for (var i = 0; i < ids.length; i++) {
       el[ids[i]] = document.getElementById(ids[i]);
     }
+    roiCorners =
+      el['roi-reticle'] && typeof el['roi-reticle'].querySelectorAll === 'function'
+        ? el['roi-reticle'].querySelectorAll('.roi-corner')
+        : [];
     if (el['rec-img']) el['rec-img'].src = EMPTY_THUMB_DATA_URI;
     if (el['reg-preview-img']) el['reg-preview-img'].src = EMPTY_THUMB_DATA_URI;
   }
@@ -655,6 +662,7 @@
       state.torchOn = false;
       if (el['btn-toggle-torch']) el['btn-toggle-torch'].classList.remove('active');
       state.hasEvaluatedFrame = false;
+      state.pendingHysteresis = false;
       state.isActivelyMoving = false;
       state.isEcoSleeping = false;
       state.staticFrameStreak = 0;
@@ -679,6 +687,7 @@
     } catch (_) {
       state.sourceMode = 'standby';
       state.hasEvaluatedFrame = false;
+      state.pendingHysteresis = false;
       state.isActivelyMoving = false;
       if (el['camera-video']) el['camera-video'].classList.add('hidden');
       if (el['stage-canvas']) el['stage-canvas'].classList.remove('hidden');
@@ -717,7 +726,13 @@
     var video = el['camera-video'];
     if (!canvas) return;
 
-    if (state.sourceMode === 'webcam' && state.mediaStream && video && video.readyState >= 2) {
+    if (
+      state.sourceMode === 'webcam' &&
+      state.mediaStream &&
+      video &&
+      video.readyState >= 2 &&
+      video.videoWidth > 0
+    ) {
       video.classList.remove('hidden');
       canvas.classList.add('hidden');
       return;
@@ -757,7 +772,8 @@
       state.sourceMode === 'webcam' &&
       state.mediaStream &&
       el['camera-video'] &&
-      el['camera-video'].readyState >= 2
+      el['camera-video'].readyState >= 2 &&
+      el['camera-video'].videoWidth > 0
     ) {
       return el['camera-video'];
     }
@@ -769,7 +785,8 @@
       state.sourceMode === 'webcam' &&
       state.mediaStream &&
       el['camera-video'] &&
-      el['camera-video'].readyState >= 2
+      el['camera-video'].readyState >= 2 &&
+      el['camera-video'].videoWidth > 0
     );
   }
 
@@ -863,20 +880,21 @@
     var isMatched = Boolean(state.currentMatch);
 
     // Strict 3-State Indicator Light & 4-Corner Reticle Binding:
-    // 1. 'standby'      -> 橘燈 + 待機中 + 橘色四角 (待機中 / 相機未就緒 / 背景暫停)
-    // 2. 'registered'   -> 綠燈 + 辨識中 + 綠色四角 (即時掃描判斷為已建檔)
-    // 3. 'unregistered' -> 紅燈 + 未建檔 + 紅色四角 (即時掃描判斷為未建檔)
+    // 1. 'standby'      -> 橘燈 (#f59f1f) + 待機中 + 橘色四角 (相機未就緒 / 背景暫停 / 無匹配靜止 >= 2.5s)
+    // 2. 'registered'   -> 綠燈 (#17bf82) + 辨識中 + 綠色四角 (即時掃描判斷為已建檔)
+    // 3. 'unregistered' -> 紅燈 (#eb3b52) + 未建檔 + 紅色四角 (即時掃描判斷為未建檔)
     var mode = 'standby';
     if (
       state.autoPausedWebcamInBg ||
       document.hidden ||
       !isLiveReady ||
-      state.isEcoSleeping ||
       !state.hasEvaluatedFrame
     ) {
       mode = 'standby';
     } else if (isMatched) {
       mode = 'registered';
+    } else if (state.isEcoSleeping) {
+      mode = 'standby';
     } else {
       mode = 'unregistered';
     }
@@ -884,24 +902,53 @@
     if (lastHudVisualKey === mode) return;
     lastHudVisualKey = mode;
 
+    var signalHex = '#f59f1f';
     if (mode === 'standby') {
+      signalHex = '#f59f1f';
       if (overlay) overlay.className = 'hud-overlay signal-amber';
       if (dot) dot.className = 'status-dot eco';
       if (label) label.textContent = '待機中';
       if (liveBadge) liveBadge.className = 'hud-status-badge state-standby';
       if (reticle) reticle.className = 'roi-reticle state-standby';
     } else if (mode === 'registered') {
+      signalHex = '#17bf82';
       if (overlay) overlay.className = 'hud-overlay signal-green';
       if (dot) dot.className = 'status-dot active';
       if (label) label.textContent = '辨識中';
       if (liveBadge) liveBadge.className = 'hud-status-badge state-active';
       if (reticle) reticle.className = 'roi-reticle state-active';
     } else {
+      signalHex = '#eb3b52';
       if (overlay) overlay.className = 'hud-overlay signal-red';
       if (dot) dot.className = 'status-dot unregistered';
       if (label) label.textContent = '未建檔';
       if (liveBadge) liveBadge.className = 'hud-status-badge state-unregistered';
       if (reticle) reticle.className = 'roi-reticle state-unregistered';
+    }
+
+    // Direct DOM inline color synchronization so the dot and all 4 reticle corners never desync
+    if (overlay && overlay.style && typeof overlay.style.setProperty === 'function') {
+      overlay.style.setProperty('--hud-signal-color', signalHex);
+    }
+    if (dot && dot.style) {
+      dot.style.backgroundColor = signalHex;
+    }
+    if (liveBadge && liveBadge.style) {
+      liveBadge.style.borderColor = signalHex;
+    }
+    if (
+      (!roiCorners || roiCorners.length === 0) &&
+      reticle &&
+      typeof reticle.querySelectorAll === 'function'
+    ) {
+      roiCorners = reticle.querySelectorAll('.roi-corner');
+    }
+    if (roiCorners && roiCorners.length) {
+      for (var c = 0; c < roiCorners.length; c++) {
+        if (roiCorners[c] && roiCorners[c].style) {
+          roiCorners[c].style.borderColor = signalHex;
+        }
+      }
     }
   }
 
@@ -934,6 +981,7 @@
         !state.isEcoSleeping &&
         video &&
         video.readyState >= 2 &&
+        video.videoWidth > 0 &&
         typeof video.requestVideoFrameCallback === 'function'
       ) {
         videoFrameCallbackId = video.requestVideoFrameCallback(function () {
@@ -968,6 +1016,7 @@
 
     if (!hasValidOpticalSource()) {
       state.hasEvaluatedFrame = false;
+      state.pendingHysteresis = false;
       state.isActivelyMoving = false;
       updateHudCameraStatus();
       updateRecognitionUI({
@@ -979,6 +1028,11 @@
         margin: 0,
         topCandidates: []
       });
+      // Keep polling while camera stream is warming up (e.g. Android Camera2 readyState < 2 at t=0ms)
+      if (continuous) {
+        state.forceNextEval = true;
+        scheduleRecognition(false);
+      }
       return;
     }
 
@@ -987,8 +1041,13 @@
 
     var t0 = performance.now();
     var sig = VisionEngine.captureFrameSignature(sourceElem, roiRect, false, {
-      skipIfStatic: state.ecoGateEnabled && !forceEval && continuous && !state.isActivelyMoving,
-      staticThreshold: 1.5
+      skipIfStatic:
+        state.ecoGateEnabled &&
+        !forceEval &&
+        continuous &&
+        !state.isActivelyMoving &&
+        !state.pendingHysteresis,
+      staticThreshold: STATIC_MOTION_DELTA
     });
     state.lastMotionDelta = sig.motionDelta;
 
@@ -1010,7 +1069,7 @@
     // Genuine inter-frame camera pan (exclude first-frame reset sentinel 255)
     state.isActivelyMoving = Boolean(continuous && sig.motionDelta >= 10 && sig.motionDelta < 250);
 
-    if (state.ecoGateEnabled && continuous && sig.motionDelta < 1.8) {
+    if (state.ecoGateEnabled && continuous && sig.motionDelta < STATIC_MOTION_DELTA) {
       state.staticFrameStreak++;
       if (
         !state.isEcoSleeping &&
@@ -1143,9 +1202,20 @@
           }
         }
       }
+
+      // Ensure static-skip never freezes matchHistory while transitioning between states
+      var allSame = state.matchHistory.length >= 2;
+      for (var hIdx = 0; hIdx < state.matchHistory.length; hIdx++) {
+        if (state.matchHistory[hIdx] !== frameId) {
+          allSame = false;
+          break;
+        }
+      }
+      state.pendingHysteresis = !allSame;
     } else {
       var instantId = rawMatchRes.matched && rawMatchRes.product ? rawMatchRes.product.id : null;
       state.matchHistory = [instantId, instantId];
+      state.pendingHysteresis = false;
     }
 
     state.lastInferenceMs = +(performance.now() - t0).toFixed(2);
@@ -1448,6 +1518,7 @@
     state.currentMatch = savedProduct;
     state.currentSimilarity = 0.998;
     state.matchHistory = [savedProduct.id, savedProduct.id];
+    state.pendingHysteresis = false;
     wakeFromEcoSleep();
     state.hasEvaluatedFrame = true;
     state.isActivelyMoving = false;
@@ -1651,6 +1722,7 @@
     });
     state.currentMatch = null;
     state.matchHistory = [null, null];
+    state.pendingHysteresis = false;
     wakeFromEcoSleep();
     state.hasEvaluatedFrame = true;
     state.isActivelyMoving = false;
@@ -1716,6 +1788,17 @@
         startWebcamStream(true);
       }
     };
+
+    // Trigger immediate evaluation the exact millisecond hardware video frame decoding completes
+    if (el['camera-video']) {
+      var onVideoFrameReady = function () {
+        if (isContinuousSourceActive() && !state.hasEvaluatedFrame) {
+          scheduleRecognition(true);
+        }
+      };
+      el['camera-video'].addEventListener('loadeddata', onVideoFrameReady);
+      el['camera-video'].addEventListener('playing', onVideoFrameReady);
+    }
 
     // 1. Two Merchant Tabs: 掃描 & 庫存
     if (el['tab-btn-scan']) {
@@ -1863,6 +1946,7 @@
         switchTab('scan', true);
         wakeFromEcoSleep();
         state.hasEvaluatedFrame = true;
+        state.pendingHysteresis = false;
         state.isActivelyMoving = false;
         invalidateRecognitionUICache();
         if (matchedProd) {
@@ -1962,13 +2046,20 @@
     renderStageCanvasFrame();
     await initDataStore();
 
-    // Register Offline-First PWA Service Worker on HTTP/HTTPS server origins
+    // Register Network-First PWA Service Worker & force update check on HTTP/HTTPS server origins
     if (
       'serviceWorker' in navigator &&
       (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
       window.location.hostname !== 'visionpos.local'
     ) {
-      navigator.serviceWorker.register('/sw.js').catch(function () {});
+      navigator.serviceWorker
+        .register('/sw.js')
+        .then(function (reg) {
+          if (reg && typeof reg.update === 'function') {
+            reg.update().catch(function () {});
+          }
+        })
+        .catch(function () {});
     }
 
     // Automatically start live optical camera on launch (gracefully falls back to standby guide if unavailable)

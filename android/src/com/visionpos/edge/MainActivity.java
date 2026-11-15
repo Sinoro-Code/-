@@ -54,7 +54,7 @@ import java.util.Map;
 public class MainActivity extends Activity {
     private static final int REQ_CAMERA_PERMISSION = 1001;
     private static final int REQ_FILE_CHOOSER = 1002;
-    private static final String APP_URL = "https://visionpos.local/index.html";
+    private static final String APP_URL = "https://visionpos.local/index.html?v=328";
 
     private WebView webView;
     private PermissionRequest pendingWebPermission;
@@ -81,6 +81,9 @@ public class MainActivity extends Activity {
         webView = new WebView(this);
         webView.setBackgroundColor(Color.parseColor("#0B0F14"));
         configureWebView(webView);
+        // Clear disk/RAM HTTP cache so APK updates always load the latest bundled HTML/JS/CSS
+        // (localStorage and IndexedDB merchant inventory data remain 100% intact)
+        webView.clearCache(true);
 
         root.addView(webView, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -120,6 +123,35 @@ public class MainActivity extends Activity {
         }
     }
 
+    private WebResourceResponse openBundledAppResponse(Uri url) {
+        if (url != null && "visionpos.local".equalsIgnoreCase(url.getHost())) {
+            String path = url.getPath();
+            if (path == null || path.isEmpty() || "/".equals(path) || "/index.html".equals(path)) {
+                try {
+                    InputStream is = getAssets().open("app-bundle.html");
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        Map<String, String> headers = new HashMap<>();
+                        headers.put("Access-Control-Allow-Origin", "*");
+                        headers.put("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+                        headers.put("Pragma", "no-cache");
+                        return new WebResourceResponse(
+                                "text/html",
+                                "UTF-8",
+                                200,
+                                "OK",
+                                headers,
+                                is
+                        );
+                    }
+                    return new WebResourceResponse("text/html", "UTF-8", is);
+                } catch (Exception e) {
+                    return null;
+                }
+            }
+        }
+        return null;
+    }
+
     private void configureWebView(WebView wv) {
         WebSettings settings = wv.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -132,7 +164,7 @@ public class MainActivity extends Activity {
         settings.setUseWideViewPort(true);
         settings.setSupportZoom(false);
         settings.setTextZoom(100);
-        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         }
@@ -142,29 +174,23 @@ public class MainActivity extends Activity {
         wv.setWebViewClient(new WebViewClient() {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                Uri url = request.getUrl();
-                if (url != null && "visionpos.local".equalsIgnoreCase(url.getHost())) {
-                    String path = url.getPath();
-                    if (path == null || "/".equals(path) || "/index.html".equals(path)) {
-                        try {
-                            InputStream is = getAssets().open("app-bundle.html");
-                            Map<String, String> headers = new HashMap<>();
-                            headers.put("Access-Control-Allow-Origin", "*");
-                            headers.put("Cache-Control", "no-cache");
-                            return new WebResourceResponse(
-                                    "text/html",
-                                    "UTF-8",
-                                    200,
-                                    "OK",
-                                    headers,
-                                    is
-                            );
-                        } catch (Exception e) {
-                            return null;
-                        }
-                    }
+                WebResourceResponse bundled = openBundledAppResponse(request != null ? request.getUrl() : null);
+                if (bundled != null) {
+                    return bundled;
                 }
                 return super.shouldInterceptRequest(view, request);
+            }
+
+            @Override
+            @SuppressWarnings("deprecation")
+            public WebResourceResponse shouldInterceptRequest(WebView view, String urlStr) {
+                if (urlStr != null) {
+                    WebResourceResponse bundled = openBundledAppResponse(Uri.parse(urlStr));
+                    if (bundled != null) {
+                        return bundled;
+                    }
+                }
+                return super.shouldInterceptRequest(view, urlStr);
             }
         });
 
