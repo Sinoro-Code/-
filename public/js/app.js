@@ -92,7 +92,7 @@
       'btn-rec-stock-minus', 'btn-rec-stock-plus',
       'rec-location', 'rec-sku', 'rec-barcode', 'rec-spec',
       'btn-rec-edit', 'btn-train-extra-angle', 'btn-rec-delete',
-      'unregistered-prompt-card', 'unreg-subtext', 'btn-jump-register',
+      'btn-jump-register',
       'reg-preview-img', 'reg-descriptor-status', 'reg-sample-count',
       'btn-capture-frame', 'btn-add-angle-sample',
       'register-product-form', 'reg-id', 'reg-name', 'reg-price', 'reg-stock',
@@ -1281,7 +1281,6 @@
         lastUIState.renderKey = pKey;
 
         if (el['recognized-product-card']) el['recognized-product-card'].classList.remove('hidden');
-        if (el['unregistered-prompt-card']) el['unregistered-prompt-card'].classList.add('hidden');
 
         var thumbSrc = p.thumbnail || EMPTY_THUMB_DATA_URI;
         if (el['rec-img'] && el['rec-img'].getAttribute('src') !== thumbSrc) {
@@ -1300,21 +1299,13 @@
 
         // Reset delete button confirmation appearance if product changed
         resetDeleteButtonUI();
+      } else if (el['recognized-product-card']) {
+        el['recognized-product-card'].classList.remove('hidden');
       }
     } else {
-      var unregCardDesc = activeBarcode
-        ? ('偵測到條碼「' + activeBarcode + '」尚未建立商品檔案')
-        : (state.products.length === 0
-          ? '目前商品庫尚無資料，請對準商品進行拍照建檔'
-          : '目前掃描畫面中的商品尚未建立檔案');
-      var uKey = '__UNREG__|' + unregCardDesc;
-
-      if (lastUIState.renderKey !== uKey) {
-        lastUIState.renderKey = uKey;
-
-        if (el['recognized-product-card']) el['recognized-product-card'].classList.add('hidden');
-        if (el['unregistered-prompt-card']) el['unregistered-prompt-card'].classList.remove('hidden');
-        if (el['unreg-subtext']) el['unreg-subtext'].textContent = unregCardDesc;
+      lastUIState.renderKey = '__UNREG__';
+      if (el['recognized-product-card']) {
+        el['recognized-product-card'].classList.add('hidden');
       }
     }
   }

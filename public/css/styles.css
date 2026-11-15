@@ -393,23 +393,6 @@ button {
   border-color: hsla(158, 78%, 42%, 0.42);
 }
 
-.unregistered-card {
-  border-color: hsla(38, 92%, 54%, 0.45);
-}
-
-.unreg-title {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--accent-amber);
-  letter-spacing: 0.02em;
-}
-
-.unreg-desc {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-top: 6px;
-}
-
 /* Badges & Buttons */
 .badge {
   display: inline-flex;
