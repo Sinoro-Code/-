@@ -53,10 +53,10 @@ jobs:
           BUILD_TIME="$(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M:%S')"
           NOTES="自動打包時間（台灣時間）：${BUILD_TIME} | Commit: ${SHORT_SHA}"
           if gh release view latest >/dev/null 2>&1; then
-            gh release upload latest "./即庫系統.apk" "./即庫系統.html" --clobber
+            gh release upload latest "./即庫系統.apk#即庫系統.apk" "./即庫系統.html#即庫系統.html" --clobber
             gh release edit latest --title "即庫系統 最新打包版 (${SHORT_SHA})" --notes "${NOTES}"
           else
-            gh release create latest "./即庫系統.apk" "./即庫系統.html" \
+            gh release create latest "./即庫系統.apk#即庫系統.apk" "./即庫系統.html#即庫系統.html" \
               --title "即庫系統 最新打包版 (${SHORT_SHA})" \
               --notes "${NOTES}" \
               --latest
