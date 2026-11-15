@@ -22,9 +22,9 @@
         <!-- Optical HUD Overlay -->
         <div class="hud-overlay">
           <div class="hud-top-row">
-            <div class="hud-status-badge active" id="hud-live-badge" aria-hidden="true">
-              <span class="status-dot" id="hud-scan-dot"></span>
-              <span>辨識中</span>
+            <div class="hud-status-badge state-standby" id="hud-live-badge" aria-hidden="true">
+              <span class="status-dot eco" id="hud-scan-dot"></span>
+              <span id="hud-live-label">待機中</span>
             </div>
 
             <button type="button" class="hud-icon-btn" id="btn-toggle-torch" title="閃光燈補光" aria-label="閃光燈補光">
@@ -35,7 +35,7 @@
           </div>
 
           <!-- ROI Target Reticle -->
-          <div class="roi-reticle" id="roi-reticle">
+          <div class="roi-reticle state-standby" id="roi-reticle">
             <span class="roi-corner tl"></span>
             <span class="roi-corner tr"></span>
             <span class="roi-corner bl"></span>

@@ -64,6 +64,9 @@
 
     // Eco & Telemetry State
     staticFrameStreak: 0,
+    lastActiveMotionMs: 0,
+    hasEvaluatedFrame: false,
+    isActivelyMoving: false,
     isEcoSleeping: false,
     lowBatteryMode: false,
     forceNextEval: true,
@@ -77,7 +80,7 @@
   function bindElements() {
     var ids = [
       'viewport-container', 'camera-video', 'stage-canvas',
-      'hud-scan-dot', 'hud-live-badge', 'btn-toggle-torch',
+      'hud-scan-dot', 'hud-live-label', 'hud-live-badge', 'btn-toggle-torch',
       'roi-reticle',
       'tab-btn-scan', 'tab-btn-register', 'nav-inv-count',
       'view-scan', 'view-register',
@@ -536,9 +539,9 @@
     if (el['camera-video']) {
       el['camera-video'].srcObject = null;
     }
-    if (el['hud-live-badge']) {
-      el['hud-live-badge'].classList.remove('active');
-    }
+    state.hasEvaluatedFrame = false;
+    state.isActivelyMoving = false;
+    updateHudCameraStatus();
   }
 
   async function startWebcamStream(isSilentOrAuto) {
@@ -650,6 +653,11 @@
       state.sourceMode = 'webcam';
       state.autoPausedWebcamInBg = false;
       state.torchOn = false;
+      state.hasEvaluatedFrame = false;
+      state.isActivelyMoving = false;
+      state.isEcoSleeping = false;
+      state.staticFrameStreak = 0;
+      state.lastActiveMotionMs = Date.now();
 
       var video = el['camera-video'];
       if (video) {
@@ -660,7 +668,6 @@
         await video.play();
       }
       if (el['stage-canvas']) el['stage-canvas'].classList.add('hidden');
-      if (el['hud-live-badge']) el['hud-live-badge'].classList.add('active');
 
       VisionEngine.resetMotionGate();
       updateHudCameraStatus();
@@ -670,6 +677,8 @@
       }
     } catch (_) {
       state.sourceMode = 'standby';
+      state.hasEvaluatedFrame = false;
+      state.isActivelyMoving = false;
       if (el['camera-video']) el['camera-video'].classList.add('hidden');
       if (el['stage-canvas']) el['stage-canvas'].classList.remove('hidden');
       renderStageCanvasFrame();
@@ -838,8 +847,11 @@
     return state.sourceMode === 'webcam' && Boolean(state.mediaStream);
   }
 
+  var lastHudVisualKey = '';
+
   function wakeFromEcoSleep() {
     state.staticFrameStreak = 0;
+    state.lastActiveMotionMs = Date.now();
     if (state.isEcoSleeping) {
       state.isEcoSleeping = false;
       updateHudCameraStatus();
@@ -848,24 +860,57 @@
 
   function updateHudCameraStatus() {
     var dot = el['hud-scan-dot'];
+    var label = el['hud-live-label'];
     var liveBadge = el['hud-live-badge'];
-    var isLiveActive = isContinuousSourceActive();
+    var reticle = el['roi-reticle'];
+    var isLiveReady = isContinuousSourceActive() && hasValidOpticalSource();
+    var isMatched = Boolean(state.currentMatch);
 
-    if (liveBadge) {
-      liveBadge.classList.toggle('active', isLiveActive);
-    }
-
-    if (!dot) return;
+    // 3-State Visual Synchronization:
+    // 1. 'standby'      -> 橘燈 + 待機中 + 橘色四角 (.state-standby)
+    // 2. 'unregistered' -> 紅燈 + 未建檔 + 紅色四角 (.state-unregistered)
+    // 3. 'active'       -> 綠燈 + 辨識中 + 綠色四角 (.state-active [+ .matched])
+    var mode = 'active';
     if (
       state.autoPausedWebcamInBg ||
       document.hidden ||
-      !isLiveActive ||
-      state.isEcoSleeping ||
-      state.lowBatteryMode
+      !isLiveReady ||
+      state.isEcoSleeping
     ) {
-      dot.className = 'status-dot eco';
+      mode = 'standby';
+    } else if (
+      state.activeTab === 'scan' &&
+      state.hasEvaluatedFrame &&
+      !isMatched &&
+      !state.isActivelyMoving
+    ) {
+      mode = 'unregistered';
+    }
+
+    var lockMatchedGlow = mode === 'active' && isMatched && state.activeTab === 'scan';
+    var hudKey = mode + '|' + (lockMatchedGlow ? '1' : '0');
+    if (lastHudVisualKey === hudKey) return;
+    lastHudVisualKey = hudKey;
+
+    if (mode === 'standby') {
+      if (dot) dot.className = 'status-dot eco';
+      if (label) label.textContent = '待機中';
+      if (liveBadge) liveBadge.className = 'hud-status-badge state-standby';
+      if (reticle) reticle.className = 'roi-reticle state-standby';
+    } else if (mode === 'unregistered') {
+      if (dot) dot.className = 'status-dot unregistered';
+      if (label) label.textContent = '未建檔';
+      if (liveBadge) liveBadge.className = 'hud-status-badge state-unregistered';
+      if (reticle) reticle.className = 'roi-reticle state-unregistered';
     } else {
-      dot.className = 'status-dot';
+      if (dot) dot.className = 'status-dot active';
+      if (label) label.textContent = '辨識中';
+      if (liveBadge) liveBadge.className = 'hud-status-badge state-active';
+      if (reticle) {
+        reticle.className = lockMatchedGlow
+          ? 'roi-reticle state-active matched'
+          : 'roi-reticle state-active';
+      }
     }
   }
 
@@ -931,6 +976,8 @@
     renderStageCanvasFrame();
 
     if (!hasValidOpticalSource()) {
+      state.hasEvaluatedFrame = false;
+      state.isActivelyMoving = false;
       updateHudCameraStatus();
       updateRecognitionUI({
         matched: false,
@@ -949,30 +996,40 @@
 
     var t0 = performance.now();
     var sig = VisionEngine.captureFrameSignature(sourceElem, roiRect, false, {
-      skipIfStatic: state.ecoGateEnabled && !forceEval && continuous,
+      skipIfStatic: state.ecoGateEnabled && !forceEval && continuous && !state.isActivelyMoving,
       staticThreshold: 1.5
     });
     state.lastMotionDelta = sig.motionDelta;
 
     if (sig.isStaticSkip) {
+      state.isActivelyMoving = false;
       state.staticFrameStreak++;
-      if (state.staticFrameStreak >= 8 && !state.isEcoSleeping) {
+      if (
+        !state.isEcoSleeping &&
+        state.staticFrameStreak >= 12 &&
+        Date.now() - state.lastActiveMotionMs >= 2500
+      ) {
         state.isEcoSleeping = true;
-        updateHudCameraStatus();
       }
+      updateHudCameraStatus();
       scheduleRecognition(false);
       return;
     }
 
+    // Genuine inter-frame camera pan (exclude first-frame reset sentinel 255)
+    state.isActivelyMoving = Boolean(continuous && sig.motionDelta >= 10 && sig.motionDelta < 250);
+
     if (state.ecoGateEnabled && continuous && sig.motionDelta < 1.8) {
       state.staticFrameStreak++;
-      if (state.staticFrameStreak >= 10 && !state.isEcoSleeping) {
+      if (
+        !state.isEcoSleeping &&
+        state.staticFrameStreak >= 12 &&
+        Date.now() - state.lastActiveMotionMs >= 2500
+      ) {
         state.isEcoSleeping = true;
-        updateHudCameraStatus();
       }
     } else {
       wakeFromEcoSleep();
-      updateHudCameraStatus();
     }
 
     // Live Registration Preview on Register tab when webcam is active and not manually locked
@@ -1105,6 +1162,7 @@
     state.currentMatch = matchRes.matched ? matchRes.product : null;
     state.currentSimilarity = matchRes.similarity;
     state.topCandidates = matchRes.topCandidates || [];
+    state.hasEvaluatedFrame = true;
 
     if (matchRes.matched && matchRes.product) {
       if (state.lastVibratedProductId !== matchRes.product.id) {
@@ -1128,16 +1186,15 @@
   function invalidateRecognitionUICache() {
     lastUIState.renderKey = '';
     lastUIState.matched = null;
+    lastHudVisualKey = '';
   }
 
   function updateRecognitionUI(matchRes, activeBarcode) {
     var isMatched = Boolean(matchRes && matchRes.matched && matchRes.product);
     var simVal = matchRes && typeof matchRes.similarity === 'number' ? matchRes.similarity : 0;
 
-    if (lastUIState.matched !== isMatched) {
-      lastUIState.matched = isMatched;
-      if (el['roi-reticle']) el['roi-reticle'].classList.toggle('matched', isMatched);
-    }
+    lastUIState.matched = isMatched;
+    updateHudCameraStatus();
 
     if (isMatched) {
       var p = matchRes.product;
@@ -1400,6 +1457,9 @@
     state.currentMatch = savedProduct;
     state.currentSimilarity = 0.998;
     state.matchHistory = [savedProduct.id, savedProduct.id];
+    wakeFromEcoSleep();
+    state.hasEvaluatedFrame = true;
+    state.isActivelyMoving = false;
     invalidateRecognitionUICache();
     updateRecognitionUI({
       matched: true,
@@ -1600,6 +1660,9 @@
     });
     state.currentMatch = null;
     state.matchHistory = [null, null];
+    wakeFromEcoSleep();
+    state.hasEvaluatedFrame = true;
+    state.isActivelyMoving = false;
     notifyPeers();
     invalidateRecognitionUICache();
     updateRecognitionUI({
@@ -1807,6 +1870,9 @@
         });
 
         switchTab('scan', true);
+        wakeFromEcoSleep();
+        state.hasEvaluatedFrame = true;
+        state.isActivelyMoving = false;
         invalidateRecognitionUICache();
         if (matchedProd) {
           state.currentMatch = matchedProd;
