@@ -80,7 +80,7 @@
   function bindElements() {
     var ids = [
       'viewport-container', 'camera-video', 'stage-canvas',
-      'hud-scan-dot', 'hud-live-label', 'hud-live-badge', 'btn-toggle-torch',
+      'hud-overlay', 'hud-scan-dot', 'hud-live-label', 'hud-live-badge', 'btn-toggle-torch',
       'roi-reticle',
       'tab-btn-scan', 'tab-btn-register', 'nav-inv-count',
       'view-scan', 'view-register',
@@ -653,6 +653,7 @@
       state.sourceMode = 'webcam';
       state.autoPausedWebcamInBg = false;
       state.torchOn = false;
+      if (el['btn-toggle-torch']) el['btn-toggle-torch'].classList.remove('active');
       state.hasEvaluatedFrame = false;
       state.isActivelyMoving = false;
       state.isEcoSleeping = false;
@@ -691,29 +692,23 @@
   }
 
   async function toggleTorch() {
-    if (!state.mediaStream) {
-      showToast('相機尚未就緒，請確認已允許相機權限', 'warn');
-      return;
-    }
+    if (!state.mediaStream) return;
     var track = state.mediaStream.getVideoTracks()[0];
-    if (!track || !track.getCapabilities) {
-      showToast('目前鏡頭不支援閃光燈控制', 'warn');
-      return;
-    }
+    if (!track || !track.getCapabilities) return;
     var caps = track.getCapabilities();
-    if (!caps.torch) {
-      showToast('此鏡頭無內建閃光燈', 'warn');
-      return;
-    }
-    state.torchOn = !state.torchOn;
+    if (!caps.torch) return;
+    var nextTorch = !state.torchOn;
     try {
-      await track.applyConstraints({ advanced: [{ torch: state.torchOn }] });
+      await track.applyConstraints({ advanced: [{ torch: nextTorch }] });
+      state.torchOn = nextTorch;
       if (el['btn-toggle-torch']) {
         el['btn-toggle-torch'].classList.toggle('active', state.torchOn);
       }
-      showToast(state.torchOn ? '⚡ 已開啟閃光燈' : '⚡ 已關閉閃光燈');
     } catch (_) {
-      showToast('閃光燈切換失敗', 'warn');
+      state.torchOn = false;
+      if (el['btn-toggle-torch']) {
+        el['btn-toggle-torch'].classList.remove('active');
+      }
     }
   }
 
@@ -859,6 +854,7 @@
   }
 
   function updateHudCameraStatus() {
+    var overlay = el['hud-overlay'];
     var dot = el['hud-scan-dot'];
     var label = el['hud-live-label'];
     var liveBadge = el['hud-live-badge'];
@@ -866,51 +862,46 @@
     var isLiveReady = isContinuousSourceActive() && hasValidOpticalSource();
     var isMatched = Boolean(state.currentMatch);
 
-    // 3-State Visual Synchronization:
-    // 1. 'standby'      -> 橘燈 + 待機中 + 橘色四角 (.state-standby)
-    // 2. 'unregistered' -> 紅燈 + 未建檔 + 紅色四角 (.state-unregistered)
-    // 3. 'active'       -> 綠燈 + 辨識中 + 綠色四角 (.state-active [+ .matched])
-    var mode = 'active';
+    // Strict 3-State Indicator Light & 4-Corner Reticle Binding:
+    // 1. 'standby'      -> 橘燈 + 待機中 + 橘色四角 (待機中 / 相機未就緒 / 背景暫停)
+    // 2. 'registered'   -> 綠燈 + 辨識中 + 綠色四角 (即時掃描判斷為已建檔)
+    // 3. 'unregistered' -> 紅燈 + 未建檔 + 紅色四角 (即時掃描判斷為未建檔)
+    var mode = 'standby';
     if (
       state.autoPausedWebcamInBg ||
       document.hidden ||
       !isLiveReady ||
-      state.isEcoSleeping
+      state.isEcoSleeping ||
+      !state.hasEvaluatedFrame
     ) {
       mode = 'standby';
-    } else if (
-      state.activeTab === 'scan' &&
-      state.hasEvaluatedFrame &&
-      !isMatched &&
-      !state.isActivelyMoving
-    ) {
+    } else if (isMatched) {
+      mode = 'registered';
+    } else {
       mode = 'unregistered';
     }
 
-    var lockMatchedGlow = mode === 'active' && isMatched && state.activeTab === 'scan';
-    var hudKey = mode + '|' + (lockMatchedGlow ? '1' : '0');
-    if (lastHudVisualKey === hudKey) return;
-    lastHudVisualKey = hudKey;
+    if (lastHudVisualKey === mode) return;
+    lastHudVisualKey = mode;
 
     if (mode === 'standby') {
+      if (overlay) overlay.className = 'hud-overlay signal-amber';
       if (dot) dot.className = 'status-dot eco';
       if (label) label.textContent = '待機中';
       if (liveBadge) liveBadge.className = 'hud-status-badge state-standby';
       if (reticle) reticle.className = 'roi-reticle state-standby';
-    } else if (mode === 'unregistered') {
+    } else if (mode === 'registered') {
+      if (overlay) overlay.className = 'hud-overlay signal-green';
+      if (dot) dot.className = 'status-dot active';
+      if (label) label.textContent = '辨識中';
+      if (liveBadge) liveBadge.className = 'hud-status-badge state-active';
+      if (reticle) reticle.className = 'roi-reticle state-active';
+    } else {
+      if (overlay) overlay.className = 'hud-overlay signal-red';
       if (dot) dot.className = 'status-dot unregistered';
       if (label) label.textContent = '未建檔';
       if (liveBadge) liveBadge.className = 'hud-status-badge state-unregistered';
       if (reticle) reticle.className = 'roi-reticle state-unregistered';
-    } else {
-      if (dot) dot.className = 'status-dot active';
-      if (label) label.textContent = '辨識中';
-      if (liveBadge) liveBadge.className = 'hud-status-badge state-active';
-      if (reticle) {
-        reticle.className = lockMatchedGlow
-          ? 'roi-reticle state-active matched'
-          : 'roi-reticle state-active';
-      }
     }
   }
 
