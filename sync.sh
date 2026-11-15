@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# VisionPOS Edge — Universal Android Google Drive (HTML + APK In-Place Overwrite/Cleanup) & GitHub Sync Script
+# 即庫系統 — 自動封裝並分離同步腳本：
+# 1. 打包產物（即庫系統.apk、即庫系統.html）-> 同步覆寫至 Google 雲端硬碟「即庫系統」資料夾
+# 2. 專案原始碼（不含打包二進位/單檔產物）-> 同步推送至 GitHub (https://github.com/Sinoro-Code/-.git)
 set -euo pipefail
 
 PROJECT_DIR="/home/antigravity/vision-pos"
+GDRIVE_FOLDER_ID="1v9enQ0C-naqv4HCX1zn_p4Wt7NPiOJnd"
 GDRIVE_HTML_ID="1y4hkJb9nrZS9nlV6l8wELAlIIUpYiLPV"
 GDRIVE_APK_ID="1dZmFn4sKbfw6mg4GbXYtR08YvyjuFIU5"
 STANDALONE_HTML="$PROJECT_DIR/即庫系統.html"
@@ -10,51 +13,46 @@ APK_FILE="$PROJECT_DIR/即庫系統.apk"
 
 cd "$PROJECT_DIR"
 
-echo "[1/5] 正在封裝全安卓通用單檔版 即庫系統.html 與編譯簽章 即庫系統.apk ..."
+echo "[1/4] 正在封裝全安卓通用單檔版 即庫系統.html 與編譯簽章 即庫系統.apk ..."
 node "$PROJECT_DIR/build-standalone.js"
 bash "$PROJECT_DIR/build-apk.sh"
 
-echo "[2/5] 正在原地更新 Google 雲端硬碟 即庫系統.html (ID: $GDRIVE_HTML_ID) 並清理舊檔..."
+echo "[2/4] 正在將打包檔案 (即庫系統.apk / 即庫系統.html) 同步至 Google 雲端硬碟「即庫系統」資料夾 (ID: $GDRIVE_FOLDER_ID)..."
 gdrive mutate rename "$GDRIVE_HTML_ID" "即庫系統.html" >/dev/null 2>&1 || true
+gdrive mutate mv "$GDRIVE_HTML_ID" "$GDRIVE_FOLDER_ID" >/dev/null 2>&1 || true
 gdrive mutate update "$GDRIVE_HTML_ID" "$STANDALONE_HTML" --mime-type "text/html"
 
-DUP_HTML_IDS=$(gdrive readonly search --name-contains "VisionPOS-" | grep -E '\.html' | awk '{print $1}' | grep -E '^[a-zA-Z0-9][a-zA-Z0-9_-]{20,}$' | grep -v "^${GDRIVE_HTML_ID}$" || true)
-for old_id in $DUP_HTML_IDS; do
-  echo "  -> 移除雲端硬碟舊版/重複 HTML 檔案 ID: $old_id"
-  gdrive mutate trash "$old_id" || true
-done
-
-echo "[3/5] 正在原地更新 Google 雲端硬碟全安卓通用安裝檔 即庫系統.apk 並清理舊檔..."
 if gdrive mutate update "$GDRIVE_APK_ID" "$APK_FILE" --mime-type "application/vnd.android.package-archive" 2>/dev/null; then
   PRIMARY_APK_ID="$GDRIVE_APK_ID"
   gdrive mutate rename "$PRIMARY_APK_ID" "即庫系統.apk" >/dev/null 2>&1 || true
-  echo "  -> 已原地覆寫更新雲端全安卓通用 APK (ID: $PRIMARY_APK_ID)"
+  gdrive mutate mv "$PRIMARY_APK_ID" "$GDRIVE_FOLDER_ID" >/dev/null 2>&1 || true
+  echo "  -> 已原地覆寫並歸檔至雲端資料夾「即庫系統」: 即庫系統.apk (ID: $PRIMARY_APK_ID)"
 else
-  echo "  -> 原 APK ID 不存在，正在上傳 即庫系統.apk ..."
-  gdrive mutate upload "$APK_FILE" --mime-type "application/vnd.android.package-archive"
-  PRIMARY_APK_ID=$(gdrive readonly search --name-contains "即庫系統.apk" | awk '{print $1}' | grep -E '^[a-zA-Z0-9][a-zA-Z0-9_-]{20,}$' | head -n 1 || true)
+  echo "  -> 原 APK ID 不存在，正在上傳 即庫系統.apk 至雲端資料夾「即庫系統」..."
+  gdrive mutate upload "$APK_FILE" --mime-type "application/vnd.android.package-archive" --parent "$GDRIVE_FOLDER_ID"
+  PRIMARY_APK_ID=$(gdrive readonly search --parent-id "$GDRIVE_FOLDER_ID" --name-contains "即庫系統.apk" | awk '{print $1}' | grep -E '^[a-zA-Z0-9][a-zA-Z0-9_-]{20,}$' | head -n 1 || true)
 fi
 
-DUP_APK_IDS=$(gdrive readonly search --name-contains "VisionPOS-" | grep -E '\.apk' | awk '{print $1}' | grep -E '^[a-zA-Z0-9][a-zA-Z0-9_-]{20,}$' | grep -v "^${PRIMARY_APK_ID}$" || true)
-for dup_apk in $DUP_APK_IDS; do
-  echo "  -> 移除雲端硬碟舊版/重複 APK 檔案 ID: $dup_apk"
-  gdrive mutate trash "$dup_apk" || true
+DUP_IDS=$(gdrive readonly search --name-contains "VisionPOS-" | awk '{print $1}' | grep -E '^[a-zA-Z0-9][a-zA-Z0-9_-]{20,}$' | grep -v -E "^(${GDRIVE_HTML_ID}|${PRIMARY_APK_ID})$" || true)
+for old_id in $DUP_IDS; do
+  echo "  -> 移除雲端硬碟舊版殘留檔案 ID: $old_id"
+  gdrive mutate trash "$old_id" || true
 done
 
-if [[ -n "$PRIMARY_APK_ID" ]]; then
-  echo "  -> 全安卓通用 APK 雲端硬碟點擊安裝連結: $(gdrive readonly url "$PRIMARY_APK_ID")"
-fi
+echo "  -> 雲端資料夾連結: $(gdrive readonly url "$GDRIVE_FOLDER_ID")"
+echo "  -> 即庫系統.apk 連結: $(gdrive readonly url "$PRIMARY_APK_ID")"
+echo "  -> 即庫系統.html 連結: $(gdrive readonly url "$GDRIVE_HTML_ID")"
 
-echo "[4/5] 正在同步更新本地 Git 儲存庫與推送至 GitHub (Sinoro-Code/-) ..."
+echo "[3/4] 正在將專案原始碼同步推送至 GitHub (Sinoro-Code/-) ..."
+# 確保移除任何曾被 Git 追蹤的打包產物（保留本地磁碟檔案）
+git rm --cached --ignore-unmatch "即庫系統.apk" "即庫系統.html" "VisionPOS-Android.apk" "VisionPOS-Android.html" >/dev/null 2>&1 || true
 git add -A
 if ! git diff --cached --quiet; then
-  git commit -m "chore: sync 即庫系統.html & 即庫系統.apk to Google Drive and GitHub"
+  git commit -m "chore(repo): sync source code only to GitHub & packaged builds to Google Drive folder"
 fi
 
-if git push -u origin main 2>/dev/null; then
-  echo "  -> 已直接推送至 https://github.com/Sinoro-Code/-.git"
-else
-  echo "  -> 本地 main 分支已更新至最新 Commit: $(git rev-parse --short HEAD)"
-fi
+# 透過官方 gh 啟動器掛載 GitHub HTTPS 憑證後推送 main
+gh auth status >/dev/null 2>&1 || true
+git push -u origin main
 
-echo "[5/5] Google 雲端硬碟 (即庫系統.html + 即庫系統.apk) 與 GitHub 同步完成！"
+echo "[4/4] 原始碼已同步至 GitHub，打包檔案已同步至 Google 雲端硬碟「即庫系統」資料夾！"

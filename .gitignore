@@ -1,4 +1,8 @@
 node_modules/
 .DS_Store
 data/
+build/
 *.idsig
+*.apk
+即庫系統.html
+VisionPOS-Android.html
