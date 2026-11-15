@@ -90,9 +90,8 @@
     var ids = [
       'native-scan-input', 'native-camera-input',
       'viewport-container', 'camera-video', 'stage-canvas',
-      'hud-scan-dot', 'btn-live-webcam', 'btn-toggle-torch',
-      'roi-reticle', 'hud-match-banner', 'hud-match-title', 'hud-match-sub',
-      'hud-confidence-val', 'hud-match-price',
+      'hud-scan-dot', 'hud-live-badge', 'btn-toggle-torch',
+      'roi-reticle',
       'tab-btn-scan', 'tab-btn-register', 'nav-inv-count',
       'view-scan', 'view-register',
       'recognized-product-card', 'rec-img', 'rec-match-type', 'rec-category',
@@ -550,8 +549,8 @@
     if (el['camera-video']) {
       el['camera-video'].srcObject = null;
     }
-    if (el['btn-live-webcam']) {
-      el['btn-live-webcam'].classList.remove('active');
+    if (el['hud-live-badge']) {
+      el['hud-live-badge'].classList.remove('active');
     }
   }
 
@@ -679,7 +678,7 @@
         await video.play();
       }
       if (el['stage-canvas']) el['stage-canvas'].classList.add('hidden');
-      if (el['btn-live-webcam']) el['btn-live-webcam'].classList.add('active');
+      if (el['hud-live-badge']) el['hud-live-badge'].classList.add('active');
 
       VisionEngine.resetMotionGate();
       updateHudCameraStatus();
@@ -707,7 +706,7 @@
 
   async function toggleTorch() {
     if (!state.mediaStream) {
-      showToast('請先點選左上方「辨識中」啟動鏡頭再開啟閃光燈', 'warn');
+      showToast('相機尚未就緒，請確認已允許相機權限', 'warn');
       return;
     }
     var track = state.mediaStream.getVideoTracks()[0];
@@ -768,7 +767,7 @@
     ctx.font = '600 17px system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(
-      state.autoPausedWebcamInBg ? '省電待機中（返回畫面即自動恢復辨識）' : '請點選左上方「辨識中」啟動相機鏡頭',
+      state.autoPausedWebcamInBg ? '省電待機中（返回畫面即自動恢復辨識）' : '正在啟動相機鏡頭（請確認已允許相機權限）',
       w * 0.5,
       h * 0.5 - 6
     );
@@ -883,11 +882,11 @@
 
   function updateHudCameraStatus() {
     var dot = el['hud-scan-dot'];
-    var liveBtn = el['btn-live-webcam'];
+    var liveBadge = el['hud-live-badge'];
     var isLiveActive = isContinuousSourceActive();
 
-    if (liveBtn) {
-      liveBtn.classList.toggle(
+    if (liveBadge) {
+      liveBadge.classList.toggle(
         'active',
         isLiveActive || (state.sourceMode === 'photo' && state.hasLoadedPhoto)
       );
@@ -1159,7 +1158,6 @@
 
   // State-diffed Merchant Recognition UI Updater
   var lastUIState = {
-    simLabel: '',
     matched: null,
     renderKey: ''
   };
@@ -1167,25 +1165,15 @@
   function invalidateRecognitionUICache() {
     lastUIState.renderKey = '';
     lastUIState.matched = null;
-    lastUIState.simLabel = '';
   }
 
   function updateRecognitionUI(matchRes, activeBarcode) {
     var isMatched = Boolean(matchRes && matchRes.matched && matchRes.product);
     var simVal = matchRes && typeof matchRes.similarity === 'number' ? matchRes.similarity : 0;
-    var simLabel = isMatched && matchRes.exactBarcode
-      ? '條碼 100%'
-      : (state.products.length > 0 && simVal > 0 ? (simVal * 100).toFixed(1) + '%' : '--%');
-
-    if (lastUIState.simLabel !== simLabel) {
-      lastUIState.simLabel = simLabel;
-      if (el['hud-confidence-val']) el['hud-confidence-val'].textContent = simLabel;
-    }
 
     if (lastUIState.matched !== isMatched) {
       lastUIState.matched = isMatched;
       if (el['roi-reticle']) el['roi-reticle'].classList.toggle('matched', isMatched);
-      if (el['hud-match-banner']) el['hud-match-banner'].classList.toggle('matched-state', isMatched);
     }
 
     if (isMatched) {
@@ -1211,14 +1199,6 @@
       if (lastUIState.renderKey !== pKey) {
         lastUIState.renderKey = pKey;
 
-        if (el['hud-match-title']) el['hud-match-title'].textContent = p.name;
-        if (el['hud-match-sub']) {
-          el['hud-match-sub'].textContent = '庫存 ' + stockNum + ' ' + unitStr + ' · 儲位 ' + locStr;
-        }
-        if (el['hud-match-price']) {
-          el['hud-match-price'].textContent = 'NT$ ' + priceNum.toLocaleString();
-        }
-
         if (el['recognized-product-card']) el['recognized-product-card'].classList.remove('hidden');
         if (el['unregistered-prompt-card']) el['unregistered-prompt-card'].classList.add('hidden');
 
@@ -1241,21 +1221,15 @@
         resetDeleteButtonUI();
       }
     } else {
-      var unregSubHud = state.products.length === 0
-        ? '目前尚無建檔商品，請點選「商品建檔」新增'
-        : (activeBarcode ? ('條碼 ' + activeBarcode + ' 尚未建檔') : '未掃描到已建檔的商品');
       var unregCardDesc = activeBarcode
         ? ('偵測到條碼「' + activeBarcode + '」尚未建立商品檔案')
         : (state.products.length === 0
           ? '目前商品庫尚無資料，請對準商品進行拍照建檔'
           : '目前掃描畫面中的商品尚未建立檔案');
-      var uKey = '__UNREG__|' + unregSubHud + '|' + unregCardDesc;
+      var uKey = '__UNREG__|' + unregCardDesc;
 
       if (lastUIState.renderKey !== uKey) {
         lastUIState.renderKey = uKey;
-        if (el['hud-match-title']) el['hud-match-title'].textContent = '未建檔';
-        if (el['hud-match-sub']) el['hud-match-sub'].textContent = unregSubHud;
-        if (el['hud-match-price']) el['hud-match-price'].textContent = '未建檔';
 
         if (el['recognized-product-card']) el['recognized-product-card'].classList.add('hidden');
         if (el['unregistered-prompt-card']) el['unregistered-prompt-card'].classList.remove('hidden');
@@ -1785,10 +1759,19 @@
   }
 
   function setupEvents() {
+    window.__resumeLiveCamera = function () {
+      if (!state.mediaStream) {
+        startWebcamStream(true);
+      }
+    };
+
     // 1. Two Merchant Tabs: 掃描商品 & 商品建檔
     if (el['tab-btn-scan']) {
       el['tab-btn-scan'].addEventListener('click', function () {
         switchTab('scan', false);
+        if (!state.mediaStream) {
+          startWebcamStream(true);
+        }
       });
     }
     if (el['tab-btn-register']) {
@@ -1800,12 +1783,7 @@
       });
     }
 
-    // 2. In-Viewfinder Controls (Top-Left: 辨識中 / Top-Right: Flash Icon)
-    if (el['btn-live-webcam']) {
-      el['btn-live-webcam'].addEventListener('click', function () {
-        startWebcamStream(false);
-      });
-    }
+    // 2. In-Viewfinder Control (Top-Left 辨識中 is non-clickable; Top-Right is Flash Icon)
     if (el['btn-toggle-torch']) {
       el['btn-toggle-torch'].addEventListener('click', function () {
         toggleTorch();

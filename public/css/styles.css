@@ -189,8 +189,11 @@ button {
   background: var(--accent-amber);
 }
 
-.hud-action-btn {
-  pointer-events: auto;
+.hud-status-badge {
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -201,12 +204,9 @@ button {
   color: var(--text-primary);
   font-size: 12px;
   font-weight: 700;
-  cursor: pointer;
-  transition: background-color 0.14s ease, border-color 0.14s ease;
 }
 
-.hud-action-btn:hover,
-.hud-action-btn.active {
+.hud-status-badge.active {
   background: hsla(158, 78%, 42%, 0.26);
   border-color: var(--accent-primary);
 }
@@ -240,12 +240,15 @@ button {
   fill: currentColor;
 }
 
-/* ROI Target Reticle */
+/* ROI Target Reticle (Optically centered 58% x 62% aligned 1:1 with getRoiRect) */
 .roi-reticle {
-  width: 56%;
-  height: 56%;
-  margin: auto;
-  position: relative;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 58%;
+  height: 62%;
+  margin: 0;
   border: 1px dashed rgba(255, 255, 255, 0.24);
   border-radius: 12px;
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
@@ -274,71 +277,6 @@ button {
 .roi-corner.tr { top: -2px; right: -2px; border-top-width: 3px; border-right-width: 3px; border-top-right-radius: 8px; }
 .roi-corner.bl { bottom: -2px; left: -2px; border-bottom-width: 3px; border-left-width: 3px; border-bottom-left-radius: 8px; }
 .roi-corner.br { bottom: -2px; right: -2px; border-bottom-width: 3px; border-right-width: 3px; border-bottom-right-radius: 8px; }
-
-/* Bottom HUD Match Banner */
-.hud-match-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 9px 12px;
-  border-radius: var(--radius-md);
-  background: rgba(9, 13, 20, 0.90);
-  border: 1px solid rgba(245, 158, 11, 0.38);
-  transition: border-color 0.16s ease;
-}
-
-.hud-match-banner.matched-state {
-  border-color: hsla(158, 78%, 46%, 0.65);
-}
-
-.hud-match-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--accent-amber);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.hud-match-banner.matched-state .hud-match-title {
-  color: var(--text-primary);
-}
-
-.hud-match-sub {
-  font-size: 12px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.hud-match-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.hud-sim-chip {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  padding: 2px 7px;
-  border-radius: 99px;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-secondary);
-}
-
-.hud-match-price {
-  font-size: 15px;
-  font-weight: 800;
-  font-family: var(--font-mono);
-  color: var(--accent-amber);
-}
-
-.hud-match-banner.matched-state .hud-match-price {
-  color: var(--accent-primary);
-}
 
 /* ==========================================================================
    Merchant 2-Function Switcher & Panels

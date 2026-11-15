@@ -282,6 +282,9 @@ public class MainActivity extends Activity {
                 }
                 pendingWebPermission = null;
             }
+            if (granted && webView != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                webView.evaluateJavascript("if(window.__resumeLiveCamera)window.__resumeLiveCamera();", null);
+            }
         }
     }
 
