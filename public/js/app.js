@@ -1148,6 +1148,8 @@
     var activeTag = document.activeElement ? document.activeElement.tagName : '';
     if (
       state.activeTab === 'form' &&
+      el['viewport-section'] &&
+      !el['viewport-section'].classList.contains('hidden') &&
       state.sourceMode === 'webcam' &&
       !state.regManualCaptured &&
       activeTag !== 'INPUT' &&
@@ -1950,16 +1952,21 @@
 
       if (absDx < SWIPE_MIN_DX || absDx <= absDy * 1.35) return;
 
-      lastSwipeSwitchMs = now;
-      if (state.activeTab === 'scan') {
+      // Non-cyclic horizontal pager: [ 掃描 (left) | 庫存 (right) ]
+      // - On 掃描 (scan): only swipe LEFT (dx <= -SWIPE_MIN_DX) switches to 庫存 (register)
+      // - On 庫存 (register): only swipe RIGHT (dx >= SWIPE_MIN_DX) switches to 掃描 (scan)
+      if (state.activeTab === 'scan' && dx <= -SWIPE_MIN_DX) {
+        lastSwipeSwitchMs = now;
         switchTab('register', true);
-      } else {
+        triggerHaptic(18);
+      } else if (state.activeTab === 'register' && dx >= SWIPE_MIN_DX) {
+        lastSwipeSwitchMs = now;
         switchTab('scan', false);
         if (!state.mediaStream) {
           startWebcamStream(true);
         }
+        triggerHaptic(18);
       }
-      triggerHaptic(18);
     }
 
     document.addEventListener(
@@ -2064,8 +2071,8 @@
       el['view-form-modal'].classList.toggle('hidden', state.activeTab !== 'form');
     }
 
-    // Hide top optical viewport on the 庫存 (register) product cards list page; show on 掃描 & 拍照建檔 form
-    var hideViewport = state.activeTab === 'register';
+    // Hide top optical viewport on 庫存 (register) and 商品編輯/建檔頁面 (form); show ONLY on 掃描 (scan)
+    var hideViewport = state.activeTab !== 'scan';
     if (el['viewport-section']) {
       el['viewport-section'].classList.toggle('hidden', hideViewport);
     }
@@ -2102,7 +2109,7 @@
       el['camera-video'].addEventListener('playing', onVideoFrameReady);
     }
 
-    // 1. Two Merchant Tabs: 掃描 & 庫存 (Click + Full-Screen Horizontal Swipe)
+    // 1. Two Merchant Tabs: 掃描 & 庫存 (Click + Non-Cyclic Horizontal Swipe)
     bindHorizontalTabSwipe();
     if (el['tab-btn-scan']) {
       el['tab-btn-scan'].addEventListener('click', function () {
@@ -2125,15 +2132,15 @@
       });
     }
 
-    // 3. Fixed Bottom Capture Pill -> Open Standalone Registration Form Modal (📸 拍照)
+    // 3. Fixed Bottom Capture Pill -> Capture current frame FIRST, then open Form View with top camera hidden (📸 拍照)
     if (el['btn-jump-register']) {
       el['btn-jump-register'].addEventListener('click', function () {
         if (!state.mediaStream) {
           startWebcamStream(true);
         }
         resetRegistrationForm();
-        switchTab('form', true);
         captureForRegistration(false, true);
+        switchTab('form', true);
         if (el['reg-name']) {
           setTimeout(function () {
             el['reg-name'].focus();
@@ -2142,7 +2149,7 @@
       });
     }
 
-    // 4. Long-Press 1s (1000ms) on Product Cards -> Open Context Menu (由上至下：編輯、刪除)
+    // 4. Long-Press 0.5s (500ms) on Product Cards -> Open Context Menu (由上至下：編輯、刪除)
     bindLongPressCardMenu(el['recognized-product-card'], function () {
       if (!state.currentMatch) return null;
       return {

@@ -7,13 +7,13 @@
   <meta name="description" content="店家端極速視覺與條碼商品掃描查詢、相機拍照即時建檔系統。" />
   <meta name="theme-color" content="#0b0f14" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-  <link rel="manifest" href="/manifest.json?v=335" />
-  <link rel="stylesheet" href="/css/styles.css?v=335" />
+  <link rel="manifest" href="/manifest.json?v=336" />
+  <link rel="stylesheet" href="/css/styles.css?v=336" />
 </head>
 <body>
   <!-- Merchant 2-Function Workspace: Optical Viewport directly at the top (Zero blocks above Optical Viewport) -->
   <main class="merchant-workspace" id="merchant-workspace">
-    <!-- SECTION 1: Direct Top Optical Viewport (Visible on Scan & Registration Modal; Hidden on Inventory List Tab) -->
+    <!-- SECTION 1: Direct Top Optical Viewport (Visible ONLY on Scan Tab; Hidden on Inventory List & Edit/Registration Page) -->
     <section class="viewport-section" id="viewport-section" aria-label="光學取景區">
       <div class="viewport-container" id="viewport-container">
         <video id="camera-video" class="viewport-video hidden" playsinline muted autoplay></video>
@@ -126,7 +126,7 @@
                   <span style="font-size:12px; color:var(--text-muted); font-family:var(--font-mono);" id="reg-sample-count">樣本: 0 組</span>
                 </div>
                 <p style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">
-                  將商品置於上方取景框中央擷取，可補拍 2～3 個不同角度提升辨識精準度。
+                  已載入商品縮圖與視覺特徵，可直接編輯下方欄位並儲存（如需重拍請切回掃描頁拍照）。
                 </p>
                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
                   <button type="button" class="btn btn-primary btn-sm" id="btn-capture-frame">
@@ -238,7 +238,7 @@
   <!-- Toast Notifications Container -->
   <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
 
-  <script src="/js/vision-engine.js?v=335"></script>
-  <script src="/js/app.js?v=335"></script>
+  <script src="/js/vision-engine.js?v=336"></script>
+  <script src="/js/app.js?v=336"></script>
 </body>
 </html>
