@@ -17,6 +17,8 @@
   var BG_CAMERA_RELEASE_MS = 10000; // 10 seconds background auto-release for camera sensor power saving
   var STATIC_MOTION_DELTA = 2.6; // Unified motion-gate & continuous-AF ISP noise floor threshold
   var LONG_PRESS_MS = 500; // 0.5-second long-press duration to open product card context menu (編輯 / 刪除)
+  var SWIPE_MIN_DX = 48; // Minimum horizontal swipe distance (px) to switch between 掃描 and 庫存
+  var SWIPE_MAX_MS = 900; // Maximum swipe gesture duration (ms)
 
   // Clean dark SVG placeholder so broken image icons never render before first capture
   var EMPTY_THUMB_DATA_URI =
@@ -1664,6 +1666,7 @@
 
   function openCardContextMenu(product) {
     if (!product) return;
+    if (typeof cancelActiveTabSwipe === 'function') cancelActiveTabSwipe();
     state.contextMenuProduct = product;
     if (el['card-context-menu-backdrop']) {
       el['card-context-menu-backdrop'].classList.remove('hidden');
@@ -1839,6 +1842,198 @@
     });
   }
 
+  // Bind Full-Screen Horizontal Swipe (Left / Right) to Switch Between 掃描 and 庫存
+  var cancelActiveTabSwipe = function () {};
+  function bindHorizontalTabSwipe() {
+    var tracking = false;
+    var lockedAxis = '';
+    var startX = 0;
+    var startY = 0;
+    var lastX = 0;
+    var lastY = 0;
+    var startTime = 0;
+    var lastSwipeSwitchMs = 0;
+
+    function resetSwipe() {
+      tracking = false;
+      lockedAxis = '';
+    }
+    cancelActiveTabSwipe = resetSwipe;
+
+    function isInteractiveInput(target) {
+      var node = target;
+      while (node && node !== document) {
+        var tag = node.tagName ? String(node.tagName).toUpperCase() : '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+          return true;
+        }
+        node = node.parentNode;
+      }
+      return false;
+    }
+
+    function canSwipeNow() {
+      if (state.activeTab !== 'scan' && state.activeTab !== 'register') return false;
+      if (state.contextMenuProduct || state.pendingDeleteProduct) return false;
+      if (
+        el['card-context-menu-backdrop'] &&
+        !el['card-context-menu-backdrop'].classList.contains('hidden')
+      ) {
+        return false;
+      }
+      if (
+        el['delete-confirm-backdrop'] &&
+        !el['delete-confirm-backdrop'].classList.contains('hidden')
+      ) {
+        return false;
+      }
+      return true;
+    }
+
+    function onStart(x, y, target) {
+      if (!canSwipeNow() || isInteractiveInput(target)) {
+        resetSwipe();
+        return;
+      }
+      tracking = true;
+      lockedAxis = '';
+      startX = x;
+      startY = y;
+      lastX = x;
+      lastY = y;
+      startTime = Date.now();
+    }
+
+    function onMove(x, y) {
+      if (!tracking) return;
+      if (!canSwipeNow()) {
+        resetSwipe();
+        return;
+      }
+      lastX = x;
+      lastY = y;
+      var dx = x - startX;
+      var dy = y - startY;
+      var absDx = Math.abs(dx);
+      var absDy = Math.abs(dy);
+
+      if (lockedAxis === '') {
+        if (absDy > 12 && absDy >= absDx) {
+          lockedAxis = 'y';
+          tracking = false;
+          return;
+        }
+        if (absDx > 14 && absDx > absDy * 1.25) {
+          lockedAxis = 'x';
+        }
+      }
+    }
+
+    function onEnd(x, y) {
+      if (!tracking) return;
+      var wasLockedY = lockedAxis === 'y';
+      var sX = startX;
+      var sY = startY;
+      var sT = startTime;
+      resetSwipe();
+
+      if (wasLockedY || !canSwipeNow()) return;
+
+      var now = Date.now();
+      var dt = now - sT;
+      if (dt > SWIPE_MAX_MS || now - lastSwipeSwitchMs < 240) return;
+
+      var dx = x - sX;
+      var dy = y - sY;
+      var absDx = Math.abs(dx);
+      var absDy = Math.abs(dy);
+
+      if (absDx < SWIPE_MIN_DX || absDx <= absDy * 1.35) return;
+
+      lastSwipeSwitchMs = now;
+      if (state.activeTab === 'scan') {
+        switchTab('register', true);
+      } else {
+        switchTab('scan', false);
+        if (!state.mediaStream) {
+          startWebcamStream(true);
+        }
+      }
+      triggerHaptic(18);
+    }
+
+    document.addEventListener(
+      'touchstart',
+      function (ev) {
+        if (!ev || !ev.touches || ev.touches.length !== 1) {
+          resetSwipe();
+          return;
+        }
+        onStart(ev.touches[0].clientX || 0, ev.touches[0].clientY || 0, ev.target);
+      },
+      { passive: true }
+    );
+
+    document.addEventListener(
+      'touchmove',
+      function (ev) {
+        if (!tracking) return;
+        if (!ev || !ev.touches || ev.touches.length !== 1) {
+          resetSwipe();
+          return;
+        }
+        onMove(ev.touches[0].clientX || 0, ev.touches[0].clientY || 0);
+      },
+      { passive: true }
+    );
+
+    document.addEventListener(
+      'touchend',
+      function (ev) {
+        if (!tracking) return;
+        var endX = lastX;
+        var endY = lastY;
+        if (ev && ev.changedTouches && ev.changedTouches.length > 0) {
+          endX = ev.changedTouches[0].clientX !== undefined ? ev.changedTouches[0].clientX : lastX;
+          endY = ev.changedTouches[0].clientY !== undefined ? ev.changedTouches[0].clientY : lastY;
+        }
+        onEnd(endX, endY);
+      },
+      { passive: true }
+    );
+
+    document.addEventListener('touchcancel', resetSwipe, { passive: true });
+
+    // Also support mouse horizontal drag for desktop / WebView testing
+    document.addEventListener('mousedown', function (ev) {
+      if (!ev || (ev.button && ev.button !== 0)) return;
+      onStart(ev.clientX || 0, ev.clientY || 0, ev.target);
+    });
+
+    document.addEventListener('mousemove', function (ev) {
+      if (!tracking || !ev) return;
+      onMove(ev.clientX || 0, ev.clientY || 0);
+    });
+
+    document.addEventListener('mouseup', function (ev) {
+      if (!tracking) return;
+      var endX = ev && ev.clientX !== undefined ? ev.clientX : lastX;
+      var endY = ev && ev.clientY !== undefined ? ev.clientY : lastY;
+      onEnd(endX, endY);
+    });
+
+    document.addEventListener(
+      'click',
+      function (ev) {
+        if (ev && lastSwipeSwitchMs > 0 && Date.now() - lastSwipeSwitchMs < 260) {
+          if (typeof ev.preventDefault === 'function') ev.preventDefault();
+          if (typeof ev.stopPropagation === 'function') ev.stopPropagation();
+        }
+      },
+      true
+    );
+  }
+
   // ==========================================================================
   // Tab Switching & Event Bindings
   // ==========================================================================
@@ -1907,7 +2102,8 @@
       el['camera-video'].addEventListener('playing', onVideoFrameReady);
     }
 
-    // 1. Two Merchant Tabs: 掃描 & 庫存
+    // 1. Two Merchant Tabs: 掃描 & 庫存 (Click + Full-Screen Horizontal Swipe)
+    bindHorizontalTabSwipe();
     if (el['tab-btn-scan']) {
       el['tab-btn-scan'].addEventListener('click', function () {
         switchTab('scan', false);
