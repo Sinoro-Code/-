@@ -16,7 +16,7 @@
   var OUTBOX_STORAGE_KEY = 'vision_pos_outbox_v1';
   var BG_CAMERA_RELEASE_MS = 10000; // 10 seconds background auto-release for camera sensor power saving
   var STATIC_MOTION_DELTA = 2.6; // Unified motion-gate & continuous-AF ISP noise floor threshold
-  var LONG_PRESS_MS = 1000; // 1-second long-press duration to open product card context menu (編輯 / 刪除)
+  var LONG_PRESS_MS = 500; // 0.5-second long-press duration to open product card context menu (編輯 / 刪除)
 
   // Clean dark SVG placeholder so broken image icons never render before first capture
   var EMPTY_THUMB_DATA_URI =

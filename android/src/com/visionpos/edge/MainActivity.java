@@ -54,7 +54,7 @@ import java.util.Map;
 public class MainActivity extends Activity {
     private static final int REQ_CAMERA_PERMISSION = 1001;
     private static final int REQ_FILE_CHOOSER = 1002;
-    private static final String APP_URL = "https://visionpos.local/index.html?v=333";
+    private static final String APP_URL = "https://visionpos.local/index.html?v=334";
 
     private WebView webView;
     private PermissionRequest pendingWebPermission;
