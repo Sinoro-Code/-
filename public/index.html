@@ -7,14 +7,14 @@
   <meta name="description" content="店家端極速視覺與條碼商品掃描查詢、相機拍照即時建檔系統。" />
   <meta name="theme-color" content="#0b0f14" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-  <link rel="manifest" href="/manifest.json?v=330" />
-  <link rel="stylesheet" href="/css/styles.css?v=330" />
+  <link rel="manifest" href="/manifest.json?v=331" />
+  <link rel="stylesheet" href="/css/styles.css?v=331" />
 </head>
 <body>
   <!-- Merchant 2-Function Workspace: Optical Viewport directly at the top (Zero blocks above Optical Viewport) -->
-  <main class="merchant-workspace">
-    <!-- SECTION 1: Direct Top Optical Viewport -->
-    <section class="viewport-section" aria-label="光學取景區">
+  <main class="merchant-workspace" id="merchant-workspace">
+    <!-- SECTION 1: Direct Top Optical Viewport (Visible on Scan & Registration Modal; Hidden on Inventory List Tab) -->
+    <section class="viewport-section" id="viewport-section" aria-label="光學取景區">
       <div class="viewport-container" id="viewport-container">
         <video id="camera-video" class="viewport-video hidden" playsinline muted autoplay></video>
         <canvas id="stage-canvas" class="viewport-canvas" width="640" height="480"></canvas>
@@ -45,9 +45,9 @@
       </div>
     </section>
 
-    <!-- SECTION 2: Merchant Function Switcher & Active View (ONLY Scan & Inventory) -->
+    <!-- SECTION 2: Merchant Function Switcher & Active View (ONLY 掃描 & 庫存) -->
     <section class="merchant-main-panel" aria-label="掃描與庫存區">
-      <!-- Strictly 2 Functions: 掃描 & 庫存 -->
+      <!-- Strictly 2 Functions: 掃描 & 庫存 (Zero count badge on 庫存 button) -->
       <nav class="merchant-tabs" aria-label="店家功能切換">
         <button type="button" class="merchant-tab active" data-tab="scan" id="tab-btn-scan">
           <svg class="tab-icon scan-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -64,58 +64,44 @@
             <line x1="12" y1="22" x2="12" y2="12"></line>
           </svg>
           <span>庫存</span>
-          <span class="tab-badge" id="nav-inv-count">0</span>
         </button>
       </nav>
 
-      <!-- VIEW 1: 掃描 (If registered -> List Product Info; If unregistered -> Show 未建檔) -->
+      <!-- VIEW 1: 掃描 (If registered -> Show Product Card; If unregistered -> Blank middle area) -->
       <div id="view-scan" class="tab-view">
-        <!-- Registered Product Information Card (有建檔：列出完整商品資訊) -->
+        <!-- Registered Product Information Card (左邊縮圖，右邊由上至下：品名、價格、存量、效期、成本) -->
         <div class="panel merchant-card hidden" id="recognized-product-card">
           <div class="panel-body">
-            <div class="rec-header">
-              <img id="rec-img" class="rec-thumb" src="" alt="商品縮圖" />
-              <div class="rec-meta">
-                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:4px;">
-                  <span class="badge badge-emerald" id="rec-match-type">已建檔商品</span>
-                  <span class="badge badge-info" id="rec-category">一般商品</span>
-                  <span style="font-size:12px; color:var(--text-muted); font-family:var(--font-mono);" id="rec-similarity">99%</span>
+            <div class="product-card-layout">
+              <img id="rec-img" class="product-card-thumb" src="" alt="商品縮圖" />
+              <div class="product-card-details">
+                <div class="product-card-row">
+                  <span class="product-card-label">品名</span>
+                  <strong class="product-card-val name-val" id="rec-name">--</strong>
                 </div>
-                <h2 class="rec-name" id="rec-name">--</h2>
-                <div class="rec-price" id="rec-price">NT$ 0</div>
-              </div>
-            </div>
-
-            <!-- Merchant Detailed Product Info Table -->
-            <div class="merchant-info-grid">
-              <div class="info-cell">
-                <span class="info-label">庫存數量</span>
-                <div class="stock-inline-row">
-                  <strong class="info-val" id="rec-stock">0 件</strong>
-                  <div class="stock-step-btns">
-                    <button type="button" class="btn-step" id="btn-rec-stock-minus" title="庫存 -1">−</button>
-                    <button type="button" class="btn-step" id="btn-rec-stock-plus" title="庫存 +1">＋</button>
+                <div class="product-card-row">
+                  <span class="product-card-label">價格</span>
+                  <strong class="product-card-val price-val" id="rec-price">NT$ 0</strong>
+                </div>
+                <div class="product-card-row">
+                  <span class="product-card-label">存量</span>
+                  <div class="stock-inline-row">
+                    <strong class="product-card-val" id="rec-stock">0 件</strong>
+                    <div class="stock-step-btns">
+                      <button type="button" class="btn-step" id="btn-rec-stock-minus" title="庫存 -1">−</button>
+                      <button type="button" class="btn-step" id="btn-rec-stock-plus" title="庫存 +1">＋</button>
+                    </div>
                   </div>
                 </div>
+                <div class="product-card-row">
+                  <span class="product-card-label">效期</span>
+                  <strong class="product-card-val" id="rec-expiry">--</strong>
+                </div>
+                <div class="product-card-row">
+                  <span class="product-card-label">成本</span>
+                  <strong class="product-card-val mono" id="rec-cost">NT$ 0</strong>
+                </div>
               </div>
-              <div class="info-cell">
-                <span class="info-label">存放儲位</span>
-                <strong class="info-val" id="rec-location">--</strong>
-              </div>
-              <div class="info-cell">
-                <span class="info-label">商品編號 (SKU)</span>
-                <strong class="info-val mono" id="rec-sku">--</strong>
-              </div>
-              <div class="info-cell">
-                <span class="info-label">國際條碼 / QR</span>
-                <strong class="info-val mono" id="rec-barcode">--</strong>
-              </div>
-            </div>
-
-            <!-- Product Description / Spec -->
-            <div class="spec-box">
-              <div class="info-label" style="margin-bottom:4px;">商品介紹 / 規格備註</div>
-              <p class="rec-spec" id="rec-spec">--</p>
             </div>
 
             <!-- Merchant Quick Maintenance Actions for this Registered Product -->
@@ -141,8 +127,13 @@
         </div>
       </div>
 
-      <!-- VIEW 2: 庫存 (Merchant Product Inventory & Registration Form) -->
+      <!-- VIEW 2: 庫存 (僅顯示所有商品的商品卡：左邊產品縮圖，右邊由上至下依次為品名、價格、存量、效期、成本) -->
       <div id="view-register" class="tab-view hidden">
+        <div id="inventory-cards-list" class="inventory-cards-list"></div>
+      </div>
+
+      <!-- VIEW 3: 獨立拍照建檔 / 編輯視圖 (僅由「📸 拍照」或點選商品卡編輯時開啟，不佔用「庫存」商品卡列表頁) -->
+      <div id="view-form-modal" class="tab-view hidden">
         <div class="panel">
           <div class="panel-body">
             <!-- Captured Snapshot & 144-D Visual Descriptor Status -->
@@ -172,18 +163,28 @@
               <input type="hidden" id="reg-id" value="" />
 
               <div class="form-field full">
-                <label class="form-label" for="reg-name">商品名稱 *</label>
+                <label class="form-label" for="reg-name">品名 *</label>
                 <input type="text" id="reg-name" class="input-control" placeholder="請輸入商品名稱（例如：阿里山高山烏龍茶 150g）" required />
               </div>
 
               <div class="form-field">
-                <label class="form-label" for="reg-price">銷售單價 (NT$) *</label>
+                <label class="form-label" for="reg-price">價格 (NT$) *</label>
                 <input type="number" id="reg-price" class="input-control" placeholder="例如：350" value="" min="0" step="1" />
               </div>
 
               <div class="form-field">
-                <label class="form-label" for="reg-stock">庫存數量 *</label>
+                <label class="form-label" for="reg-stock">存量 *</label>
                 <input type="number" id="reg-stock" class="input-control" placeholder="例如：20" value="10" min="0" step="1" />
+              </div>
+
+              <div class="form-field">
+                <label class="form-label" for="reg-expiry">效期</label>
+                <input type="text" id="reg-expiry" class="input-control" placeholder="例如：2027-12-31" />
+              </div>
+
+              <div class="form-field">
+                <label class="form-label" for="reg-cost">成本 (NT$)</label>
+                <input type="number" id="reg-cost" class="input-control" placeholder="例如：200" value="" min="0" step="1" />
               </div>
 
               <div class="form-field">
@@ -221,6 +222,9 @@
                 <button type="button" class="btn btn-secondary" id="btn-reset-reg-form">
                   清除重填
                 </button>
+                <button type="button" class="btn btn-secondary hidden" id="btn-modal-delete">
+                  🗑️ 刪除
+                </button>
               </div>
             </form>
           </div>
@@ -232,7 +236,7 @@
   <!-- Toast Notifications Container -->
   <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
 
-  <script src="/js/vision-engine.js?v=330"></script>
-  <script src="/js/app.js?v=330"></script>
+  <script src="/js/vision-engine.js?v=331"></script>
+  <script src="/js/app.js?v=331"></script>
 </body>
 </html>

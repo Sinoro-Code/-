@@ -335,7 +335,9 @@ const server = http.createServer(async (req, res) => {
           ...product,
           id: existing.id,
           price: Number(product.price ?? existing.price),
+          cost: Number(product.cost ?? existing.cost ?? 0),
           stock: Number(product.stock ?? existing.stock),
+          expiryDate: product.expiryDate !== undefined ? String(product.expiryDate) : (existing.expiryDate || ''),
           minStock: Number(product.minStock ?? existing.minStock ?? 5),
           descriptors: Array.isArray(product.descriptors) && product.descriptors.length > 0
             ? product.descriptors
@@ -358,6 +360,7 @@ const server = http.createServer(async (req, res) => {
           price: Number(product.price) || 0,
           cost: Number(product.cost) || 0,
           stock: Number.isFinite(Number(product.stock)) ? Number(product.stock) : 10,
+          expiryDate: product.expiryDate ? String(product.expiryDate).trim() : '',
           minStock: Number.isFinite(Number(product.minStock)) ? Number(product.minStock) : 5,
           unit: product.unit || '件',
           location: product.location || 'A-01',
@@ -397,6 +400,8 @@ const server = http.createServer(async (req, res) => {
         product.stock = Math.max(0, body.stock);
       }
       if (typeof body.price === 'number') product.price = Math.max(0, body.price);
+      if (typeof body.cost === 'number') product.cost = Math.max(0, body.cost);
+      if (typeof body.expiryDate === 'string') product.expiryDate = body.expiryDate.trim();
       if (typeof body.name === 'string' && body.name.trim()) product.name = body.name.trim();
       if (typeof body.location === 'string') product.location = body.location;
       if (typeof body.spec === 'string') product.spec = body.spec;
@@ -443,7 +448,9 @@ const server = http.createServer(async (req, res) => {
               ...item,
               id: existing.id,
               price: Number(item.price ?? existing.price) || 0,
+              cost: Number(item.cost ?? existing.cost) || 0,
               stock: Number(item.stock ?? existing.stock) || 0,
+              expiryDate: item.expiryDate !== undefined ? String(item.expiryDate) : (existing.expiryDate || ''),
               descriptors:
                 Array.isArray(item.descriptors) && item.descriptors.length > 0
                   ? item.descriptors
@@ -460,7 +467,9 @@ const server = http.createServer(async (req, res) => {
             name: String(item.name).trim(),
             category: item.category || '一般商品',
             price: Number(item.price) || 0,
+            cost: Number(item.cost) || 0,
             stock: Number(item.stock) ?? 10,
+            expiryDate: item.expiryDate ? String(item.expiryDate).trim() : '',
             minStock: Number(item.minStock) ?? 5,
             unit: item.unit || '件',
             location: item.location || 'A-01',

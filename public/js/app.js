@@ -82,22 +82,22 @@
   var roiCorners = [];
   function bindElements() {
     var ids = [
-      'viewport-container', 'camera-video', 'stage-canvas',
+      'merchant-workspace', 'viewport-section', 'viewport-container', 'camera-video', 'stage-canvas',
       'hud-overlay', 'hud-scan-dot', 'hud-live-label', 'hud-live-badge', 'btn-toggle-torch',
       'roi-reticle',
-      'tab-btn-scan', 'tab-btn-register', 'nav-inv-count',
-      'view-scan', 'view-register',
-      'recognized-product-card', 'rec-img', 'rec-match-type', 'rec-category',
-      'rec-similarity', 'rec-name', 'rec-price', 'rec-stock',
+      'tab-btn-scan', 'tab-btn-register',
+      'view-scan', 'view-register', 'view-form-modal', 'inventory-cards-list',
+      'recognized-product-card', 'rec-img',
+      'rec-name', 'rec-price', 'rec-stock', 'rec-expiry', 'rec-cost',
       'btn-rec-stock-minus', 'btn-rec-stock-plus',
-      'rec-location', 'rec-sku', 'rec-barcode', 'rec-spec',
       'btn-rec-edit', 'btn-train-extra-angle', 'btn-rec-delete',
       'btn-jump-register',
       'reg-preview-img', 'reg-descriptor-status', 'reg-sample-count',
       'btn-capture-frame', 'btn-add-angle-sample',
       'register-product-form', 'reg-id', 'reg-name', 'reg-price', 'reg-stock',
+      'reg-expiry', 'reg-cost',
       'reg-sku', 'reg-barcode', 'reg-category', 'reg-unit', 'reg-location',
-      'reg-spec', 'btn-submit-reg', 'btn-reset-reg-form',
+      'reg-spec', 'btn-submit-reg', 'btn-reset-reg-form', 'btn-modal-delete',
       'toast-stack'
     ];
     for (var i = 0; i < ids.length; i++) {
@@ -167,10 +167,65 @@
     return true;
   }
 
-  function updateCatalogBadge() {
-    if (el['nav-inv-count']) {
-      el['nav-inv-count'].textContent = String(state.products.length);
+  function escapeHtml(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function renderInventoryCardsList() {
+    var container = el['inventory-cards-list'];
+    if (!container) return;
+    var htmlParts = [];
+    for (var i = 0; i < state.products.length; i++) {
+      var p = state.products[i];
+      if (!p) continue;
+      var thumbSrc = p.thumbnail || EMPTY_THUMB_DATA_URI;
+      var priceNum = Number(p.price) || 0;
+      var stockNum = Number.isFinite(Number(p.stock)) ? Number(p.stock) : 0;
+      var unitStr = p.unit || '件';
+      var expiryStr = p.expiryDate && String(p.expiryDate).trim() ? String(p.expiryDate).trim() : '--';
+      var costNum = Number(p.cost) || 0;
+
+      htmlParts.push(
+        '<div class="panel merchant-card inventory-item-card" data-product-id="' + escapeHtml(p.id) + '">' +
+          '<div class="panel-body">' +
+            '<div class="product-card-layout">' +
+              '<img class="product-card-thumb" src="' + escapeHtml(thumbSrc) + '" alt="商品縮圖" />' +
+              '<div class="product-card-details">' +
+                '<div class="product-card-row">' +
+                  '<span class="product-card-label">品名</span>' +
+                  '<strong class="product-card-val name-val">' + escapeHtml(p.name) + '</strong>' +
+                '</div>' +
+                '<div class="product-card-row">' +
+                  '<span class="product-card-label">價格</span>' +
+                  '<strong class="product-card-val price-val">NT$ ' + priceNum.toLocaleString() + '</strong>' +
+                '</div>' +
+                '<div class="product-card-row">' +
+                  '<span class="product-card-label">存量</span>' +
+                  '<strong class="product-card-val">' + stockNum + ' ' + escapeHtml(unitStr) + '</strong>' +
+                '</div>' +
+                '<div class="product-card-row">' +
+                  '<span class="product-card-label">效期</span>' +
+                  '<strong class="product-card-val">' + escapeHtml(expiryStr) + '</strong>' +
+                '</div>' +
+                '<div class="product-card-row">' +
+                  '<span class="product-card-label">成本</span>' +
+                  '<strong class="product-card-val mono">NT$ ' + costNum.toLocaleString() + '</strong>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>'
+      );
     }
+    container.innerHTML = htmlParts.join('');
+  }
+
+  function updateCatalogBadge() {
+    renderInventoryCardsList();
   }
 
   // ==========================================================================
@@ -1082,10 +1137,10 @@
       wakeFromEcoSleep();
     }
 
-    // Live Registration Preview on Register tab when webcam is active and not manually locked
+    // Live Registration Preview on Registration Form Modal when webcam is active and not manually locked
     var activeTag = document.activeElement ? document.activeElement.tagName : '';
     if (
-      state.activeTab === 'register' &&
+      state.activeTab === 'form' &&
       state.sourceMode === 'webcam' &&
       !state.regManualCaptured &&
       activeTag !== 'INPUT' &&
@@ -1119,7 +1174,7 @@
             var isNewBarcode = state.lastDetectedBarcode !== codeObj.rawValue;
             state.lastDetectedBarcode = codeObj.rawValue;
             state.lastBarcodeTime = Date.now();
-            if (state.activeTab === 'register' && el['reg-barcode'] && !el['reg-barcode'].value.trim()) {
+            if (state.activeTab === 'form' && el['reg-barcode'] && !el['reg-barcode'].value.trim()) {
               el['reg-barcode'].value = codeObj.rawValue;
               showToast('⚡ 已自動帶入條碼：' + codeObj.rawValue);
             } else if (isNewBarcode) {
@@ -1250,9 +1305,8 @@
     lastHudVisualKey = '';
   }
 
-  function updateRecognitionUI(matchRes, activeBarcode) {
+  function updateRecognitionUI(matchRes) {
     var isMatched = Boolean(matchRes && matchRes.matched && matchRes.product);
-    var simVal = matchRes && typeof matchRes.similarity === 'number' ? matchRes.similarity : 0;
 
     lastUIState.matched = isMatched;
     updateHudCameraStatus();
@@ -1262,19 +1316,11 @@
       var priceNum = Number(p.price) || 0;
       var stockNum = Number.isFinite(Number(p.stock)) ? Number(p.stock) : 0;
       var unitStr = p.unit || '件';
-      var locStr = p.location || '未設定';
-      var skuStr = p.sku || '未設定';
-      var barcodeStr = p.barcode || '未設定';
-      var catStr = p.category || '一般商品';
-      var specStr = p.spec || '尚無額外規格備註';
-      var matchTypeStr = matchRes.exactBarcode ? '條碼精準命中' : '視覺特徵命中';
-      var cardSimStr = matchRes.exactBarcode
-        ? '100% 條碼吻合'
-        : ('相似度 ' + (simVal * 100).toFixed(1) + '%');
+      var expiryStr = p.expiryDate && String(p.expiryDate).trim() ? String(p.expiryDate).trim() : '--';
+      var costNum = Number(p.cost) || 0;
 
       var pKey = [
-        p.id, p.name, priceNum, stockNum, unitStr, locStr, skuStr,
-        barcodeStr, catStr, specStr, matchTypeStr, cardSimStr, (p.thumbnail || '').length
+        p.id, p.name, priceNum, stockNum, unitStr, expiryStr, costNum, (p.thumbnail || '').length
       ].join('|');
 
       if (lastUIState.renderKey !== pKey) {
@@ -1286,16 +1332,11 @@
         if (el['rec-img'] && el['rec-img'].getAttribute('src') !== thumbSrc) {
           el['rec-img'].src = thumbSrc;
         }
-        if (el['rec-match-type']) el['rec-match-type'].textContent = matchTypeStr;
-        if (el['rec-category']) el['rec-category'].textContent = catStr;
-        if (el['rec-similarity']) el['rec-similarity'].textContent = cardSimStr;
         if (el['rec-name']) el['rec-name'].textContent = p.name;
         if (el['rec-price']) el['rec-price'].textContent = 'NT$ ' + priceNum.toLocaleString();
         if (el['rec-stock']) el['rec-stock'].textContent = stockNum + ' ' + unitStr;
-        if (el['rec-location']) el['rec-location'].textContent = locStr;
-        if (el['rec-sku']) el['rec-sku'].textContent = skuStr;
-        if (el['rec-barcode']) el['rec-barcode'].textContent = barcodeStr;
-        if (el['rec-spec']) el['rec-spec'].textContent = specStr;
+        if (el['rec-expiry']) el['rec-expiry'].textContent = expiryStr;
+        if (el['rec-cost']) el['rec-cost'].textContent = 'NT$ ' + costNum.toLocaleString();
 
         // Reset delete button confirmation appearance if product changed
         resetDeleteButtonUI();
@@ -1384,6 +1425,10 @@
     var rawStock = el['reg-stock'] ? el['reg-stock'].value.trim() : '';
     var prodStock = rawStock !== '' ? Math.max(0, Math.floor(Number(rawStock) || 0)) : 10;
 
+    var prodExpiry = el['reg-expiry'] ? el['reg-expiry'].value.trim() : '';
+    var rawCost = el['reg-cost'] ? el['reg-cost'].value.trim() : '';
+    var prodCost = rawCost !== '' ? Math.max(0, Number(rawCost) || 0) : 0;
+
     var now = Date.now();
     var rawSku = el['reg-sku'] ? el['reg-sku'].value.trim() : '';
     var prodSku = rawSku || ('SKU-' + String(state.products.length + 101).padStart(4, '0'));
@@ -1402,7 +1447,9 @@
     var payload = {
       name: prodName,
       price: prodPrice,
+      cost: prodCost,
       stock: prodStock,
+      expiryDate: prodExpiry,
       sku: prodSku,
       barcode: prodBarcode,
       category: prodCategory,
@@ -1429,7 +1476,9 @@
         id: existing.id,
         name: payload.name,
         price: payload.price,
+        cost: payload.cost,
         stock: payload.stock,
+        expiryDate: payload.expiryDate,
         sku: payload.sku,
         barcode: payload.barcode,
         category: payload.category,
@@ -1450,7 +1499,9 @@
         id: 'prd-' + now.toString(36) + '-' + Math.random().toString(36).slice(2, 6),
         name: payload.name,
         price: payload.price,
+        cost: payload.cost,
         stock: payload.stock,
+        expiryDate: payload.expiryDate,
         sku: payload.sku,
         barcode: payload.barcode,
         category: payload.category,
@@ -1493,6 +1544,7 @@
             if (sIdx >= 0) state.products[sIdx] = data.product;
             savedProduct = data.product;
             saveToLocalStorage();
+            renderInventoryCardsList();
           }
         } else if (res.status >= 500) {
           enqueueOutbox({ type: 'upsert_product', payload: savedProduct });
@@ -1535,6 +1587,8 @@
     if (el['reg-name']) el['reg-name'].value = '';
     if (el['reg-price']) el['reg-price'].value = '';
     if (el['reg-stock']) el['reg-stock'].value = '10';
+    if (el['reg-expiry']) el['reg-expiry'].value = '';
+    if (el['reg-cost']) el['reg-cost'].value = '';
     if (el['reg-sku']) el['reg-sku'].value = '';
     if (el['reg-barcode']) el['reg-barcode'].value = '';
     if (el['reg-category']) el['reg-category'].value = '一般商品';
@@ -1542,6 +1596,11 @@
     if (el['reg-location']) el['reg-location'].value = 'A-01';
     if (el['reg-spec']) el['reg-spec'].value = '';
     if (el['btn-submit-reg']) el['btn-submit-reg'].textContent = '✅ 儲存商品建檔';
+    if (el['btn-modal-delete']) {
+      el['btn-modal-delete'].classList.add('hidden');
+      el['btn-modal-delete'].classList.remove('btn-danger');
+      el['btn-modal-delete'].textContent = '🗑️ 刪除';
+    }
     if (el['reg-preview-img']) el['reg-preview-img'].src = EMPTY_THUMB_DATA_URI;
     if (el['reg-sample-count']) el['reg-sample-count'].textContent = '樣本: 0 組';
     if (el['reg-descriptor-status']) el['reg-descriptor-status'].textContent = '準備擷取畫面特徵';
@@ -1551,14 +1610,15 @@
     state.regManualCaptured = false;
   }
 
-  function openEditForCurrentMatch() {
-    var p = state.currentMatch;
+  function openEditForProduct(p) {
     if (!p) return;
-    switchTab('register', true);
+    switchTab('form', true);
     if (el['reg-id']) el['reg-id'].value = p.id;
     if (el['reg-name']) el['reg-name'].value = p.name || '';
     if (el['reg-price']) el['reg-price'].value = String(Number(p.price) || 0);
     if (el['reg-stock']) el['reg-stock'].value = String(Number.isFinite(Number(p.stock)) ? Number(p.stock) : 0);
+    if (el['reg-expiry']) el['reg-expiry'].value = p.expiryDate || '';
+    if (el['reg-cost']) el['reg-cost'].value = p.cost !== undefined && p.cost !== '' ? String(Number(p.cost) || 0) : '';
     if (el['reg-sku']) el['reg-sku'].value = p.sku || '';
     if (el['reg-barcode']) el['reg-barcode'].value = p.barcode || '';
     if (el['reg-category']) el['reg-category'].value = p.category || '一般商品';
@@ -1566,6 +1626,11 @@
     if (el['reg-location']) el['reg-location'].value = p.location || 'A-01';
     if (el['reg-spec']) el['reg-spec'].value = p.spec || '';
     if (el['btn-submit-reg']) el['btn-submit-reg'].textContent = '💾 儲存建檔修改';
+    if (el['btn-modal-delete']) {
+      el['btn-modal-delete'].classList.remove('hidden');
+      el['btn-modal-delete'].classList.remove('btn-danger');
+      el['btn-modal-delete'].textContent = '🗑️ 刪除';
+    }
 
     state.regDescriptors = Array.isArray(p.descriptors) ? p.descriptors.slice() : [];
     state.regThumbnail = p.thumbnail || EMPTY_THUMB_DATA_URI;
@@ -1579,6 +1644,10 @@
       el['reg-descriptor-status'].textContent = '編輯已建檔商品';
     }
     showToast('✏️ 正在編輯「' + p.name + '」');
+  }
+
+  function openEditForCurrentMatch() {
+    openEditForProduct(state.currentMatch);
   }
 
   async function adjustProductStock(productId, delta) {
@@ -1676,22 +1745,26 @@
   }
 
   function resetDeleteButtonUI() {
-    if (!el['btn-rec-delete']) return;
-    el['btn-rec-delete'].classList.remove('btn-danger');
-    el['btn-rec-delete'].textContent = '🗑️ 刪除建檔';
+    if (el['btn-rec-delete']) {
+      el['btn-rec-delete'].classList.remove('btn-danger');
+      el['btn-rec-delete'].textContent = '🗑️ 刪除建檔';
+    }
+    if (el['btn-modal-delete']) {
+      el['btn-modal-delete'].classList.remove('btn-danger');
+      el['btn-modal-delete'].textContent = '🗑️ 刪除';
+    }
   }
 
-  async function deleteRecognizedProduct() {
-    var product = state.currentMatch;
+  async function deleteProductById(product, triggerBtn, returnToTab) {
     if (!product) return;
 
     var armKey = 'del:' + product.id;
     var now = Date.now();
     if (!state.armedConfirmMap[armKey] || state.armedConfirmMap[armKey] <= now) {
       state.armedConfirmMap[armKey] = now + 3200;
-      if (el['btn-rec-delete']) {
-        el['btn-rec-delete'].classList.add('btn-danger');
-        el['btn-rec-delete'].textContent = '⚠️ 再按一次確認刪除';
+      if (triggerBtn) {
+        triggerBtn.classList.add('btn-danger');
+        triggerBtn.textContent = '⚠️ 再按一次確認刪除';
       }
       setTimeout(function () {
         if (state.armedConfirmMap[armKey] && state.armedConfirmMap[armKey] <= Date.now()) {
@@ -1729,6 +1802,11 @@
       topCandidates: []
     });
 
+    if (returnToTab) {
+      resetRegistrationForm();
+      switchTab(returnToTab, true);
+    }
+
     var isRemoteServerOrigin =
       (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
       window.location.hostname !== 'visionpos.local';
@@ -1748,11 +1826,22 @@
     showToast('🗑️ 已刪除「' + deletedName + '」建檔資料', 'warn');
   }
 
+  async function deleteRecognizedProduct() {
+    await deleteProductById(state.currentMatch, el['btn-rec-delete'], null);
+  }
+
   // ==========================================================================
   // Tab Switching & Event Bindings
   // ==========================================================================
   function switchTab(tabName, skipAutoCapture) {
-    state.activeTab = tabName === 'register' ? 'register' : 'scan';
+    if (tabName === 'form') {
+      state.activeTab = 'form';
+    } else if (tabName === 'register') {
+      state.activeTab = 'register';
+    } else {
+      state.activeTab = 'scan';
+    }
+
     if (el['tab-btn-scan']) {
       el['tab-btn-scan'].classList.toggle('active', state.activeTab === 'scan');
     }
@@ -1765,9 +1854,25 @@
     if (el['view-register']) {
       el['view-register'].classList.toggle('hidden', state.activeTab !== 'register');
     }
+    if (el['view-form-modal']) {
+      el['view-form-modal'].classList.toggle('hidden', state.activeTab !== 'form');
+    }
+
+    // Hide top optical viewport on the 庫存 (register) product cards list page; show on 掃描 & 拍照建檔 form
+    var hideViewport = state.activeTab === 'register';
+    if (el['viewport-section']) {
+      el['viewport-section'].classList.toggle('hidden', hideViewport);
+    }
+    if (el['merchant-workspace']) {
+      el['merchant-workspace'].classList.toggle('inventory-only', hideViewport);
+    }
+
+    if (state.activeTab === 'register') {
+      renderInventoryCardsList();
+    }
 
     updateHudCameraStatus();
-    if (state.activeTab === 'register' && !skipAutoCapture && hasValidOpticalSource()) {
+    if (state.activeTab === 'form' && !skipAutoCapture && hasValidOpticalSource()) {
       captureForRegistration(false, false);
     }
     scheduleRecognition(true);
@@ -1802,10 +1907,7 @@
     }
     if (el['tab-btn-register']) {
       el['tab-btn-register'].addEventListener('click', function () {
-        if (el['reg-id'] && !el['reg-id'].value) {
-          state.regManualCaptured = false;
-        }
-        switchTab('register', false);
+        switchTab('register', true);
       });
     }
 
@@ -1816,19 +1918,39 @@
       });
     }
 
-    // 3. Fixed Bottom Capture Pill -> Jump to Inventory Registration (📸 拍照)
+    // 3. Fixed Bottom Capture Pill -> Open Standalone Registration Form Modal (📸 拍照)
     if (el['btn-jump-register']) {
       el['btn-jump-register'].addEventListener('click', function () {
         if (!state.mediaStream) {
           startWebcamStream(true);
         }
         resetRegistrationForm();
-        switchTab('register', true);
+        switchTab('form', true);
         captureForRegistration(false, true);
         if (el['reg-name']) {
           setTimeout(function () {
             el['reg-name'].focus();
           }, 120);
+        }
+      });
+    }
+
+    // 3b. Click on any Product Card in 庫存 page -> Open Edit Form Modal for that product
+    if (el['inventory-cards-list']) {
+      el['inventory-cards-list'].addEventListener('click', function (ev) {
+        var target = ev.target;
+        while (target && target !== el['inventory-cards-list']) {
+          if (target.getAttribute && target.getAttribute('data-product-id')) {
+            var pid = target.getAttribute('data-product-id');
+            var prod = state.products.find(function (p) {
+              return p.id === pid;
+            });
+            if (prod) {
+              openEditForProduct(prod);
+            }
+            return;
+          }
+          target = target.parentNode;
         }
       });
     }
@@ -1858,6 +1980,18 @@
     if (el['btn-rec-delete']) {
       el['btn-rec-delete'].addEventListener('click', function () {
         deleteRecognizedProduct();
+      });
+    }
+    if (el['btn-modal-delete']) {
+      el['btn-modal-delete'].addEventListener('click', function () {
+        var editId = el['reg-id'] ? el['reg-id'].value.trim() : '';
+        if (!editId) return;
+        var prod = state.products.find(function (p) {
+          return p.id === editId;
+        });
+        if (prod) {
+          deleteProductById(prod, el['btn-modal-delete'], 'register');
+        }
       });
     }
 
@@ -1921,7 +2055,7 @@
         state.lastDetectedBarcode = rawCode;
         state.lastBarcodeTime = Date.now();
 
-        if (state.activeTab === 'register' && el['reg-barcode']) {
+        if (state.activeTab === 'form' && el['reg-barcode']) {
           el['reg-barcode'].value = rawCode;
           showToast('⚡ 已帶入條碼：' + rawCode);
           return;
