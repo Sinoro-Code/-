@@ -67,6 +67,8 @@
     contextMenuProduct: null,
     pendingDeleteProduct: null,
     pendingDeleteReturnTab: null,
+    formOriginTab: 'scan',
+    formHasScrolled: false,
     armedConfirmMap: {},
 
     // Eco & Telemetry State
@@ -90,7 +92,7 @@
       'merchant-workspace', 'viewport-section', 'viewport-container', 'camera-video', 'stage-canvas',
       'hud-overlay', 'hud-scan-dot', 'hud-live-label', 'hud-live-badge',
       'roi-reticle',
-      'merchant-bottom-nav', 'tab-btn-scan', 'tab-btn-register',
+      'merchant-bottom-nav', 'tab-btn-scan', 'tab-btn-register', 'tab-label-scan', 'tab-label-register',
       'view-scan', 'view-register', 'view-form-modal', 'inventory-cards-list',
       'recognized-product-card', 'rec-img',
       'rec-name', 'rec-price', 'rec-stock', 'rec-expiry', 'rec-cost',
@@ -2018,24 +2020,85 @@
   }
 
   // ==========================================================================
-  // Tab Switching & Event Bindings
+  // Tab Switching, Bottom-Scroll Reveal & Event Bindings
   // ==========================================================================
+  function isScrolledToPageBottom() {
+    var docEl = document.documentElement;
+    var body = document.body;
+    var scrollTop =
+      window.pageYOffset !== undefined
+        ? window.pageYOffset
+        : (docEl && docEl.scrollTop) || (body && body.scrollTop) || 0;
+    var viewportH = window.innerHeight || (docEl && docEl.clientHeight) || 0;
+    var scrollH = Math.max(
+      (docEl && docEl.scrollHeight) || 0,
+      (body && body.scrollHeight) || 0
+    );
+    if (scrollTop > 0) {
+      state.formHasScrolled = true;
+    }
+    if (!scrollH || !viewportH) {
+      return Boolean(state.formHasScrolled && scrollTop > 0);
+    }
+    var scrollableDistance = scrollH - viewportH;
+    if (scrollableDistance <= 20) {
+      // Short viewport / tall screen: reveal once user scrolls or swipes down
+      return Boolean(state.formHasScrolled);
+    }
+    return scrollTop + viewportH >= scrollH - 28;
+  }
+
+  function updateFormBottomNavVisibility() {
+    var nav = el['merchant-bottom-nav'];
+    if (!nav) return;
+    if (state.activeTab !== 'form') {
+      nav.classList.remove('scroll-hidden');
+      return;
+    }
+    var atBottom = isScrolledToPageBottom();
+    nav.classList.toggle('scroll-hidden', !atBottom);
+  }
+
   function switchTab(tabName, skipAutoCapture) {
     closeCardContextMenu();
     closeDeleteConfirmModal();
     if (tabName === 'form') {
+      if (state.activeTab === 'scan' || state.activeTab === 'register') {
+        state.formOriginTab = state.activeTab;
+      }
       state.activeTab = 'form';
+      state.formHasScrolled = false;
+      if (typeof window.scrollTo === 'function') {
+        try {
+          window.scrollTo(0, 0);
+        } catch (_) {}
+      }
     } else if (tabName === 'register') {
       state.activeTab = 'register';
     } else {
       state.activeTab = 'scan';
     }
 
+    var isForm = state.activeTab === 'form';
+    if (el['merchant-bottom-nav']) {
+      el['merchant-bottom-nav'].classList.toggle('edit-mode', isForm);
+    }
+    if (el['tab-label-scan']) {
+      el['tab-label-scan'].textContent = isForm ? '取消' : '掃描';
+    }
+    if (el['tab-label-register']) {
+      el['tab-label-register'].textContent = isForm ? '存檔' : '庫存';
+    }
+
     if (el['tab-btn-scan']) {
       el['tab-btn-scan'].classList.toggle('active', state.activeTab === 'scan');
     }
     if (el['tab-btn-register']) {
-      el['tab-btn-register'].classList.toggle('active', state.activeTab === 'register');
+      // On form mode, right button is '存檔' (highlighted primary emerald); on register mode, '庫存' is active
+      el['tab-btn-register'].classList.toggle(
+        'active',
+        state.activeTab === 'register' || state.activeTab === 'form'
+      );
     }
     if (el['view-scan']) {
       el['view-scan'].classList.toggle('hidden', state.activeTab !== 'scan');
@@ -2060,6 +2123,7 @@
       renderInventoryCardsList();
     }
 
+    updateFormBottomNavVisibility();
     updateHudCameraStatus();
     if (state.activeTab === 'form' && !skipAutoCapture && hasValidOpticalSource()) {
       captureForRegistration(false, false);
@@ -2074,6 +2138,58 @@
       }
     };
 
+    // Reveal 取消 / 存檔 bottom buttons in edit mode when user scrolls to the bottom of the page
+    var onFormScrollCheck = function () {
+      if (state.activeTab === 'form') {
+        state.formHasScrolled = true;
+        updateFormBottomNavVisibility();
+      }
+    };
+    window.addEventListener('scroll', onFormScrollCheck, { passive: true });
+    window.addEventListener('resize', updateFormBottomNavVisibility);
+    document.addEventListener('scroll', onFormScrollCheck, { passive: true });
+
+    // Also detect downward swipe/wheel on short form pages so bottom buttons reveal smoothly at the bottom
+    var formTouchStartY = null;
+    document.addEventListener(
+      'touchstart',
+      function (ev) {
+        if (state.activeTab === 'form' && ev && ev.touches && ev.touches.length === 1) {
+          formTouchStartY = ev.touches[0].clientY;
+        }
+      },
+      { passive: true }
+    );
+    document.addEventListener(
+      'touchmove',
+      function (ev) {
+        if (
+          state.activeTab === 'form' &&
+          formTouchStartY !== null &&
+          ev &&
+          ev.touches &&
+          ev.touches.length === 1
+        ) {
+          var dy = ev.touches[0].clientY - formTouchStartY;
+          if (dy < -18) {
+            state.formHasScrolled = true;
+            updateFormBottomNavVisibility();
+          }
+        }
+      },
+      { passive: true }
+    );
+    document.addEventListener(
+      'wheel',
+      function (ev) {
+        if (state.activeTab === 'form' && ev && ev.deltaY > 0) {
+          state.formHasScrolled = true;
+          updateFormBottomNavVisibility();
+        }
+      },
+      { passive: true }
+    );
+
     // Trigger immediate evaluation the exact millisecond hardware video frame decoding completes
     if (el['camera-video']) {
       var onVideoFrameReady = function () {
@@ -2085,10 +2201,21 @@
       el['camera-video'].addEventListener('playing', onVideoFrameReady);
     }
 
-    // 1. Two Merchant Tabs at Bottom Corners: 左下角「掃描」 & 右下角「庫存」 (Click + Non-Cyclic Horizontal Swipe)
+    // 1. Two Merchant Tabs at Bottom Corners:
+    //    - Default: 左下角「掃描」 & 右下角「庫存」 (Click + Non-Cyclic Horizontal Swipe)
+    //    - Edit Page (form): 左下角「取消」 & 右下角「存檔」 (Revealed after scrolling to bottom)
     bindHorizontalTabSwipe();
     if (el['tab-btn-scan']) {
       el['tab-btn-scan'].addEventListener('click', function () {
+        if (state.activeTab === 'form') {
+          var targetTab = state.formOriginTab === 'register' ? 'register' : 'scan';
+          resetRegistrationForm();
+          switchTab(targetTab, true);
+          if (targetTab === 'scan' && !state.mediaStream) {
+            startWebcamStream(true);
+          }
+          return;
+        }
         switchTab('scan', false);
         if (!state.mediaStream) {
           startWebcamStream(true);
@@ -2097,6 +2224,10 @@
     }
     if (el['tab-btn-register']) {
       el['tab-btn-register'].addEventListener('click', function () {
+        if (state.activeTab === 'form') {
+          handleRegistrationSubmit({ preventDefault: function () {} });
+          return;
+        }
         switchTab('register', true);
       });
     }

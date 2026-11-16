@@ -7,8 +7,8 @@
   <meta name="description" content="店家端極速視覺與條碼商品掃描查詢、相機拍照即時建檔系統。" />
   <meta name="theme-color" content="#0b0f14" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-  <link rel="manifest" href="/manifest.json?v=337" />
-  <link rel="stylesheet" href="/css/styles.css?v=337" />
+  <link rel="manifest" href="/manifest.json?v=338" />
+  <link rel="stylesheet" href="/css/styles.css?v=338" />
 </head>
 <body>
   <!-- Merchant 2-Function Workspace: Optical Viewport directly at the top (Zero blocks above Optical Viewport) -->
@@ -186,14 +186,16 @@
         </div>
       </div>
 
-      <!-- Strictly 2 Corner Functions at Bottom: 左下角「掃描」、右下角「庫存」，中央保留給「📸 拍照」互不遮擋 -->
+      <!-- Strictly 2 Corner Functions at Bottom:
+           - 掃描/庫存頁：左下角「掃描」、右下角「庫存」，中央保留給「📸 拍照」互不遮擋
+           - 商品編輯頁：左下角改為「取消」、右下角改為「存檔」，且需滑動到頁面最底部後才顯現 -->
       <nav class="merchant-tabs" id="merchant-bottom-nav" aria-label="店家功能切換">
         <button type="button" class="merchant-tab corner-left active" data-tab="scan" id="tab-btn-scan">
           <svg class="tab-icon scan-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <span>掃描</span>
+          <span id="tab-label-scan">掃描</span>
         </button>
         <button type="button" class="merchant-tab corner-right" data-tab="register" id="tab-btn-register">
           <svg class="tab-icon inventory-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -202,7 +204,7 @@
             <polyline points="3.29 7 12 12 20.71 7"></polyline>
             <line x1="12" y1="22" x2="12" y2="12"></line>
           </svg>
-          <span>庫存</span>
+          <span id="tab-label-register">庫存</span>
         </button>
       </nav>
     </section>
@@ -232,7 +234,7 @@
   <!-- Toast Notifications Container -->
   <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
 
-  <script src="/js/vision-engine.js?v=337"></script>
-  <script src="/js/app.js?v=337"></script>
+  <script src="/js/vision-engine.js?v=338"></script>
+  <script src="/js/app.js?v=338"></script>
 </body>
 </html>

@@ -42,6 +42,8 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 }
 
 html, body {
@@ -68,6 +70,16 @@ button {
   cursor: pointer;
   border: none;
   background: none;
+  outline: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+button:focus,
+button:focus-visible,
+.merchant-card:focus,
+.inventory-item-card:focus {
+  outline: none;
 }
 
 .hidden {
@@ -325,6 +337,23 @@ button {
   justify-content: space-between;
   align-items: center;
   pointer-events: none;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.merchant-tabs.scroll-hidden {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(18px);
+}
+
+.merchant-tabs.scroll-hidden .merchant-tab {
+  pointer-events: none !important;
+}
+
+.merchant-tabs.edit-mode .tab-icon {
+  display: none;
 }
 
 .merchant-tab {
