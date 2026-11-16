@@ -62,8 +62,10 @@
     torchOn: false,
     autoPausedWebcamInBg: false,
 
-    // Long-Press Context Menu & Armed Confirmation State
+    // Long-Press Context Menu & Delete Confirmation Modal State
     contextMenuProduct: null,
+    pendingDeleteProduct: null,
+    pendingDeleteReturnTab: null,
     armedConfirmMap: {},
 
     // Eco & Telemetry State
@@ -93,6 +95,8 @@
       'rec-name', 'rec-price', 'rec-stock', 'rec-expiry', 'rec-cost',
       'btn-jump-register',
       'card-context-menu-backdrop', 'card-context-menu', 'btn-ctx-edit', 'btn-ctx-delete',
+      'delete-confirm-backdrop', 'delete-confirm-modal', 'delete-confirm-text', 'delete-confirm-prod-name',
+      'btn-cancel-delete', 'btn-confirm-delete',
       'reg-preview-img', 'reg-descriptor-status', 'reg-sample-count',
       'btn-capture-frame', 'btn-add-angle-sample',
       'register-product-form', 'reg-id', 'reg-name', 'reg-price', 'reg-stock',
@@ -1675,6 +1679,27 @@
     }
   }
 
+  function openDeleteConfirmModal(product, returnToTab) {
+    if (!product) return;
+    state.pendingDeleteProduct = product;
+    state.pendingDeleteReturnTab = returnToTab || null;
+    if (el['delete-confirm-prod-name']) {
+      el['delete-confirm-prod-name'].textContent = product.name || '';
+    }
+    if (el['delete-confirm-backdrop']) {
+      el['delete-confirm-backdrop'].classList.remove('hidden');
+    }
+    triggerHaptic(25);
+  }
+
+  function closeDeleteConfirmModal() {
+    state.pendingDeleteProduct = null;
+    state.pendingDeleteReturnTab = null;
+    if (el['delete-confirm-backdrop']) {
+      el['delete-confirm-backdrop'].classList.add('hidden');
+    }
+  }
+
   async function executeDeleteProduct(product, returnToTab) {
     if (!product) return;
     var deletedId = product.id;
@@ -1734,30 +1759,6 @@
 
     triggerHaptic(35);
     showToast('🗑️ 已刪除「' + deletedName + '」建檔資料', 'warn');
-  }
-
-  async function deleteProductById(product, triggerBtn, returnToTab) {
-    if (!product) return;
-
-    var armKey = 'del:' + product.id;
-    var now = Date.now();
-    if (!state.armedConfirmMap[armKey] || state.armedConfirmMap[armKey] <= now) {
-      state.armedConfirmMap[armKey] = now + 3200;
-      if (triggerBtn) {
-        triggerBtn.classList.add('btn-danger');
-        triggerBtn.textContent = '⚠️ 再按一次確認刪除';
-      }
-      setTimeout(function () {
-        if (state.armedConfirmMap[armKey] && state.armedConfirmMap[armKey] <= Date.now()) {
-          delete state.armedConfirmMap[armKey];
-          resetDeleteButtonUI();
-        }
-      }, 3300);
-      showToast('⚠️ 再按一次「確認刪除」即可移除「' + product.name + '」', 'warn');
-      return;
-    }
-
-    await executeDeleteProduct(product, returnToTab);
   }
 
   // Bind 1-second (1000ms) Long-Press Gesture to a Product Card or Card Container
@@ -1843,6 +1844,7 @@
   // ==========================================================================
   function switchTab(tabName, skipAutoCapture) {
     closeCardContextMenu();
+    closeDeleteConfirmModal();
     if (tabName === 'form') {
       state.activeTab = 'form';
     } else if (tabName === 'register') {
@@ -1985,7 +1987,7 @@
         var prod = state.contextMenuProduct;
         closeCardContextMenu();
         if (prod) {
-          executeDeleteProduct(prod, null);
+          openDeleteConfirmModal(prod, null);
         }
       });
     }
@@ -1993,6 +1995,29 @@
       el['card-context-menu-backdrop'].addEventListener('click', function (ev) {
         if (!ev || !ev.target || ev.target === el['card-context-menu-backdrop']) {
           closeCardContextMenu();
+        }
+      });
+    }
+
+    if (el['btn-cancel-delete']) {
+      el['btn-cancel-delete'].addEventListener('click', function () {
+        closeDeleteConfirmModal();
+      });
+    }
+    if (el['btn-confirm-delete']) {
+      el['btn-confirm-delete'].addEventListener('click', function () {
+        var prod = state.pendingDeleteProduct;
+        var retTab = state.pendingDeleteReturnTab;
+        closeDeleteConfirmModal();
+        if (prod) {
+          executeDeleteProduct(prod, retTab);
+        }
+      });
+    }
+    if (el['delete-confirm-backdrop']) {
+      el['delete-confirm-backdrop'].addEventListener('click', function (ev) {
+        if (!ev || !ev.target || ev.target === el['delete-confirm-backdrop']) {
+          closeDeleteConfirmModal();
         }
       });
     }
@@ -2005,7 +2030,7 @@
           return p.id === editId;
         });
         if (prod) {
-          deleteProductById(prod, el['btn-modal-delete'], 'register');
+          openDeleteConfirmModal(prod, 'register');
         }
       });
     }

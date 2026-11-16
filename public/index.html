@@ -7,8 +7,8 @@
   <meta name="description" content="店家端極速視覺與條碼商品掃描查詢、相機拍照即時建檔系統。" />
   <meta name="theme-color" content="#0b0f14" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-  <link rel="manifest" href="/manifest.json?v=332" />
-  <link rel="stylesheet" href="/css/styles.css?v=332" />
+  <link rel="manifest" href="/manifest.json?v=333" />
+  <link rel="stylesheet" href="/css/styles.css?v=333" />
 </head>
 <body>
   <!-- Merchant 2-Function Workspace: Optical Viewport directly at the top (Zero blocks above Optical Viewport) -->
@@ -222,10 +222,23 @@
     </div>
   </div>
 
+  <!-- Delete Product Confirmation Modal (點刪除後跳出確認框：確定刪除 品名(紅字表示) ?) -->
+  <div id="delete-confirm-backdrop" class="context-menu-backdrop hidden" role="presentation">
+    <div id="delete-confirm-modal" class="delete-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-text">
+      <p class="delete-confirm-text" id="delete-confirm-text">
+        確定刪除 <span class="delete-confirm-name" id="delete-confirm-prod-name"></span> ?
+      </p>
+      <div class="delete-confirm-actions">
+        <button type="button" class="btn btn-secondary" id="btn-cancel-delete">取消</button>
+        <button type="button" class="btn btn-danger" id="btn-confirm-delete">確定</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notifications Container -->
   <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
 
-  <script src="/js/vision-engine.js?v=332"></script>
-  <script src="/js/app.js?v=332"></script>
+  <script src="/js/vision-engine.js?v=333"></script>
+  <script src="/js/app.js?v=333"></script>
 </body>
 </html>
