@@ -61,7 +61,6 @@
     facingMode: 'environment',
     selectedDeviceId: '',
     resolutionHeight: 480,
-    torchOn: false,
     autoPausedWebcamInBg: false,
 
     // Long-Press Context Menu & Delete Confirmation Modal State
@@ -89,13 +88,13 @@
   function bindElements() {
     var ids = [
       'merchant-workspace', 'viewport-section', 'viewport-container', 'camera-video', 'stage-canvas',
-      'hud-overlay', 'hud-scan-dot', 'hud-live-label', 'hud-live-badge', 'btn-toggle-torch',
+      'hud-overlay', 'hud-scan-dot', 'hud-live-label', 'hud-live-badge',
       'roi-reticle',
-      'tab-btn-scan', 'tab-btn-register',
+      'merchant-bottom-nav', 'tab-btn-scan', 'tab-btn-register',
       'view-scan', 'view-register', 'view-form-modal', 'inventory-cards-list',
       'recognized-product-card', 'rec-img',
       'rec-name', 'rec-price', 'rec-stock', 'rec-expiry', 'rec-cost',
-      'btn-jump-register',
+      'floating-capture-dock', 'btn-jump-register',
       'card-context-menu-backdrop', 'card-context-menu', 'btn-ctx-edit', 'btn-ctx-delete',
       'delete-confirm-backdrop', 'delete-confirm-modal', 'delete-confirm-text', 'delete-confirm-prod-name',
       'btn-cancel-delete', 'btn-confirm-delete',
@@ -721,8 +720,6 @@
       state.mediaStream = stream;
       state.sourceMode = 'webcam';
       state.autoPausedWebcamInBg = false;
-      state.torchOn = false;
-      if (el['btn-toggle-torch']) el['btn-toggle-torch'].classList.remove('active');
       state.hasEvaluatedFrame = false;
       state.pendingHysteresis = false;
       state.isActivelyMoving = false;
@@ -758,27 +755,6 @@
 
       if (!isSilentOrAuto) {
         showToast('⚠️ 無法存取相機鏡頭，請確認已允許相機權限', 'warn');
-      }
-    }
-  }
-
-  async function toggleTorch() {
-    if (!state.mediaStream) return;
-    var track = state.mediaStream.getVideoTracks()[0];
-    if (!track || !track.getCapabilities) return;
-    var caps = track.getCapabilities();
-    if (!caps.torch) return;
-    var nextTorch = !state.torchOn;
-    try {
-      await track.applyConstraints({ advanced: [{ torch: nextTorch }] });
-      state.torchOn = nextTorch;
-      if (el['btn-toggle-torch']) {
-        el['btn-toggle-torch'].classList.toggle('active', state.torchOn);
-      }
-    } catch (_) {
-      state.torchOn = false;
-      if (el['btn-toggle-torch']) {
-        el['btn-toggle-torch'].classList.remove('active');
       }
     }
   }
@@ -2109,7 +2085,7 @@
       el['camera-video'].addEventListener('playing', onVideoFrameReady);
     }
 
-    // 1. Two Merchant Tabs: 掃描 & 庫存 (Click + Non-Cyclic Horizontal Swipe)
+    // 1. Two Merchant Tabs at Bottom Corners: 左下角「掃描」 & 右下角「庫存」 (Click + Non-Cyclic Horizontal Swipe)
     bindHorizontalTabSwipe();
     if (el['tab-btn-scan']) {
       el['tab-btn-scan'].addEventListener('click', function () {
@@ -2125,14 +2101,7 @@
       });
     }
 
-    // 2. In-Viewfinder Control (Top-Left 辨識中 is non-clickable; Top-Right is Flash Icon)
-    if (el['btn-toggle-torch']) {
-      el['btn-toggle-torch'].addEventListener('click', function () {
-        toggleTorch();
-      });
-    }
-
-    // 3. Fixed Bottom Capture Pill -> Capture current frame FIRST, then open Form View with top camera hidden (📸 拍照)
+    // 2. Fixed Bottom Centered Capture Pill -> Capture current frame FIRST, then open Form View with top camera hidden (📸 拍照)
     if (el['btn-jump-register']) {
       el['btn-jump-register'].addEventListener('click', function () {
         if (!state.mediaStream) {

@@ -7,8 +7,8 @@
   <meta name="description" content="店家端極速視覺與條碼商品掃描查詢、相機拍照即時建檔系統。" />
   <meta name="theme-color" content="#0b0f14" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-  <link rel="manifest" href="/manifest.json?v=336" />
-  <link rel="stylesheet" href="/css/styles.css?v=336" />
+  <link rel="manifest" href="/manifest.json?v=337" />
+  <link rel="stylesheet" href="/css/styles.css?v=337" />
 </head>
 <body>
   <!-- Merchant 2-Function Workspace: Optical Viewport directly at the top (Zero blocks above Optical Viewport) -->
@@ -19,19 +19,13 @@
         <video id="camera-video" class="viewport-video hidden" playsinline muted autoplay></video>
         <canvas id="stage-canvas" class="viewport-canvas" width="640" height="480"></canvas>
 
-        <!-- Optical HUD Overlay -->
+        <!-- Optical HUD Overlay (Top-Left 3-State Status Badge + Centered ROI Target Reticle; Zero Flashlight Button) -->
         <div class="hud-overlay signal-amber" id="hud-overlay">
           <div class="hud-top-row">
             <div class="hud-status-badge state-standby" id="hud-live-badge" style="border-color:#f59f1f" aria-hidden="true">
               <span class="status-dot eco" id="hud-scan-dot" style="background-color:#f59f1f"></span>
               <span id="hud-live-label">待機中</span>
             </div>
-
-            <button type="button" class="hud-icon-btn" id="btn-toggle-torch" title="閃光燈補光" aria-label="閃光燈補光">
-              <svg class="flash-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polygon points="13 2 4 14 12 14 11 22 20 10 12 10 13 2"></polygon>
-              </svg>
-            </button>
           </div>
 
           <!-- ROI Target Reticle -->
@@ -45,28 +39,8 @@
       </div>
     </section>
 
-    <!-- SECTION 2: Merchant Function Switcher & Active View (ONLY 掃描 & 庫存) -->
+    <!-- SECTION 2: Merchant Active View & Bottom Dock (左下角：掃描 | 中下：📸 拍照 | 右下角：庫存) -->
     <section class="merchant-main-panel" aria-label="掃描與庫存區">
-      <!-- Strictly 2 Functions: 掃描 & 庫存 (Zero count badge on 庫存 button) -->
-      <nav class="merchant-tabs" aria-label="店家功能切換">
-        <button type="button" class="merchant-tab active" data-tab="scan" id="tab-btn-scan">
-          <svg class="tab-icon scan-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-          <span>掃描</span>
-        </button>
-        <button type="button" class="merchant-tab" data-tab="register" id="tab-btn-register">
-          <svg class="tab-icon inventory-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M16.5 9.4 7.55 4.24"></path>
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-            <polyline points="3.29 7 12 12 20.71 7"></polyline>
-            <line x1="12" y1="22" x2="12" y2="12"></line>
-          </svg>
-          <span>庫存</span>
-        </button>
-      </nav>
-
       <!-- VIEW 1: 掃描 (If registered -> Show Product Card; If unregistered -> Blank middle area) -->
       <div id="view-scan" class="tab-view">
         <!-- Registered Product Information Card (左邊縮圖，右邊由上至下：品名、價格、存量、效期、成本) -->
@@ -100,7 +74,7 @@
           </div>
         </div>
 
-        <!-- Fixed Bottom Centered Capture Button (外框與顏色同左上角已建檔綠色提示標籤) -->
+        <!-- Fixed Bottom Centered Capture Button (外框與顏色同左上角已建檔綠色提示標籤，與左右下角功能鍵互不遮擋) -->
         <div class="floating-capture-dock" id="floating-capture-dock">
           <button type="button" class="btn-capture-pill" id="btn-jump-register">
             📸 拍照
@@ -211,6 +185,26 @@
           </div>
         </div>
       </div>
+
+      <!-- Strictly 2 Corner Functions at Bottom: 左下角「掃描」、右下角「庫存」，中央保留給「📸 拍照」互不遮擋 -->
+      <nav class="merchant-tabs" id="merchant-bottom-nav" aria-label="店家功能切換">
+        <button type="button" class="merchant-tab corner-left active" data-tab="scan" id="tab-btn-scan">
+          <svg class="tab-icon scan-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <span>掃描</span>
+        </button>
+        <button type="button" class="merchant-tab corner-right" data-tab="register" id="tab-btn-register">
+          <svg class="tab-icon inventory-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M16.5 9.4 7.55 4.24"></path>
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+            <polyline points="3.29 7 12 12 20.71 7"></polyline>
+            <line x1="12" y1="22" x2="12" y2="12"></line>
+          </svg>
+          <span>庫存</span>
+        </button>
+      </nav>
     </section>
   </main>
 
@@ -238,7 +232,7 @@
   <!-- Toast Notifications Container -->
   <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
 
-  <script src="/js/vision-engine.js?v=336"></script>
-  <script src="/js/app.js?v=336"></script>
+  <script src="/js/vision-engine.js?v=337"></script>
+  <script src="/js/app.js?v=337"></script>
 </body>
 </html>
