@@ -16,6 +16,7 @@
   var OUTBOX_STORAGE_KEY = 'vision_pos_outbox_v1';
   var BG_CAMERA_RELEASE_MS = 10000; // 10 seconds background auto-release for camera sensor power saving
   var STATIC_MOTION_DELTA = 2.6; // Unified motion-gate & continuous-AF ISP noise floor threshold
+  var LONG_PRESS_MS = 1000; // 1-second long-press duration to open product card context menu (編輯 / 刪除)
 
   // Clean dark SVG placeholder so broken image icons never render before first capture
   var EMPTY_THUMB_DATA_URI =
@@ -29,7 +30,7 @@
     );
 
   var state = {
-    activeTab: 'scan', // 'scan' | 'register'
+    activeTab: 'scan', // 'scan' | 'register' | 'form'
     sourceMode: 'webcam', // 'webcam' | 'photo' | 'standby'
     products: [],
     threshold: 0.80,
@@ -61,7 +62,8 @@
     torchOn: false,
     autoPausedWebcamInBg: false,
 
-    // 2-Tap Armed Confirmation State
+    // Long-Press Context Menu & Armed Confirmation State
+    contextMenuProduct: null,
     armedConfirmMap: {},
 
     // Eco & Telemetry State
@@ -89,9 +91,8 @@
       'view-scan', 'view-register', 'view-form-modal', 'inventory-cards-list',
       'recognized-product-card', 'rec-img',
       'rec-name', 'rec-price', 'rec-stock', 'rec-expiry', 'rec-cost',
-      'btn-rec-stock-minus', 'btn-rec-stock-plus',
-      'btn-rec-edit', 'btn-train-extra-angle', 'btn-rec-delete',
       'btn-jump-register',
+      'card-context-menu-backdrop', 'card-context-menu', 'btn-ctx-edit', 'btn-ctx-delete',
       'reg-preview-img', 'reg-descriptor-status', 'reg-sample-count',
       'btn-capture-frame', 'btn-add-angle-sample',
       'register-product-form', 'reg-id', 'reg-name', 'reg-price', 'reg-stock',
@@ -1326,7 +1327,12 @@
       if (lastUIState.renderKey !== pKey) {
         lastUIState.renderKey = pKey;
 
-        if (el['recognized-product-card']) el['recognized-product-card'].classList.remove('hidden');
+        if (el['recognized-product-card']) {
+          el['recognized-product-card'].classList.remove('hidden');
+          if (typeof el['recognized-product-card'].setAttribute === 'function') {
+            el['recognized-product-card'].setAttribute('data-product-id', p.id);
+          }
+        }
 
         var thumbSrc = p.thumbnail || EMPTY_THUMB_DATA_URI;
         if (el['rec-img'] && el['rec-img'].getAttribute('src') !== thumbSrc) {
@@ -1338,7 +1344,6 @@
         if (el['rec-expiry']) el['rec-expiry'].textContent = expiryStr;
         if (el['rec-cost']) el['rec-cost'].textContent = 'NT$ ' + costNum.toLocaleString();
 
-        // Reset delete button confirmation appearance if product changed
         resetDeleteButtonUI();
       } else if (el['recognized-product-card']) {
         el['recognized-product-card'].classList.remove('hidden');
@@ -1646,113 +1651,89 @@
     showToast('✏️ 正在編輯「' + p.name + '」');
   }
 
-  function openEditForCurrentMatch() {
-    openEditForProduct(state.currentMatch);
-  }
-
-  async function adjustProductStock(productId, delta) {
-    var product = state.products.find(function (p) {
-      return p.id === productId;
-    });
-    if (!product) return;
-
-    product.stock = Math.max(0, (Number(product.stock) || 0) + delta);
-    product.updatedAt = Date.now();
-    notifyPeers();
-    invalidateRecognitionUICache();
-
-    if (state.currentMatch && state.currentMatch.id === product.id) {
-      updateRecognitionUI({
-        matched: true,
-        exactBarcode: false,
-        product: product,
-        bestCandidate: product,
-        similarity: state.currentSimilarity || 0.99,
-        margin: 1.0,
-        topCandidates: state.topCandidates
-      });
-    }
-
-    var isRemoteServerOrigin =
-      (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
-      window.location.hostname !== 'visionpos.local';
-    if (isRemoteServerOrigin) {
-      try {
-        var r = await fetch('/api/products/' + encodeURIComponent(productId), {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ stock: product.stock })
-        });
-        if (!r.ok && r.status >= 500) {
-          enqueueOutbox({ type: 'patch_product', id: productId, payload: { stock: product.stock } });
-        }
-      } catch (_) {
-        enqueueOutbox({ type: 'patch_product', id: productId, payload: { stock: product.stock } });
-      }
-    }
-  }
-
-  async function appendExtraAngleToProduct(product) {
-    if (!product) return;
-    renderStageCanvasFrame();
-    if (!hasValidOpticalSource()) {
-      if (!state.mediaStream) startWebcamStream(true);
-      showToast('⚠️ 相機尚未就緒，請確認已允許相機權限', 'warn');
-      return;
-    }
-
-    var sourceElem = getActiveVideoSourceElement();
-    var sig = VisionEngine.captureFrameSignature(sourceElem, getRoiRect(sourceElem), true);
-    var extra = sig.augmentedDescriptors || [sig.descriptor];
-    var combined = (product.descriptors || []).concat(extra);
-    product.descriptors = VisionEngine.deduplicateDescriptors(combined, 24);
-    if (!product.thumbnail && sig.thumbnail) {
-      product.thumbnail = sig.thumbnail;
-    }
-    product.updatedAt = Date.now();
-    VisionEngine.ensureProductCache(product);
-    notifyPeers();
-    invalidateRecognitionUICache();
-
-    var isRemoteServerOrigin =
-      (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
-      window.location.hostname !== 'visionpos.local';
-    if (isRemoteServerOrigin) {
-      try {
-        var r = await fetch('/api/products/' + encodeURIComponent(product.id), {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ descriptors: product.descriptors, newDescriptor: sig.descriptor })
-        });
-        if (!r.ok && r.status >= 500) {
-          enqueueOutbox({
-            type: 'patch_product',
-            id: product.id,
-            payload: { descriptors: product.descriptors, newDescriptor: sig.descriptor }
-          });
-        }
-      } catch (_) {
-        enqueueOutbox({
-          type: 'patch_product',
-          id: product.id,
-          payload: { descriptors: product.descriptors, newDescriptor: sig.descriptor }
-        });
-      }
-    }
-
-    triggerHaptic(25);
-    showToast('📸 已為「' + product.name + '」補拍多角度特徵（共 ' + product.descriptors.length + ' 組）');
-  }
-
   function resetDeleteButtonUI() {
-    if (el['btn-rec-delete']) {
-      el['btn-rec-delete'].classList.remove('btn-danger');
-      el['btn-rec-delete'].textContent = '🗑️ 刪除建檔';
-    }
     if (el['btn-modal-delete']) {
       el['btn-modal-delete'].classList.remove('btn-danger');
       el['btn-modal-delete'].textContent = '🗑️ 刪除';
     }
+  }
+
+  function openCardContextMenu(product) {
+    if (!product) return;
+    state.contextMenuProduct = product;
+    if (el['card-context-menu-backdrop']) {
+      el['card-context-menu-backdrop'].classList.remove('hidden');
+    }
+    triggerHaptic(35);
+    playTone(960, 45, 'sine');
+  }
+
+  function closeCardContextMenu() {
+    state.contextMenuProduct = null;
+    if (el['card-context-menu-backdrop']) {
+      el['card-context-menu-backdrop'].classList.add('hidden');
+    }
+  }
+
+  async function executeDeleteProduct(product, returnToTab) {
+    if (!product) return;
+    var deletedId = product.id;
+    var deletedName = product.name;
+
+    delete state.armedConfirmMap['del:' + deletedId];
+    resetDeleteButtonUI();
+
+    state.products = state.products.filter(function (p) {
+      return p.id !== deletedId;
+    });
+    if (state.currentMatch && state.currentMatch.id === deletedId) {
+      state.currentMatch = null;
+      state.matchHistory = [null, null];
+      state.pendingHysteresis = false;
+    }
+    wakeFromEcoSleep();
+    state.hasEvaluatedFrame = true;
+    state.isActivelyMoving = false;
+    notifyPeers();
+    invalidateRecognitionUICache();
+
+    if (!state.currentMatch) {
+      updateRecognitionUI({
+        matched: false,
+        exactBarcode: false,
+        product: null,
+        bestCandidate: null,
+        similarity: 0,
+        margin: 0,
+        topCandidates: []
+      });
+    }
+
+    if (returnToTab) {
+      resetRegistrationForm();
+      switchTab(returnToTab, true);
+    } else if (state.activeTab === 'register') {
+      renderInventoryCardsList();
+    }
+
+    var isRemoteServerOrigin =
+      (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
+      window.location.hostname !== 'visionpos.local';
+    if (isRemoteServerOrigin) {
+      try {
+        var r = await fetch('/api/products/' + encodeURIComponent(deletedId), {
+          method: 'DELETE'
+        });
+        if (!r.ok && r.status >= 500) {
+          enqueueOutbox({ type: 'delete_product', id: deletedId });
+        }
+      } catch (_) {
+        enqueueOutbox({ type: 'delete_product', id: deletedId });
+      }
+    }
+
+    triggerHaptic(35);
+    showToast('🗑️ 已刪除「' + deletedName + '」建檔資料', 'warn');
   }
 
   async function deleteProductById(product, triggerBtn, returnToTab) {
@@ -1776,64 +1757,92 @@
       return;
     }
 
-    delete state.armedConfirmMap[armKey];
-    resetDeleteButtonUI();
+    await executeDeleteProduct(product, returnToTab);
+  }
 
-    var deletedId = product.id;
-    var deletedName = product.name;
-    state.products = state.products.filter(function (p) {
-      return p.id !== deletedId;
-    });
-    state.currentMatch = null;
-    state.matchHistory = [null, null];
-    state.pendingHysteresis = false;
-    wakeFromEcoSleep();
-    state.hasEvaluatedFrame = true;
-    state.isActivelyMoving = false;
-    notifyPeers();
-    invalidateRecognitionUICache();
-    updateRecognitionUI({
-      matched: false,
-      exactBarcode: false,
-      product: null,
-      bestCandidate: null,
-      similarity: 0,
-      margin: 0,
-      topCandidates: []
-    });
+  // Bind 1-second (1000ms) Long-Press Gesture to a Product Card or Card Container
+  function bindLongPressCardMenu(containerEl, resolveTargetFn) {
+    if (!containerEl) return;
+    var longPressTimer = null;
+    var activeCardEl = null;
+    var startX = 0;
+    var startY = 0;
 
-    if (returnToTab) {
-      resetRegistrationForm();
-      switchTab(returnToTab, true);
+    function clearPressState() {
+      if (longPressTimer !== null) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+      if (activeCardEl && activeCardEl.classList) {
+        activeCardEl.classList.remove('pressing');
+      }
+      activeCardEl = null;
     }
 
-    var isRemoteServerOrigin =
-      (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
-      window.location.hostname !== 'visionpos.local';
-    if (isRemoteServerOrigin) {
-      try {
-        var r = await fetch('/api/products/' + encodeURIComponent(deletedId), {
-          method: 'DELETE'
-        });
-        if (!r.ok && r.status >= 500) {
-          enqueueOutbox({ type: 'delete_product', id: deletedId });
+    function getCoords(ev) {
+      if (ev && ev.touches && ev.touches.length > 0) {
+        return { x: ev.touches[0].clientX || 0, y: ev.touches[0].clientY || 0 };
+      }
+      return { x: (ev && ev.clientX) || 0, y: (ev && ev.clientY) || 0 };
+    }
+
+    function onPressStart(ev) {
+      if (ev && ev.type === 'mousedown' && ev.button && ev.button !== 0) return;
+      var resolved = resolveTargetFn(ev);
+      if (!resolved || !resolved.product) return;
+
+      clearPressState();
+      var pt = getCoords(ev);
+      startX = pt.x;
+      startY = pt.y;
+      activeCardEl = resolved.cardEl || containerEl;
+      if (activeCardEl && activeCardEl.classList) {
+        activeCardEl.classList.add('pressing');
+      }
+
+      var targetProd = resolved.product;
+      longPressTimer = setTimeout(function () {
+        longPressTimer = null;
+        if (activeCardEl && activeCardEl.classList) {
+          activeCardEl.classList.remove('pressing');
         }
-      } catch (_) {
-        enqueueOutbox({ type: 'delete_product', id: deletedId });
+        activeCardEl = null;
+        openCardContextMenu(targetProd);
+      }, LONG_PRESS_MS);
+    }
+
+    function onPressMove(ev) {
+      if (longPressTimer === null) return;
+      var pt = getCoords(ev);
+      if (Math.abs(pt.x - startX) > 12 || Math.abs(pt.y - startY) > 12) {
+        clearPressState();
       }
     }
 
-    showToast('🗑️ 已刪除「' + deletedName + '」建檔資料', 'warn');
-  }
+    function onPressEnd() {
+      clearPressState();
+    }
 
-  async function deleteRecognizedProduct() {
-    await deleteProductById(state.currentMatch, el['btn-rec-delete'], null);
+    containerEl.addEventListener('touchstart', onPressStart, { passive: true });
+    containerEl.addEventListener('touchmove', onPressMove, { passive: true });
+    containerEl.addEventListener('touchend', onPressEnd);
+    containerEl.addEventListener('touchcancel', onPressEnd);
+    containerEl.addEventListener('mousedown', onPressStart);
+    containerEl.addEventListener('mousemove', onPressMove);
+    containerEl.addEventListener('mouseup', onPressEnd);
+    containerEl.addEventListener('mouseleave', onPressEnd);
+    containerEl.addEventListener('contextmenu', function (ev) {
+      if (ev && typeof ev.preventDefault === 'function') {
+        ev.preventDefault();
+      }
+    });
   }
 
   // ==========================================================================
   // Tab Switching & Event Bindings
   // ==========================================================================
   function switchTab(tabName, skipAutoCapture) {
+    closeCardContextMenu();
     if (tabName === 'form') {
       state.activeTab = 'form';
     } else if (tabName === 'register') {
@@ -1935,53 +1944,59 @@
       });
     }
 
-    // 3b. Click on any Product Card in 庫存 page -> Open Edit Form Modal for that product
-    if (el['inventory-cards-list']) {
-      el['inventory-cards-list'].addEventListener('click', function (ev) {
-        var target = ev.target;
-        while (target && target !== el['inventory-cards-list']) {
-          if (target.getAttribute && target.getAttribute('data-product-id')) {
-            var pid = target.getAttribute('data-product-id');
-            var prod = state.products.find(function (p) {
-              return p.id === pid;
-            });
-            if (prod) {
-              openEditForProduct(prod);
-            }
-            return;
+    // 4. Long-Press 1s (1000ms) on Product Cards -> Open Context Menu (由上至下：編輯、刪除)
+    bindLongPressCardMenu(el['recognized-product-card'], function () {
+      if (!state.currentMatch) return null;
+      return {
+        cardEl: el['recognized-product-card'],
+        product: state.currentMatch
+      };
+    });
+
+    bindLongPressCardMenu(el['inventory-cards-list'], function (ev) {
+      var target = ev ? ev.target : null;
+      while (target && target !== el['inventory-cards-list']) {
+        if (target.getAttribute && target.getAttribute('data-product-id')) {
+          var pid = target.getAttribute('data-product-id');
+          var prod = state.products.find(function (p) {
+            return p.id === pid;
+          });
+          if (prod) {
+            return { cardEl: target, product: prod };
           }
-          target = target.parentNode;
+          return null;
+        }
+        target = target.parentNode;
+      }
+      return null;
+    });
+
+    if (el['btn-ctx-edit']) {
+      el['btn-ctx-edit'].addEventListener('click', function () {
+        var prod = state.contextMenuProduct;
+        closeCardContextMenu();
+        if (prod) {
+          openEditForProduct(prod);
+        }
+      });
+    }
+    if (el['btn-ctx-delete']) {
+      el['btn-ctx-delete'].addEventListener('click', function () {
+        var prod = state.contextMenuProduct;
+        closeCardContextMenu();
+        if (prod) {
+          executeDeleteProduct(prod, null);
+        }
+      });
+    }
+    if (el['card-context-menu-backdrop']) {
+      el['card-context-menu-backdrop'].addEventListener('click', function (ev) {
+        if (!ev || !ev.target || ev.target === el['card-context-menu-backdrop']) {
+          closeCardContextMenu();
         }
       });
     }
 
-    // 4. Recognized Product Card Merchant Actions (-1/+1 Stock, Edit, Extra Angle, Delete)
-    if (el['btn-rec-stock-minus']) {
-      el['btn-rec-stock-minus'].addEventListener('click', function () {
-        if (state.currentMatch) adjustProductStock(state.currentMatch.id, -1);
-      });
-    }
-    if (el['btn-rec-stock-plus']) {
-      el['btn-rec-stock-plus'].addEventListener('click', function () {
-        if (state.currentMatch) adjustProductStock(state.currentMatch.id, 1);
-      });
-    }
-    if (el['btn-rec-edit']) {
-      el['btn-rec-edit'].addEventListener('click', function () {
-        openEditForCurrentMatch();
-      });
-    }
-    if (el['btn-train-extra-angle']) {
-      el['btn-train-extra-angle'].addEventListener('click', function () {
-        if (!state.currentMatch) return;
-        appendExtraAngleToProduct(state.currentMatch);
-      });
-    }
-    if (el['btn-rec-delete']) {
-      el['btn-rec-delete'].addEventListener('click', function () {
-        deleteRecognizedProduct();
-      });
-    }
     if (el['btn-modal-delete']) {
       el['btn-modal-delete'].addEventListener('click', function () {
         var editId = el['reg-id'] ? el['reg-id'].value.trim() : '';
