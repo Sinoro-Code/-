@@ -19,7 +19,7 @@
   var LONG_PRESS_MS = 500; // 0.5-second long-press duration to open product card context menu (編輯 / 刪除)
   var SWIPE_MIN_DX = 48; // Minimum horizontal swipe distance (px) to switch between 掃描 and 庫存
   var SWIPE_MAX_MS = 900; // Maximum swipe gesture duration (ms)
-  var REG_PHOTO_SLOT_COUNT = 9; // 3x3 thumbnail grid slots (top 123, middle 456, bottom 789)
+  var REG_PHOTO_SLOT_COUNT = 10; // 2x5 thumbnail grid slots (top 12345, bottom 678910)
 
   // Clean dark SVG placeholder so broken image icons never render before first capture
   var EMPTY_THUMB_DATA_URI =
@@ -106,7 +106,7 @@
       'btn-cancel-delete', 'btn-confirm-delete',
       'reg-capture-bar', 'reg-camera-video', 'reg-photo-grid',
       'reg-slot-0', 'reg-slot-1', 'reg-slot-2', 'reg-slot-3', 'reg-slot-4',
-      'reg-slot-5', 'reg-slot-6', 'reg-slot-7', 'reg-slot-8',
+      'reg-slot-5', 'reg-slot-6', 'reg-slot-7', 'reg-slot-8', 'reg-slot-9',
       'btn-capture-frame',
       'register-product-form', 'reg-id', 'reg-name', 'reg-price', 'reg-stock',
       'reg-expiry', 'reg-cost',
@@ -1360,16 +1360,18 @@
   }
 
   // ==========================================================================
-  // Merchant Product Registration & 9-Slot Photo Grid Maintenance Workflow
+  // Merchant Product Registration & 10-Slot (2x5) Photo Grid Workflow
   // ==========================================================================
   function createEmptyPhotoSlots() {
-    return [null, null, null, null, null, null, null, null, null];
+    var arr = [];
+    for (var i = 0; i < REG_PHOTO_SLOT_COUNT; i++) arr.push(null);
+    return arr;
   }
 
   function rebuildRegAggregatesFromSlots() {
     var firstThumb = '';
     var mergedDesc = [];
-    for (var i = 0; i < 9; i++) {
+    for (var i = 0; i < REG_PHOTO_SLOT_COUNT; i++) {
       var slot = state.regPhotoSlots[i];
       if (slot && slot.thumbnail) {
         if (!firstThumb) firstThumb = slot.thumbnail;
@@ -1384,7 +1386,7 @@
   }
 
   function renderRegPhotoGrid() {
-    for (var i = 0; i < 9; i++) {
+    for (var i = 0; i < REG_PHOTO_SLOT_COUNT; i++) {
       var slotEl = el['reg-slot-' + i];
       if (!slotEl) continue;
       var slotData = state.regPhotoSlots[i];
@@ -1423,10 +1425,10 @@
     }
 
     var slotIdx =
-      typeof targetSlotIndex === 'number' && targetSlotIndex >= 0 && targetSlotIndex < 9
+      typeof targetSlotIndex === 'number' && targetSlotIndex >= 0 && targetSlotIndex < REG_PHOTO_SLOT_COUNT
         ? targetSlotIndex
         : state.regSelectedSlot;
-    if (slotIdx < 0 || slotIdx > 8) slotIdx = 0;
+    if (slotIdx < 0 || slotIdx >= REG_PHOTO_SLOT_COUNT) slotIdx = 0;
 
     var sourceElem = getActiveVideoSourceElement();
     var roiRect = getRoiRect(sourceElem);
@@ -1703,8 +1705,9 @@
     var existingDescriptors = Array.isArray(p.descriptors) ? p.descriptors.slice() : [];
     state.regPhotoSlots = createEmptyPhotoSlots();
     var assignedDescriptors = false;
-    if (Array.isArray(p.photoSlots) && p.photoSlots.length === 9) {
-      for (var i = 0; i < 9; i++) {
+    if (Array.isArray(p.photoSlots) && p.photoSlots.length > 0) {
+      var restoreLen = Math.min(p.photoSlots.length, REG_PHOTO_SLOT_COUNT);
+      for (var i = 0; i < restoreLen; i++) {
         if (p.photoSlots[i]) {
           var restoredFull =
             Array.isArray(p.photoFullSlots) && p.photoFullSlots[i]

@@ -686,10 +686,9 @@ button:focus-visible,
    Merchant Registration Form
    ========================================================================== */
 .reg-capture-bar {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
-  align-items: start;
   background: var(--bg-elevated);
   padding: 10px;
   border-radius: var(--radius-md);
@@ -700,6 +699,7 @@ button:focus-visible,
 .reg-camera-col {
   display: flex;
   flex-direction: column;
+  width: 100%;
   min-width: 0;
 }
 
@@ -740,12 +740,13 @@ button:focus-visible,
   display: flex;
   flex-direction: column;
   gap: 10px;
+  width: 100%;
   min-width: 0;
 }
 
 .reg-photo-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
 }
 
