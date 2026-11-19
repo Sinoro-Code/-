@@ -19,6 +19,7 @@
   var LONG_PRESS_MS = 500; // 0.5-second long-press duration to open product card context menu (編輯 / 刪除)
   var SWIPE_MIN_DX = 48; // Minimum horizontal swipe distance (px) to switch between 掃描 and 庫存
   var SWIPE_MAX_MS = 900; // Maximum swipe gesture duration (ms)
+  var REG_PHOTO_SLOT_COUNT = 9; // 3x3 thumbnail grid slots (top 123, middle 456, bottom 789)
 
   // Clean dark SVG placeholder so broken image icons never render before first capture
   var EMPTY_THUMB_DATA_URI =
@@ -50,9 +51,11 @@
     barcodeTickCounter: 0,
     lastVibratedProductId: null,
 
-    // Registration Draft
+    // Registration Draft (9-slot photo grid: Top 123, Mid 456, Bot 789)
     regDescriptors: [],
     regThumbnail: '',
+    regPhotoSlots: [null, null, null, null, null, null, null, null, null],
+    regSelectedSlot: 0,
     regManualCaptured: false,
     lastLiveRegPreviewTime: 0,
 
@@ -67,6 +70,7 @@
     contextMenuProduct: null,
     pendingDeleteProduct: null,
     pendingDeleteReturnTab: null,
+    pendingDeleteSlotIndex: null,
     formOriginTab: 'scan',
     formHasScrolled: false,
     armedConfirmMap: {},
@@ -100,8 +104,10 @@
       'card-context-menu-backdrop', 'card-context-menu', 'btn-ctx-edit', 'btn-ctx-delete',
       'delete-confirm-backdrop', 'delete-confirm-modal', 'delete-confirm-text', 'delete-confirm-prod-name',
       'btn-cancel-delete', 'btn-confirm-delete',
-      'reg-preview-img', 'reg-descriptor-status', 'reg-sample-count',
-      'btn-capture-frame', 'btn-add-angle-sample',
+      'reg-capture-bar', 'reg-camera-video', 'reg-photo-grid',
+      'reg-slot-0', 'reg-slot-1', 'reg-slot-2', 'reg-slot-3', 'reg-slot-4',
+      'reg-slot-5', 'reg-slot-6', 'reg-slot-7', 'reg-slot-8',
+      'btn-capture-frame',
       'register-product-form', 'reg-id', 'reg-name', 'reg-price', 'reg-stock',
       'reg-expiry', 'reg-cost',
       'reg-sku', 'reg-barcode', 'reg-category', 'reg-unit', 'reg-location',
@@ -598,6 +604,25 @@
     }
   }
 
+  function syncRegCameraVideo() {
+    var regVideo = el['reg-camera-video'];
+    if (!regVideo) return;
+    if (state.mediaStream) {
+      if (regVideo.srcObject !== state.mediaStream) {
+        regVideo.srcObject = state.mediaStream;
+      }
+      regVideo.classList.toggle('mirrored', state.facingMode === 'user');
+      if (typeof regVideo.play === 'function') {
+        try {
+          var p = regVideo.play();
+          if (p && typeof p.catch === 'function') p.catch(function () {});
+        } catch (_) {}
+      }
+    } else {
+      regVideo.srcObject = null;
+    }
+  }
+
   function stopWebcamStream() {
     cancelVideoFrameSync();
     if (state.mediaStream) {
@@ -609,6 +634,7 @@
     if (el['camera-video']) {
       el['camera-video'].srcObject = null;
     }
+    syncRegCameraVideo();
     state.hasEvaluatedFrame = false;
     state.isActivelyMoving = false;
     updateHudCameraStatus();
@@ -737,6 +763,7 @@
         video.classList.remove('hidden');
         await video.play();
       }
+      syncRegCameraVideo();
       if (el['stage-canvas']) el['stage-canvas'].classList.add('hidden');
 
       VisionEngine.resetMotionGate();
@@ -1343,16 +1370,57 @@
   }
 
   // ==========================================================================
-  // Merchant Product Registration & Maintenance Workflow
+  // Merchant Product Registration & 9-Slot Photo Grid Maintenance Workflow
   // ==========================================================================
-  function captureForRegistration(appendAngle, isManual) {
+  function createEmptyPhotoSlots() {
+    return [null, null, null, null, null, null, null, null, null];
+  }
+
+  function rebuildRegAggregatesFromSlots() {
+    var firstThumb = '';
+    var mergedDesc = [];
+    for (var i = 0; i < 9; i++) {
+      var slot = state.regPhotoSlots[i];
+      if (slot && slot.thumbnail) {
+        if (!firstThumb) firstThumb = slot.thumbnail;
+        if (Array.isArray(slot.descriptors) && slot.descriptors.length > 0) {
+          mergedDesc = mergedDesc.concat(slot.descriptors);
+        }
+      }
+    }
+    state.regThumbnail = firstThumb;
+    state.regDescriptors =
+      mergedDesc.length > 0 ? VisionEngine.deduplicateDescriptors(mergedDesc, 24) : [];
+  }
+
+  function renderRegPhotoGrid() {
+    for (var i = 0; i < 9; i++) {
+      var slotEl = el['reg-slot-' + i];
+      if (!slotEl) continue;
+      var slotData = state.regPhotoSlots[i];
+      var hasPhoto = Boolean(slotData && slotData.thumbnail);
+      slotEl.classList.toggle('focused', state.regSelectedSlot === i);
+      slotEl.classList.toggle('has-photo', hasPhoto);
+      if (hasPhoto) {
+        slotEl.innerHTML =
+          '<img src="' + escapeHtml(slotData.thumbnail) + '" alt="商品縮圖 ' + (i + 1) + '" />';
+      } else {
+        slotEl.innerHTML = '<span class="reg-slot-num">' + (i + 1) + '</span>';
+      }
+    }
+  }
+
+  function captureForRegistration(appendAngle, isManual, targetSlotIndex) {
     renderStageCanvasFrame();
     if (!hasValidOpticalSource()) {
-      if (el['reg-descriptor-status']) {
-        el['reg-descriptor-status'].textContent = '等待即時鏡頭畫面就緒';
-      }
       return false;
     }
+
+    var slotIdx =
+      typeof targetSlotIndex === 'number' && targetSlotIndex >= 0 && targetSlotIndex < 9
+        ? targetSlotIndex
+        : state.regSelectedSlot;
+    if (slotIdx < 0 || slotIdx > 8) slotIdx = 0;
 
     var sourceElem = getActiveVideoSourceElement();
     var roiRect = getRoiRect(sourceElem);
@@ -1362,25 +1430,12 @@
     }
 
     var extracted = sig.augmentedDescriptors || [sig.descriptor];
-    if (appendAngle && state.regDescriptors.length > 0) {
-      var combined = state.regDescriptors.concat(extracted);
-      state.regDescriptors = VisionEngine.deduplicateDescriptors(combined, 24);
-      state.regThumbnail = sig.thumbnail || state.regThumbnail;
-      showToast('📸 已補拍新角度！目前共 ' + state.regDescriptors.length + ' 組特徵樣本');
-    } else {
-      state.regDescriptors = VisionEngine.deduplicateDescriptors(extracted, 12);
-      state.regThumbnail = sig.thumbnail;
-    }
-
-    if (el['reg-preview-img'] && state.regThumbnail) {
-      el['reg-preview-img'].src = state.regThumbnail;
-    }
-    if (el['reg-sample-count']) {
-      el['reg-sample-count'].textContent = '樣本: ' + state.regDescriptors.length + ' 組';
-    }
-    if (el['reg-descriptor-status']) {
-      el['reg-descriptor-status'].textContent = '已鎖定畫面 144 維特徵';
-    }
+    state.regPhotoSlots[slotIdx] = {
+      thumbnail: sig.thumbnail || EMPTY_THUMB_DATA_URI,
+      descriptors: VisionEngine.deduplicateDescriptors(extracted, 12)
+    };
+    rebuildRegAggregatesFromSlots();
+    renderRegPhotoGrid();
 
     // Pre-fill detected barcode if barcode input is currently blank
     if (
@@ -1403,7 +1458,7 @@
 
     // Ensure visual signature is captured if an optical source is active and no samples exist yet
     if (state.regDescriptors.length === 0 && hasValidOpticalSource()) {
-      captureForRegistration(false, true);
+      captureForRegistration(false, true, state.regSelectedSlot);
     }
 
     var editingId = el['reg-id'] ? el['reg-id'].value.trim() : '';
@@ -1431,9 +1486,13 @@
 
     var descriptors = VisionEngine.deduplicateDescriptors(state.regDescriptors || [], 24);
     if (descriptors.length === 0 && !prodBarcode) {
-      showToast('⚠️ 請先擷取商品畫面或輸入條碼再儲存建檔', 'warn');
+      showToast('⚠️ 請先拍照擷取商品畫面或輸入條碼再儲存建檔', 'warn');
       return;
     }
+
+    var persistedPhotoSlots = state.regPhotoSlots.map(function (s) {
+      return s && s.thumbnail ? s.thumbnail : null;
+    });
 
     var payload = {
       name: prodName,
@@ -1448,6 +1507,7 @@
       location: prodLocation,
       spec: prodSpec,
       thumbnail: state.regThumbnail || EMPTY_THUMB_DATA_URI,
+      photoSlots: persistedPhotoSlots,
       descriptors: descriptors,
       descriptorVersion: 2,
       isCameraRegistered: true,
@@ -1477,6 +1537,7 @@
         location: payload.location,
         spec: payload.spec,
         thumbnail: payload.thumbnail || existing.thumbnail,
+        photoSlots: payload.photoSlots,
         descriptors: payload.descriptors.length > 0 ? payload.descriptors : (existing.descriptors || []),
         descriptorVersion: 2,
         isCameraRegistered: true,
@@ -1500,6 +1561,7 @@
         location: payload.location,
         spec: payload.spec,
         thumbnail: payload.thumbnail,
+        photoSlots: payload.photoSlots,
         descriptors: payload.descriptors,
         descriptorVersion: 2,
         isCameraRegistered: true,
@@ -1528,6 +1590,9 @@
         if (res.ok) {
           var data = await res.json();
           if (data && data.product) {
+            if (!Array.isArray(data.product.photoSlots)) {
+              data.product.photoSlots = savedProduct.photoSlots;
+            }
             VisionEngine.ensureProductCache(data.product);
             var sIdx = state.products.findIndex(function (p) {
               return p.id === savedProduct.id || p.id === data.product.id;
@@ -1592,13 +1657,13 @@
       el['btn-modal-delete'].classList.remove('btn-danger');
       el['btn-modal-delete'].textContent = '🗑️ 刪除';
     }
-    if (el['reg-preview-img']) el['reg-preview-img'].src = EMPTY_THUMB_DATA_URI;
-    if (el['reg-sample-count']) el['reg-sample-count'].textContent = '樣本: 0 組';
-    if (el['reg-descriptor-status']) el['reg-descriptor-status'].textContent = '準備擷取畫面特徵';
 
     state.regDescriptors = [];
     state.regThumbnail = '';
+    state.regPhotoSlots = createEmptyPhotoSlots();
+    state.regSelectedSlot = 0;
     state.regManualCaptured = false;
+    renderRegPhotoGrid();
   }
 
   function openEditForProduct(p) {
@@ -1623,17 +1688,33 @@
       el['btn-modal-delete'].textContent = '🗑️ 刪除';
     }
 
-    state.regDescriptors = Array.isArray(p.descriptors) ? p.descriptors.slice() : [];
+    var existingDescriptors = Array.isArray(p.descriptors) ? p.descriptors.slice() : [];
+    state.regPhotoSlots = createEmptyPhotoSlots();
+    var assignedDescriptors = false;
+    if (Array.isArray(p.photoSlots) && p.photoSlots.length === 9) {
+      for (var i = 0; i < 9; i++) {
+        if (p.photoSlots[i]) {
+          state.regPhotoSlots[i] = {
+            thumbnail: p.photoSlots[i],
+            descriptors: !assignedDescriptors ? existingDescriptors : []
+          };
+          assignedDescriptors = true;
+        }
+      }
+    } else if (p.thumbnail) {
+      state.regPhotoSlots[0] = {
+        thumbnail: p.thumbnail,
+        descriptors: existingDescriptors
+      };
+    }
+
+    state.regSelectedSlot = 0;
+    state.regDescriptors = existingDescriptors;
     state.regThumbnail = p.thumbnail || EMPTY_THUMB_DATA_URI;
     state.regManualCaptured = true;
 
-    if (el['reg-preview-img']) el['reg-preview-img'].src = state.regThumbnail;
-    if (el['reg-sample-count']) {
-      el['reg-sample-count'].textContent = '樣本: ' + state.regDescriptors.length + ' 組';
-    }
-    if (el['reg-descriptor-status']) {
-      el['reg-descriptor-status'].textContent = '編輯已建檔商品';
-    }
+    renderRegPhotoGrid();
+    syncRegCameraVideo();
     showToast('✏️ 正在編輯「' + p.name + '」');
   }
 
@@ -1664,6 +1745,7 @@
 
   function openDeleteConfirmModal(product, returnToTab) {
     if (!product) return;
+    state.pendingDeleteSlotIndex = null;
     state.pendingDeleteProduct = product;
     state.pendingDeleteReturnTab = returnToTab || null;
     if (el['delete-confirm-prod-name']) {
@@ -1675,9 +1757,25 @@
     triggerHaptic(25);
   }
 
+  function openDeleteSlotConfirmModal(slotIndex) {
+    if (typeof slotIndex !== 'number' || slotIndex < 0 || slotIndex > 8) return;
+    if (!state.regPhotoSlots[slotIndex] || !state.regPhotoSlots[slotIndex].thumbnail) return;
+    state.pendingDeleteProduct = null;
+    state.pendingDeleteReturnTab = null;
+    state.pendingDeleteSlotIndex = slotIndex;
+    if (el['delete-confirm-prod-name']) {
+      el['delete-confirm-prod-name'].textContent = '照片 ' + (slotIndex + 1);
+    }
+    if (el['delete-confirm-backdrop']) {
+      el['delete-confirm-backdrop'].classList.remove('hidden');
+    }
+    triggerHaptic(25);
+  }
+
   function closeDeleteConfirmModal() {
     state.pendingDeleteProduct = null;
     state.pendingDeleteReturnTab = null;
+    state.pendingDeleteSlotIndex = null;
     if (el['delete-confirm-backdrop']) {
       el['delete-confirm-backdrop'].classList.add('hidden');
     }
@@ -2125,8 +2223,11 @@
 
     updateFormBottomNavVisibility();
     updateHudCameraStatus();
-    if (state.activeTab === 'form' && !skipAutoCapture && hasValidOpticalSource()) {
-      captureForRegistration(false, false);
+    if (state.activeTab === 'form') {
+      syncRegCameraVideo();
+      if (!skipAutoCapture && hasValidOpticalSource()) {
+        captureForRegistration(false, false, state.regSelectedSlot);
+      }
     }
     scheduleRecognition(true);
   }
@@ -2232,14 +2333,14 @@
       });
     }
 
-    // 2. Fixed Bottom Centered Capture Pill -> Capture current frame FIRST, then open Form View with top camera hidden (📸 拍照)
+    // 2. Fixed Bottom Centered Capture Pill -> Capture current frame FIRST into slot 1, then open Form View with top camera hidden (📸 拍照)
     if (el['btn-jump-register']) {
       el['btn-jump-register'].addEventListener('click', function () {
         if (!state.mediaStream) {
           startWebcamStream(true);
         }
         resetRegistrationForm();
-        captureForRegistration(false, true);
+        captureForRegistration(false, true, 0);
         switchTab('form', true);
         if (el['reg-name']) {
           setTimeout(function () {
@@ -2309,6 +2410,17 @@
     }
     if (el['btn-confirm-delete']) {
       el['btn-confirm-delete'].addEventListener('click', function () {
+        if (state.pendingDeleteSlotIndex !== null) {
+          var slotIdx = state.pendingDeleteSlotIndex;
+          closeDeleteConfirmModal();
+          if (slotIdx >= 0 && slotIdx < REG_PHOTO_SLOT_COUNT) {
+            state.regPhotoSlots[slotIdx] = null;
+            rebuildRegAggregatesFromSlots();
+            renderRegPhotoGrid();
+            showToast('🗑️ 已移除照片 ' + (slotIdx + 1));
+          }
+          return;
+        }
         var prod = state.pendingDeleteProduct;
         var retTab = state.pendingDeleteReturnTab;
         closeDeleteConfirmModal();
@@ -2338,7 +2450,91 @@
       });
     }
 
-    // 5. Inventory Registration Form Controls
+    // 5. Inventory Registration Form Controls (3x3 Photo Grid + Live Camera Preview)
+    for (var slotIndex = 0; slotIndex < REG_PHOTO_SLOT_COUNT; slotIndex++) {
+      (function (idx) {
+        var slotEl = el['reg-slot-' + idx];
+        if (!slotEl) return;
+        var pressTimer = null;
+        var startX = 0;
+        var startY = 0;
+        var longPressFired = false;
+
+        function cancelSlotPress() {
+          if (pressTimer) {
+            clearTimeout(pressTimer);
+            pressTimer = null;
+          }
+          slotEl.classList.remove('pressing');
+        }
+
+        function startSlotPress(clientX, clientY) {
+          cancelSlotPress();
+          longPressFired = false;
+          startX = clientX;
+          startY = clientY;
+          if (!state.regPhotoSlots[idx]) return;
+          slotEl.classList.add('pressing');
+          pressTimer = setTimeout(function () {
+            pressTimer = null;
+            longPressFired = true;
+            slotEl.classList.remove('pressing');
+            triggerHaptic(35);
+            openDeleteSlotConfirmModal(idx);
+          }, LONG_PRESS_MS);
+        }
+
+        function moveSlotPress(clientX, clientY) {
+          if (!pressTimer) return;
+          if (Math.abs(clientX - startX) > 14 || Math.abs(clientY - startY) > 14) {
+            cancelSlotPress();
+          }
+        }
+
+        slotEl.addEventListener('click', function () {
+          if (longPressFired) {
+            longPressFired = false;
+            return;
+          }
+          state.regSelectedSlot = idx;
+          renderRegPhotoGrid();
+        });
+
+        slotEl.addEventListener(
+          'touchstart',
+          function (ev) {
+            if (!ev || !ev.touches || ev.touches.length !== 1) return;
+            startSlotPress(ev.touches[0].clientX, ev.touches[0].clientY);
+          },
+          { passive: true }
+        );
+        slotEl.addEventListener(
+          'touchmove',
+          function (ev) {
+            if (!ev || !ev.touches || ev.touches.length !== 1) return;
+            moveSlotPress(ev.touches[0].clientX, ev.touches[0].clientY);
+          },
+          { passive: true }
+        );
+        slotEl.addEventListener('touchend', cancelSlotPress);
+        slotEl.addEventListener('touchcancel', cancelSlotPress);
+
+        slotEl.addEventListener('mousedown', function (ev) {
+          if (ev && ev.button !== 0) return;
+          startSlotPress(ev ? ev.clientX : 0, ev ? ev.clientY : 0);
+        });
+        slotEl.addEventListener('mousemove', function (ev) {
+          if (!pressTimer) return;
+          moveSlotPress(ev ? ev.clientX : 0, ev ? ev.clientY : 0);
+        });
+        slotEl.addEventListener('mouseup', cancelSlotPress);
+        slotEl.addEventListener('mouseleave', cancelSlotPress);
+        slotEl.addEventListener('contextmenu', function (ev) {
+          if (ev && ev.preventDefault) ev.preventDefault();
+        });
+      })(slotIndex);
+    }
+
     if (el['btn-capture-frame']) {
       el['btn-capture-frame'].addEventListener('click', function () {
         if (!hasValidOpticalSource()) {
@@ -2346,8 +2542,8 @@
           showToast('⚠️ 相機尚未就緒，請確認已允許相機權限', 'warn');
           return;
         }
-        if (captureForRegistration(false, true)) {
-          showToast('📸 已擷取目前取景框畫面');
+        if (captureForRegistration(false, true, state.regSelectedSlot)) {
+          showToast('📸 已拍攝並放入第 ' + (state.regSelectedSlot + 1) + ' 格');
         }
       });
     }
@@ -2358,14 +2554,14 @@
           showToast('⚠️ 相機尚未就緒，請確認已允許相機權限', 'warn');
           return;
         }
-        captureForRegistration(true, true);
+        captureForRegistration(true, true, state.regSelectedSlot);
       });
     }
     if (el['btn-reset-reg-form']) {
       el['btn-reset-reg-form'].addEventListener('click', function () {
         resetRegistrationForm();
         if (hasValidOpticalSource()) {
-          captureForRegistration(false, false);
+          captureForRegistration(false, false, 0);
         }
       });
     }
