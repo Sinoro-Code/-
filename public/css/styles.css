@@ -701,14 +701,19 @@ button:focus-visible,
   flex-direction: column;
   width: 100%;
   min-width: 0;
-  transition: opacity 0.18s ease, visibility 0.18s ease;
+}
+
+.reg-capture-bar.camera-scroll-hidden {
+  gap: 0;
+}
+
+.reg-capture-bar.camera-scroll-hidden .reg-grid-col {
+  gap: 0;
 }
 
 .reg-capture-bar.camera-scroll-hidden .reg-camera-col,
 .reg-capture-bar.camera-scroll-hidden .reg-capture-actions {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
+  display: none;
 }
 
 .reg-camera-box {

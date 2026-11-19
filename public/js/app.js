@@ -2175,6 +2175,14 @@
     return scrollTop + viewportH >= scrollH - 28;
   }
 
+  function setFormCameraVisible(visible) {
+    state.formCameraVisible = Boolean(visible);
+    state.formCameraToggleTime = Date.now();
+    if (el['reg-capture-bar']) {
+      el['reg-capture-bar'].classList.toggle('camera-scroll-hidden', !state.formCameraVisible);
+    }
+  }
+
   function updateFormBottomNavVisibility() {
     var nav = el['merchant-bottom-nav'];
     if (nav) {
@@ -2194,8 +2202,13 @@
           (document.documentElement ? document.documentElement.scrollTop : 0) ||
           (document.body ? document.body.scrollTop : 0) ||
           0;
-        var atTop = scrollTop <= 4;
-        el['reg-capture-bar'].classList.toggle('camera-scroll-hidden', !atTop);
+        var now = Date.now();
+        var cooldownElapsed = now - (state.formCameraToggleTime || 0) > 350;
+        if (state.formCameraVisible !== false && scrollTop > 12) {
+          setFormCameraVisible(false);
+        } else if (state.formCameraVisible === false && scrollTop <= 4 && cooldownElapsed) {
+          setFormCameraVisible(true);
+        }
       }
     }
   }
@@ -2209,6 +2222,7 @@
       }
       state.activeTab = 'form';
       state.formHasScrolled = false;
+      setFormCameraVisible(true);
       if (typeof window.scrollTo === 'function') {
         try {
           window.scrollTo(0, 0);
@@ -2298,7 +2312,7 @@
     window.addEventListener('resize', updateFormBottomNavVisibility);
     document.addEventListener('scroll', onFormScrollCheck, { passive: true });
 
-    // Also detect downward swipe/wheel on short form pages so bottom buttons reveal smoothly at the bottom
+    // Also detect downward/upward swipe & wheel so camera collapses smoothly on scroll-down and re-expands at top
     var formTouchStartY = null;
     document.addEventListener(
       'touchstart',
@@ -2322,7 +2336,19 @@
           var dy = ev.touches[0].clientY - formTouchStartY;
           if (dy < -18) {
             state.formHasScrolled = true;
+            if (state.formCameraVisible !== false) {
+              setFormCameraVisible(false);
+            }
             updateFormBottomNavVisibility();
+          } else if (dy > 24) {
+            var scrollTop =
+              window.pageYOffset ||
+              (document.documentElement ? document.documentElement.scrollTop : 0) ||
+              (document.body ? document.body.scrollTop : 0) ||
+              0;
+            if (scrollTop <= 4 && state.formCameraVisible === false) {
+              setFormCameraVisible(true);
+            }
           }
         }
       },
@@ -2331,9 +2357,23 @@
     document.addEventListener(
       'wheel',
       function (ev) {
-        if (state.activeTab === 'form' && ev && ev.deltaY > 0) {
-          state.formHasScrolled = true;
-          updateFormBottomNavVisibility();
+        if (state.activeTab === 'form' && ev) {
+          if (ev.deltaY > 0) {
+            state.formHasScrolled = true;
+            if (state.formCameraVisible !== false) {
+              setFormCameraVisible(false);
+            }
+            updateFormBottomNavVisibility();
+          } else if (ev.deltaY < 0) {
+            var scrollTop =
+              window.pageYOffset ||
+              (document.documentElement ? document.documentElement.scrollTop : 0) ||
+              (document.body ? document.body.scrollTop : 0) ||
+              0;
+            if (scrollTop <= 4 && state.formCameraVisible === false) {
+              setFormCameraVisible(true);
+            }
+          }
         }
       },
       { passive: true }
