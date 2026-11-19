@@ -1400,6 +1400,22 @@
     }
   }
 
+  function captureFullSquarePhoto(sourceElem, roiRect) {
+    try {
+      if (!sourceElem || !roiRect || !roiRect.sw || !roiRect.sh) return null;
+      var side = Math.max(256, Math.min(1080, Math.round(Math.min(roiRect.sw, roiRect.sh))));
+      var c = document.createElement('canvas');
+      c.width = side;
+      c.height = side;
+      var ctx = c.getContext('2d', { alpha: false });
+      if (!ctx) return null;
+      ctx.drawImage(sourceElem, roiRect.sx, roiRect.sy, roiRect.sw, roiRect.sh, 0, 0, side, side);
+      return c.toDataURL('image/jpeg', 0.92);
+    } catch (_) {
+      return null;
+    }
+  }
+
   function captureForRegistration(appendAngle, isManual, targetSlotIndex) {
     renderStageCanvasFrame();
     if (!hasValidOpticalSource()) {
@@ -1415,6 +1431,7 @@
     var sourceElem = getActiveVideoSourceElement();
     var roiRect = getRoiRect(sourceElem);
     var sig = VisionEngine.captureFrameSignature(sourceElem, roiRect, true);
+    var fullImage = captureFullSquarePhoto(sourceElem, roiRect) || sig.thumbnail || EMPTY_THUMB_DATA_URI;
     if (isManual) {
       state.regManualCaptured = true;
     }
@@ -1422,6 +1439,7 @@
     var extracted = sig.augmentedDescriptors || [sig.descriptor];
     state.regPhotoSlots[slotIdx] = {
       thumbnail: sig.thumbnail || EMPTY_THUMB_DATA_URI,
+      fullImage: fullImage,
       descriptors: VisionEngine.deduplicateDescriptors(extracted, 12)
     };
     rebuildRegAggregatesFromSlots();
@@ -1483,6 +1501,9 @@
     var persistedPhotoSlots = state.regPhotoSlots.map(function (s) {
       return s && s.thumbnail ? s.thumbnail : null;
     });
+    var persistedPhotoFullSlots = state.regPhotoSlots.map(function (s) {
+      return s && (s.fullImage || s.thumbnail) ? (s.fullImage || s.thumbnail) : null;
+    });
 
     var payload = {
       name: prodName,
@@ -1498,6 +1519,7 @@
       spec: prodSpec,
       thumbnail: state.regThumbnail || EMPTY_THUMB_DATA_URI,
       photoSlots: persistedPhotoSlots,
+      photoFullSlots: persistedPhotoFullSlots,
       descriptors: descriptors,
       descriptorVersion: 2,
       isCameraRegistered: true,
@@ -1684,8 +1706,13 @@
     if (Array.isArray(p.photoSlots) && p.photoSlots.length === 9) {
       for (var i = 0; i < 9; i++) {
         if (p.photoSlots[i]) {
+          var restoredFull =
+            Array.isArray(p.photoFullSlots) && p.photoFullSlots[i]
+              ? p.photoFullSlots[i]
+              : p.photoSlots[i];
           state.regPhotoSlots[i] = {
             thumbnail: p.photoSlots[i],
+            fullImage: restoredFull,
             descriptors: !assignedDescriptors ? existingDescriptors : []
           };
           assignedDescriptors = true;
@@ -1694,6 +1721,7 @@
     } else if (p.thumbnail) {
       state.regPhotoSlots[0] = {
         thumbnail: p.thumbnail,
+        fullImage: (Array.isArray(p.photoFullSlots) && p.photoFullSlots[0]) || p.thumbnail,
         descriptors: existingDescriptors
       };
     }
@@ -2510,8 +2538,8 @@
           state.regSelectedSlot = idx;
           renderRegPhotoGrid();
           var slotData = state.regPhotoSlots[idx];
-          if (slotData && slotData.thumbnail) {
-            openPhotoPreviewModal(slotData.thumbnail);
+          if (slotData && (slotData.fullImage || slotData.thumbnail)) {
+            openPhotoPreviewModal(slotData.fullImage || slotData.thumbnail);
           }
         });
 
