@@ -7,8 +7,8 @@
   <meta name="description" content="店家端極速視覺與條碼商品掃描查詢、相機拍照即時建檔系統。" />
   <meta name="theme-color" content="#0b0f14" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-  <link rel="manifest" href="/manifest.json?v=338" />
-  <link rel="stylesheet" href="/css/styles.css?v=338" />
+  <link rel="manifest" href="/manifest.json?v=339" />
+  <link rel="stylesheet" href="/css/styles.css?v=339" />
 </head>
 <body>
   <!-- Merchant 2-Function Workspace: Optical Viewport directly at the top (Zero blocks above Optical Viewport) -->
@@ -91,25 +91,13 @@
       <div id="view-form-modal" class="tab-view hidden">
         <div class="panel">
           <div class="panel-body">
-            <!-- Captured Snapshot & 144-D Visual Descriptor Status -->
+            <!-- Captured Snapshot Thumbnail & Capture Pill (僅保留縮圖與拍照鍵，UI 設計同掃描頁拍照鍵) -->
             <div class="reg-capture-bar">
               <img id="reg-preview-img" class="rec-thumb" src="" alt="建檔縮圖預覽" />
-              <div style="flex:1; min-width:0;">
-                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:4px;">
-                  <span class="badge badge-emerald" id="reg-descriptor-status">準備擷取畫面特徵</span>
-                  <span style="font-size:12px; color:var(--text-muted); font-family:var(--font-mono);" id="reg-sample-count">樣本: 0 組</span>
-                </div>
-                <p style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">
-                  已載入商品縮圖與視覺特徵，可直接編輯下方欄位並儲存（如需重拍請切回掃描頁拍照）。
-                </p>
-                <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                  <button type="button" class="btn btn-primary btn-sm" id="btn-capture-frame">
-                    📸 擷取目前鏡頭畫面
-                  </button>
-                  <button type="button" class="btn btn-secondary btn-sm" id="btn-add-angle-sample">
-                    ➕ 補拍角度 (+1)
-                  </button>
-                </div>
+              <div class="reg-capture-actions">
+                <button type="button" class="btn-capture-pill" id="btn-capture-frame">
+                  📸 拍照
+                </button>
               </div>
             </div>
 
@@ -234,7 +222,7 @@
   <!-- Toast Notifications Container -->
   <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
 
-  <script src="/js/vision-engine.js?v=338"></script>
-  <script src="/js/app.js?v=338"></script>
+  <script src="/js/vision-engine.js?v=339"></script>
+  <script src="/js/app.js?v=339"></script>
 </body>
 </html>
