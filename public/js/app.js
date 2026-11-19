@@ -55,7 +55,7 @@
     regDescriptors: [],
     regThumbnail: '',
     regPhotoSlots: [null, null, null, null, null, null, null, null, null],
-    regSelectedSlot: 0,
+    regSelectedSlot: -1,
     regManualCaptured: false,
     lastLiveRegPreviewTime: 0,
 
@@ -1428,7 +1428,15 @@
       typeof targetSlotIndex === 'number' && targetSlotIndex >= 0 && targetSlotIndex < REG_PHOTO_SLOT_COUNT
         ? targetSlotIndex
         : state.regSelectedSlot;
-    if (slotIdx < 0 || slotIdx >= REG_PHOTO_SLOT_COUNT) slotIdx = 0;
+    if (slotIdx < 0 || slotIdx >= REG_PHOTO_SLOT_COUNT) {
+      slotIdx = 0;
+      for (var k = 0; k < REG_PHOTO_SLOT_COUNT; k++) {
+        if (!state.regPhotoSlots[k]) {
+          slotIdx = k;
+          break;
+        }
+      }
+    }
 
     var sourceElem = getActiveVideoSourceElement();
     var roiRect = getRoiRect(sourceElem);
@@ -1675,7 +1683,7 @@
     state.regDescriptors = [];
     state.regThumbnail = '';
     state.regPhotoSlots = createEmptyPhotoSlots();
-    state.regSelectedSlot = 0;
+    state.regSelectedSlot = -1;
     state.regManualCaptured = false;
     renderRegPhotoGrid();
   }
@@ -1729,7 +1737,7 @@
       };
     }
 
-    state.regSelectedSlot = 0;
+    state.regSelectedSlot = -1;
     state.regDescriptors = existingDescriptors;
     state.regThumbnail = p.thumbnail || EMPTY_THUMB_DATA_URI;
     state.regManualCaptured = true;
@@ -2169,13 +2177,27 @@
 
   function updateFormBottomNavVisibility() {
     var nav = el['merchant-bottom-nav'];
-    if (!nav) return;
-    if (state.activeTab !== 'form') {
-      nav.classList.remove('scroll-hidden');
-      return;
+    if (nav) {
+      if (state.activeTab !== 'form') {
+        nav.classList.remove('scroll-hidden');
+      } else {
+        var atBottom = isScrolledToPageBottom();
+        nav.classList.toggle('scroll-hidden', !atBottom);
+      }
     }
-    var atBottom = isScrolledToPageBottom();
-    nav.classList.toggle('scroll-hidden', !atBottom);
+    if (el['reg-capture-bar']) {
+      if (state.activeTab !== 'form') {
+        el['reg-capture-bar'].classList.remove('camera-scroll-hidden');
+      } else {
+        var scrollTop =
+          window.pageYOffset ||
+          (document.documentElement ? document.documentElement.scrollTop : 0) ||
+          (document.body ? document.body.scrollTop : 0) ||
+          0;
+        var atTop = scrollTop <= 4;
+        el['reg-capture-bar'].classList.toggle('camera-scroll-hidden', !atTop);
+      }
+    }
   }
 
   function switchTab(tabName, skipAutoCapture) {
@@ -2190,6 +2212,11 @@
       if (typeof window.scrollTo === 'function') {
         try {
           window.scrollTo(0, 0);
+        } catch (_) {}
+      }
+      if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        try {
+          document.activeElement.blur();
         } catch (_) {}
       }
     } else if (tabName === 'register') {
@@ -2363,11 +2390,6 @@
         resetRegistrationForm();
         captureForRegistration(false, true, 0);
         switchTab('form', true);
-        if (el['reg-name']) {
-          setTimeout(function () {
-            el['reg-name'].focus();
-          }, 120);
-        }
       });
     }
 
