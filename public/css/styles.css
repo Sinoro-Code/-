@@ -694,6 +694,7 @@ button:focus-visible,
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
   margin-bottom: 14px;
+  transition: gap 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .reg-camera-col {
@@ -701,6 +702,15 @@ button:focus-visible,
   flex-direction: column;
   width: 100%;
   min-width: 0;
+  max-height: 460px;
+  opacity: 1;
+  transform: scaleY(1);
+  transform-origin: top center;
+  overflow: hidden;
+  transition:
+    max-height 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.22s ease,
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .reg-capture-bar.camera-scroll-hidden {
@@ -711,9 +721,18 @@ button:focus-visible,
   gap: 0;
 }
 
-.reg-capture-bar.camera-scroll-hidden .reg-camera-col,
+.reg-capture-bar.camera-scroll-hidden .reg-camera-col {
+  max-height: 0;
+  opacity: 0;
+  transform: scaleY(0.92);
+  pointer-events: none;
+}
+
 .reg-capture-bar.camera-scroll-hidden .reg-capture-actions {
-  display: none;
+  max-height: 0;
+  opacity: 0;
+  transform: scale(0.9);
+  pointer-events: none;
 }
 
 .reg-camera-box {
@@ -755,6 +774,7 @@ button:focus-visible,
   gap: 10px;
   width: 100%;
   min-width: 0;
+  transition: gap 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .reg-photo-grid {
@@ -825,6 +845,15 @@ button:focus-visible,
   display: flex;
   align-items: center;
   justify-content: center;
+  max-height: 64px;
+  opacity: 1;
+  transform: scale(1);
+  transform-origin: top center;
+  overflow: hidden;
+  transition:
+    max-height 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.2s ease,
+    transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .form-grid {
