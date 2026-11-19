@@ -2501,6 +2501,7 @@
         var startX = 0;
         var startY = 0;
         var longPressFired = false;
+        var lastTapTime = 0;
 
         function cancelSlotPress() {
           if (pressTimer) {
@@ -2520,6 +2521,7 @@
           pressTimer = setTimeout(function () {
             pressTimer = null;
             longPressFired = true;
+            lastTapTime = 0;
             slotEl.classList.remove('pressing');
             triggerHaptic(35);
             openDeleteSlotConfirmModal(idx);
@@ -2540,9 +2542,13 @@
           }
           state.regSelectedSlot = idx;
           renderRegPhotoGrid();
+          var now = Date.now();
           var slotData = state.regPhotoSlots[idx];
-          if (slotData && (slotData.fullImage || slotData.thumbnail)) {
+          if (slotData && (slotData.fullImage || slotData.thumbnail) && now - lastTapTime <= 320) {
+            lastTapTime = 0;
             openPhotoPreviewModal(slotData.fullImage || slotData.thumbnail);
+          } else {
+            lastTapTime = now;
           }
         });
 
