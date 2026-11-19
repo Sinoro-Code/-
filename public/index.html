@@ -7,8 +7,8 @@
   <meta name="description" content="店家端極速視覺與條碼商品掃描查詢、相機拍照即時建檔系統。" />
   <meta name="theme-color" content="#0b0f14" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-  <link rel="manifest" href="/manifest.json?v=341" />
-  <link rel="stylesheet" href="/css/styles.css?v=341" />
+  <link rel="manifest" href="/manifest.json?v=342" />
+  <link rel="stylesheet" href="/css/styles.css?v=342" />
 </head>
 <body>
   <!-- Merchant 2-Function Workspace: Optical Viewport directly at the top (Zero blocks above Optical Viewport) -->
@@ -236,10 +236,17 @@
     </div>
   </div>
 
+  <!-- Enlarged Square Photo Preview Modal (點選九宮格相片時聚焦並放大預覽) -->
+  <div id="photo-preview-backdrop" class="context-menu-backdrop hidden" role="dialog" aria-modal="true" aria-label="相片放大預覽">
+    <div class="photo-preview-box">
+      <img id="photo-preview-img" class="photo-preview-img" src="" alt="相片放大預覽" />
+    </div>
+  </div>
+
   <!-- Toast Notifications Container -->
   <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
 
-  <script src="/js/vision-engine.js?v=341"></script>
-  <script src="/js/app.js?v=341"></script>
+  <script src="/js/vision-engine.js?v=342"></script>
+  <script src="/js/app.js?v=342"></script>
 </body>
 </html>

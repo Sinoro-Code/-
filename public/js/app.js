@@ -112,6 +112,8 @@
       'reg-expiry', 'reg-cost',
       'reg-sku', 'reg-barcode', 'reg-category', 'reg-unit', 'reg-location',
       'reg-spec', 'btn-submit-reg', 'btn-reset-reg-form', 'btn-modal-delete',
+      'photo-preview-backdrop',
+      'photo-preview-img',
       'toast-stack'
     ];
     for (var i = 0; i < ids.length; i++) {
@@ -2438,6 +2440,27 @@
       });
     }
 
+    function openPhotoPreviewModal(src) {
+      if (!src || !el['photo-preview-backdrop'] || !el['photo-preview-img']) return;
+      el['photo-preview-img'].src = src;
+      el['photo-preview-backdrop'].classList.remove('hidden');
+    }
+
+    function closePhotoPreviewModal() {
+      if (el['photo-preview-backdrop']) {
+        el['photo-preview-backdrop'].classList.add('hidden');
+      }
+      if (el['photo-preview-img']) {
+        el['photo-preview-img'].src = '';
+      }
+    }
+
+    if (el['photo-preview-backdrop']) {
+      el['photo-preview-backdrop'].addEventListener('click', function () {
+        closePhotoPreviewModal();
+      });
+    }
+
     // 5. Inventory Registration Form Controls (3x3 Photo Grid + Live Camera Preview)
     for (var slotIndex = 0; slotIndex < REG_PHOTO_SLOT_COUNT; slotIndex++) {
       (function (idx) {
@@ -2486,6 +2509,10 @@
           }
           state.regSelectedSlot = idx;
           renderRegPhotoGrid();
+          var slotData = state.regPhotoSlots[idx];
+          if (slotData && slotData.thumbnail) {
+            openPhotoPreviewModal(slotData.thumbnail);
+          }
         });
 
         slotEl.addEventListener(
