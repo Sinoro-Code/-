@@ -147,7 +147,7 @@ button:focus-visible,
 .viewport-container {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 1 / 1;
   background: #05070b;
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -157,11 +157,11 @@ button:focus-visible,
   contain: layout paint;
 }
 
-@supports not (aspect-ratio: 4 / 3) {
+@supports not (aspect-ratio: 1 / 1) {
   .viewport-container::before {
     content: "";
     display: block;
-    padding-top: 75%;
+    padding-top: 100%;
   }
 }
 
@@ -689,7 +689,7 @@ button:focus-visible,
   display: grid;
   grid-template-columns: 1fr 2fr;
   gap: 10px;
-  align-items: stretch;
+  align-items: start;
   background: var(--bg-elevated);
   padding: 10px;
   border-radius: var(--radius-md);
@@ -706,12 +706,19 @@ button:focus-visible,
 .reg-camera-box {
   position: relative;
   width: 100%;
-  height: 100%;
-  min-height: 150px;
+  aspect-ratio: 1 / 1;
   border-radius: var(--radius-sm);
   overflow: hidden;
   background: #05070b;
   border: 1px solid var(--border-strong);
+}
+
+@supports not (aspect-ratio: 1 / 1) {
+  .reg-camera-box::before {
+    content: "";
+    display: block;
+    padding-top: 100%;
+  }
 }
 
 .reg-camera-video {

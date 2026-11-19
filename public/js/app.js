@@ -857,40 +857,28 @@
     );
   }
 
-  // Exact 4:3 object-fit:cover ROI mapping aligned with .roi-reticle
+  // Exact 1:1 square object-fit:cover ROI mapping aligned with square viewport & thumbnails
   function getRoiRect(sourceElem) {
     if (sourceElem === el['camera-video']) {
       var vw = sourceElem.videoWidth || 640;
       var vh = sourceElem.videoHeight || 480;
-      var targetAspect = 4 / 3;
-      var videoAspect = vw / vh;
-      var visX = 0;
-      var visY = 0;
-      var visW = vw;
-      var visH = vh;
-      if (videoAspect > targetAspect) {
-        visW = vh * targetAspect;
-        visX = (vw - visW) * 0.5;
-      } else if (videoAspect < targetAspect) {
-        visH = vw / targetAspect;
-        visY = (vh - visH) * 0.5;
-      }
-      var roiW = Math.round(visW * 0.58);
-      var roiH = Math.round(visH * 0.62);
-      var sx = Math.round(visX + (visW - roiW) * 0.5);
-      var sy = Math.round(visY + (visH - roiH) * 0.5);
-      return { sx: sx, sy: sy, sw: roiW, sh: roiH };
+      var visSide = Math.min(vw, vh);
+      var visX = (vw - visSide) * 0.5;
+      var visY = (vh - visSide) * 0.5;
+      var roiSide = Math.round(visSide * 0.62);
+      var sx = Math.round(visX + (visSide - roiSide) * 0.5);
+      var sy = Math.round(visY + (visSide - roiSide) * 0.5);
+      return { sx: sx, sy: sy, sw: roiSide, sh: roiSide };
     }
 
     var sw = (sourceElem && sourceElem.width) || 640;
     var sh = (sourceElem && sourceElem.height) || 480;
-    var rw = Math.round(sw * 0.58);
-    var rh = Math.round(sh * 0.62);
+    var side = Math.round(Math.min(sw, sh) * 0.62);
     return {
-      sx: Math.round((sw - rw) * 0.5),
-      sy: Math.round((sh - rh) * 0.5),
-      sw: rw,
-      sh: rh
+      sx: Math.round((sw - side) * 0.5),
+      sy: Math.round((sh - side) * 0.5),
+      sw: side,
+      sh: side
     };
   }
 
