@@ -163,18 +163,7 @@
     } catch (_) {}
   }
 
-  function showToast(message, type) {
-    if (!el['toast-stack']) return;
-    var div = document.createElement('div');
-    div.className = 'toast';
-    if (type === 'warn') div.className += ' warn';
-    if (type === 'danger') div.className += ' danger';
-    div.textContent = message;
-    el['toast-stack'].appendChild(div);
-    setTimeout(function () {
-      if (div.parentNode) div.parentNode.removeChild(div);
-    }, 2600);
-  }
+  function showToast() {}
 
   // Filter out legacy synthetic virtual demo items so only genuine merchant items remain
   function isMerchantProduct(p) {
