@@ -54,7 +54,7 @@ import java.util.Map;
 public class MainActivity extends Activity {
     private static final int REQ_CAMERA_PERMISSION = 1001;
     private static final int REQ_FILE_CHOOSER = 1002;
-    private static final String APP_URL = "https://visionpos.local/index.html?v=349";
+    private static final String APP_URL = "https://visionpos.local/index.html?v=350";
 
     private WebView webView;
     private PermissionRequest pendingWebPermission;
@@ -80,6 +80,8 @@ public class MainActivity extends Activity {
 
         webView = new WebView(this);
         webView.setBackgroundColor(Color.parseColor("#0B0F14"));
+        webView.setVerticalScrollBarEnabled(false);
+        webView.setHorizontalScrollBarEnabled(false);
         configureWebView(webView);
         // Clear disk/RAM HTTP cache so APK updates always load the latest bundled HTML/JS/CSS
         // (localStorage and IndexedDB merchant inventory data remain 100% intact)
