@@ -349,9 +349,9 @@ button:focus-visible,
   visibility: visible;
   transform: translateY(0);
   transition:
-    opacity 0.8s ease,
-    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1),
-    visibility 0.8s ease;
+    opacity 0.5s ease,
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0.5s ease;
 }
 
 .merchant-tabs.scroll-hidden {
