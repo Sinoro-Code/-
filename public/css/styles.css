@@ -694,7 +694,7 @@ button:focus-visible,
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
   margin-bottom: 14px;
-  transition: gap 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: gap 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .reg-camera-col {
@@ -708,9 +708,9 @@ button:focus-visible,
   transform-origin: top center;
   overflow: hidden;
   transition:
-    max-height 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.22s ease,
-    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    max-height 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.5s ease,
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .reg-capture-bar.camera-scroll-hidden {
@@ -774,7 +774,7 @@ button:focus-visible,
   gap: 10px;
   width: 100%;
   min-width: 0;
-  transition: gap 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: gap 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .reg-photo-grid {
@@ -851,9 +851,9 @@ button:focus-visible,
   transform-origin: top center;
   overflow: hidden;
   transition:
-    max-height 0.26s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.2s ease,
-    transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+    max-height 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.5s ease,
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .form-grid {
