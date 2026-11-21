@@ -7,8 +7,8 @@
   <meta name="description" content="店家端極速視覺與條碼商品掃描查詢、相機拍照即時建檔系統。" />
   <meta name="theme-color" content="#0b0f14" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-  <link rel="manifest" href="/manifest.json?v=359" />
-  <link rel="stylesheet" href="/css/styles.css?v=359" />
+  <link rel="manifest" href="/manifest.json?v=360" />
+  <link rel="stylesheet" href="/css/styles.css?v=360" />
 </head>
 <body>
   <!-- Merchant 2-Function Workspace: Optical Viewport directly at the top (Zero blocks above Optical Viewport) -->
@@ -124,38 +124,38 @@
               <input type="hidden" id="reg-id" value="" />
 
               <div class="form-field full">
-                <label class="form-label" for="reg-name">品名 *</label>
-                <input type="text" id="reg-name" class="input-control" placeholder="請輸入商品名稱（例如：阿里山高山烏龍茶 150g）" required />
+                <label class="form-label" for="reg-name">品名</label>
+                <input type="text" id="reg-name" class="input-control" value="" />
               </div>
 
               <div class="form-field">
-                <label class="form-label" for="reg-price">價格 (NT$) *</label>
-                <input type="number" id="reg-price" class="input-control" placeholder="例如：350" value="" min="0" step="1" />
+                <label class="form-label" for="reg-price">價格</label>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="reg-price" class="input-control" value="" />
               </div>
 
               <div class="form-field">
-                <label class="form-label" for="reg-stock">存量 *</label>
-                <input type="number" id="reg-stock" class="input-control" placeholder="例如：20" value="10" min="0" step="1" />
+                <label class="form-label" for="reg-stock">存量</label>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="reg-stock" class="input-control" value="" />
               </div>
 
               <div class="form-field">
                 <label class="form-label" for="reg-expiry">效期</label>
-                <input type="text" id="reg-expiry" class="input-control" placeholder="例如：2027-12-31" />
+                <input type="text" id="reg-expiry" class="input-control" value="" />
               </div>
 
               <div class="form-field">
-                <label class="form-label" for="reg-cost">成本 (NT$)</label>
-                <input type="number" id="reg-cost" class="input-control" placeholder="例如：200" value="" min="0" step="1" />
+                <label class="form-label" for="reg-cost">成本</label>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="reg-cost" class="input-control" value="" />
               </div>
 
               <div class="form-field full">
-                <label class="form-label" for="reg-category">商品分類</label>
-                <input type="text" id="reg-category" class="input-control" placeholder="例如：飲品 / 零食 / 日用品" value="一般商品" />
+                <label class="form-label" for="reg-category">類別</label>
+                <input type="text" id="reg-category" class="input-control" value="" />
               </div>
 
               <div class="form-field full">
-                <label class="form-label" for="reg-spec">商品介紹 / 規格備註</label>
-                <textarea id="reg-spec" class="input-control" rows="2" placeholder="輸入規格、容量、產地、保存期限或店家備註..."></textarea>
+                <label class="form-label" for="reg-spec">備註</label>
+                <textarea id="reg-spec" class="input-control" rows="2"></textarea>
               </div>
             </form>
           </div>
@@ -214,7 +214,7 @@
     </div>
   </div>
 
-  <script src="/js/vision-engine.js?v=359"></script>
-  <script src="/js/app.js?v=359"></script>
+  <script src="/js/vision-engine.js?v=360"></script>
+  <script src="/js/app.js?v=360"></script>
 </body>
 </html>

@@ -1653,12 +1653,12 @@
     if (el['reg-id']) el['reg-id'].value = '';
     if (el['reg-name']) el['reg-name'].value = '';
     if (el['reg-price']) el['reg-price'].value = '';
-    if (el['reg-stock']) el['reg-stock'].value = '10';
+    if (el['reg-stock']) el['reg-stock'].value = '';
     if (el['reg-expiry']) el['reg-expiry'].value = '';
     if (el['reg-cost']) el['reg-cost'].value = '';
     if (el['reg-sku']) el['reg-sku'].value = '';
     if (el['reg-barcode']) el['reg-barcode'].value = '';
-    if (el['reg-category']) el['reg-category'].value = '一般商品';
+    if (el['reg-category']) el['reg-category'].value = '';
     if (el['reg-unit']) el['reg-unit'].value = '件';
     if (el['reg-location']) el['reg-location'].value = 'A-01';
     if (el['reg-spec']) el['reg-spec'].value = '';
@@ -2678,6 +2678,40 @@
     if (el['register-product-form']) {
       el['register-product-form'].addEventListener('submit', handleRegistrationSubmit);
     }
+
+    // Input character restrictions (IME composition-safe for Android Chinese keyboards):
+    // - 品名 / 類別 / 備註: Chinese, English, and digits only
+    // - 價格 / 存量 / 成本: Digits only
+    function bindInputFilter(inputEl, stripRegex) {
+      if (!inputEl) return;
+      var composing = false;
+      function sanitize() {
+        var raw = String(inputEl.value || '');
+        var clean = raw.replace(stripRegex, '');
+        if (clean !== raw) {
+          inputEl.value = clean;
+        }
+      }
+      inputEl.addEventListener('compositionstart', function () {
+        composing = true;
+      });
+      inputEl.addEventListener('compositionend', function () {
+        composing = false;
+        sanitize();
+      });
+      inputEl.addEventListener('input', function () {
+        if (!composing) sanitize();
+      });
+    }
+
+    var zhEnNumRegex = /[^\u4e00-\u9fff\u3400-\u4dbfa-zA-Z0-9]/g;
+    var digitsOnlyRegex = /[^0-9]/g;
+    bindInputFilter(el['reg-name'], zhEnNumRegex);
+    bindInputFilter(el['reg-category'], zhEnNumRegex);
+    bindInputFilter(el['reg-spec'], zhEnNumRegex);
+    bindInputFilter(el['reg-price'], digitsOnlyRegex);
+    bindInputFilter(el['reg-stock'], digitsOnlyRegex);
+    bindInputFilter(el['reg-cost'], digitsOnlyRegex);
 
     // 8. USB / Bluetooth HID Barcode Scanner Keyboard Wedge (<55ms keystrokes + Enter)
     var hidBuffer = '';
