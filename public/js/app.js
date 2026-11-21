@@ -2849,11 +2849,7 @@
       });
     }
 
-    var zhEnNumRegex = /[^\u4e00-\u9fff\u3400-\u4dbfa-zA-Z0-9]/g;
     var digitsOnlyRegex = /[^0-9]/g;
-    bindInputFilter(el['reg-name'], zhEnNumRegex);
-    bindInputFilter(el['reg-category'], zhEnNumRegex);
-    bindInputFilter(el['reg-spec'], zhEnNumRegex);
     bindInputFilter(el['reg-price'], digitsOnlyRegex);
     bindInputFilter(el['reg-stock'], digitsOnlyRegex);
     bindInputFilter(el['reg-cost'], digitsOnlyRegex);
