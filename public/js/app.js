@@ -1463,6 +1463,30 @@
       e.preventDefault();
     }
 
+    var requiredIds = ['reg-name', 'reg-price', 'reg-stock', 'reg-expiry', 'reg-cost', 'reg-category'];
+    var firstInvalidEl = null;
+    for (var rIdx = 0; rIdx < requiredIds.length; rIdx++) {
+      var reqInput = el[requiredIds[rIdx]];
+      if (!reqInput) continue;
+      var groupEl = reqInput.parentNode;
+      var isEmpty = !String(reqInput.value || '').trim();
+      if (groupEl && groupEl.classList) {
+        groupEl.classList.toggle('field-invalid', isEmpty);
+      }
+      if (isEmpty && !firstInvalidEl) {
+        firstInvalidEl = reqInput;
+      }
+    }
+    if (firstInvalidEl) {
+      triggerHaptic(45);
+      if (typeof firstInvalidEl.focus === 'function') {
+        try {
+          firstInvalidEl.focus();
+        } catch (_) {}
+      }
+      return;
+    }
+
     // Ensure visual signature is captured if an optical source is active and no samples exist yet
     if (state.regDescriptors.length === 0 && hasValidOpticalSource()) {
       captureForRegistration(false, true, state.regSelectedSlot);
@@ -2712,6 +2736,18 @@
     bindInputFilter(el['reg-price'], digitsOnlyRegex);
     bindInputFilter(el['reg-stock'], digitsOnlyRegex);
     bindInputFilter(el['reg-cost'], digitsOnlyRegex);
+
+    var requiredFieldIds = ['reg-name', 'reg-price', 'reg-stock', 'reg-expiry', 'reg-cost', 'reg-category'];
+    for (var rf = 0; rf < requiredFieldIds.length; rf++) {
+      (function (reqEl) {
+        if (!reqEl) return;
+        reqEl.addEventListener('input', function () {
+          if (reqEl.parentNode && reqEl.parentNode.classList && String(reqEl.value || '').trim()) {
+            reqEl.parentNode.classList.remove('field-invalid');
+          }
+        });
+      })(el[requiredFieldIds[rf]]);
+    }
 
     // 8. USB / Bluetooth HID Barcode Scanner Keyboard Wedge (<55ms keystrokes + Enter)
     var hidBuffer = '';

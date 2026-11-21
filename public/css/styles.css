@@ -956,11 +956,22 @@ button:focus-visible,
 .form-label-inline {
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--accent-primary);
   white-space: nowrap;
   flex-shrink: 0;
   user-select: none;
   -webkit-user-select: none;
+  transition: color 0.15s ease;
+}
+
+.input-inline-group.field-invalid,
+.input-inline-group.field-invalid:focus-within {
+  border-color: var(--accent-danger);
+  box-shadow: 0 0 0 2px hsla(351, 82%, 58%, 0.28);
+}
+
+.input-inline-group.field-invalid .form-label-inline {
+  color: var(--accent-danger);
 }
 
 .input-inline-textarea .form-label-inline {

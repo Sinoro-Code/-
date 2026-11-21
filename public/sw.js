@@ -4,14 +4,14 @@
  * - Offline cache fallback when LAN / mobile network is disconnected
  * - Network-Only pass-through for /api/events SSE & /api/* mutations (handled by app Outbox Queue)
  */
-const CACHE_NAME = 'jiku-system-shell-v361';
+const CACHE_NAME = 'jiku-system-shell-v362';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
-  '/css/styles.css?v=361',
-  '/js/vision-engine.js?v=361',
-  '/js/app.js?v=361',
-  '/manifest.json?v=361',
+  '/css/styles.css?v=362',
+  '/js/vision-engine.js?v=362',
+  '/js/app.js?v=362',
+  '/manifest.json?v=362',
   '/icon.svg'
 ];
 
