@@ -2156,17 +2156,23 @@
     if (!scrollH || !viewportH) {
       return Boolean(state.formHasScrolled && scrollTop > 0);
     }
+    if (state.formCameraVisible !== false) {
+      return false;
+    }
     var scrollableDistance = scrollH - viewportH;
     if (scrollableDistance <= 20) {
       // Short viewport / tall screen: reveal once user scrolls or swipes down
       return Boolean(state.formHasScrolled);
     }
-    return scrollTop + viewportH >= scrollH - 28;
+    return scrollTop + viewportH >= scrollH - 16;
   }
 
   function setFormCameraVisible(visible) {
     state.formCameraVisible = Boolean(visible);
     state.formCameraToggleTime = Date.now();
+    if (state.formCameraVisible) {
+      state.formHasScrolled = false;
+    }
     if (el['reg-capture-bar']) {
       el['reg-capture-bar'].classList.toggle('camera-scroll-hidden', !state.formCameraVisible);
     }
@@ -2193,6 +2199,9 @@
           0;
         if (state.formCameraVisible !== false && scrollTop > 12) {
           setFormCameraVisible(false);
+          if (nav) {
+            nav.classList.toggle('scroll-hidden', !isScrolledToPageBottom());
+          }
         }
       }
     }
@@ -2333,6 +2342,7 @@
               0;
             if (scrollTop <= 4 && state.formCameraVisible === false) {
               setFormCameraVisible(true);
+              updateFormBottomNavVisibility();
             }
           }
         }
@@ -2357,6 +2367,7 @@
               0;
             if (scrollTop <= 4 && state.formCameraVisible === false) {
               setFormCameraVisible(true);
+              updateFormBottomNavVisibility();
             }
           }
         }
