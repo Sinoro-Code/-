@@ -396,10 +396,36 @@ button:focus-visible,
   transform: scale(0.97);
 }
 
-.merchant-tab.active {
-  background: var(--accent-primary);
+/* Apply 📸 拍照 (.btn-capture-pill) style to 掃描鍵, 庫存鍵, and 存檔鍵 */
+.merchant-tabs:not(.edit-mode) .merchant-tab,
+.merchant-tabs.edit-mode #tab-btn-register {
+  padding: 10px 22px;
+  background-color: rgba(10, 15, 23, 0.86);
+  background-image: linear-gradient(0deg, hsla(158, 78%, 42%, 0.26), hsla(158, 78%, 42%, 0.26));
+  border: 1px solid #17bf82;
   border-color: var(--accent-primary);
-  color: #04150e;
+  color: var(--text-primary);
+  letter-spacing: 0.03em;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: transform 0.12s ease, border-color 0.14s ease, background-color 0.14s ease;
+}
+
+.merchant-tabs:not(.edit-mode) .merchant-tab:hover,
+.merchant-tabs:not(.edit-mode) .merchant-tab:active,
+.merchant-tabs.edit-mode #tab-btn-register:hover,
+.merchant-tabs.edit-mode #tab-btn-register:active {
+  background-image: linear-gradient(0deg, hsla(158, 78%, 42%, 0.38), hsla(158, 78%, 42%, 0.38));
+  border-color: var(--accent-primary-hover);
+  color: var(--text-primary);
+  transform: scale(0.97);
+}
+
+.merchant-tabs:not(.edit-mode) .merchant-tab.active {
+  background-image: linear-gradient(0deg, hsla(158, 78%, 42%, 0.38), hsla(158, 78%, 42%, 0.38));
+  border-color: var(--accent-primary-hover);
+  color: var(--text-primary);
 }
 
 .tab-icon {
