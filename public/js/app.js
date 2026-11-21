@@ -2191,12 +2191,8 @@
           (document.documentElement ? document.documentElement.scrollTop : 0) ||
           (document.body ? document.body.scrollTop : 0) ||
           0;
-        var now = Date.now();
-        var cooldownElapsed = now - (state.formCameraToggleTime || 0) > 350;
         if (state.formCameraVisible !== false && scrollTop > 12) {
           setFormCameraVisible(false);
-        } else if (state.formCameraVisible === false && scrollTop <= 4 && cooldownElapsed) {
-          setFormCameraVisible(true);
         }
       }
     }
