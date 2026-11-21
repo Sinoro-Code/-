@@ -34,6 +34,7 @@
 
   var state = {
     activeTab: 'scan', // 'scan' | 'register' | 'form'
+    navHistory: [],
     sourceMode: 'webcam', // 'webcam' | 'photo' | 'standby'
     products: [],
     threshold: 0.80,
@@ -1672,7 +1673,18 @@
     showToast('✅ 建檔完成：「' + savedProduct.name + '」已儲存！');
   }
 
+  function clearFormInvalidHighlights() {
+    var ids = ['reg-name', 'reg-price', 'reg-stock', 'reg-expiry', 'reg-cost', 'reg-category', 'reg-spec'];
+    for (var i = 0; i < ids.length; i++) {
+      var inputEl = el[ids[i]];
+      if (inputEl && inputEl.parentNode && inputEl.parentNode.classList) {
+        inputEl.parentNode.classList.remove('field-invalid');
+      }
+    }
+  }
+
   function resetRegistrationForm() {
+    clearFormInvalidHighlights();
     if (el['register-product-form']) el['register-product-form'].reset();
     if (el['reg-id']) el['reg-id'].value = '';
     if (el['reg-name']) el['reg-name'].value = '';
@@ -2231,12 +2243,33 @@
     }
   }
 
-  function switchTab(tabName, skipAutoCapture) {
+  function switchTab(tabName, skipAutoCapture, isBackNav) {
     closeCardContextMenu();
     closeDeleteConfirmModal();
-    if (tabName === 'form') {
-      if (state.activeTab === 'scan' || state.activeTab === 'register') {
-        state.formOriginTab = state.activeTab;
+    var prevTab = state.activeTab;
+    var nextTab = tabName === 'form' ? 'form' : tabName === 'register' ? 'register' : 'scan';
+
+    if (!isBackNav && prevTab && prevTab !== nextTab) {
+      if (state.navHistory.length === 0 || state.navHistory[state.navHistory.length - 1] !== prevTab) {
+        state.navHistory.push(prevTab);
+        if (state.navHistory.length > 20) {
+          state.navHistory.shift();
+        }
+      }
+    }
+
+    if (prevTab === 'form' && nextTab !== 'form') {
+      clearFormInvalidHighlights();
+      if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        try {
+          document.activeElement.blur();
+        } catch (_) {}
+      }
+    }
+
+    if (nextTab === 'form') {
+      if (prevTab === 'scan' || prevTab === 'register') {
+        state.formOriginTab = prevTab;
       }
       state.activeTab = 'form';
       state.formHasScrolled = false;
@@ -2251,7 +2284,7 @@
           document.activeElement.blur();
         } catch (_) {}
       }
-    } else if (tabName === 'register') {
+    } else if (nextTab === 'register') {
       state.activeTab = 'register';
     } else {
       state.activeTab = 'scan';
@@ -2413,6 +2446,94 @@
     // 1. Two Merchant Tabs at Bottom Corners:
     //    - Default: 左下角「掃描」 & 右下角「庫存」 (Click + Non-Cyclic Horizontal Swipe)
     //    - Edit Page (form): 左下角「取消」 & 右下角「存檔」 (Revealed after scrolling to bottom)
+    //    - 4-Edge Inward Swipe from any outer screen edge -> return to previous page (no-op if none)
+    function navigateBack() {
+      if (el['photo-preview-backdrop'] && !el['photo-preview-backdrop'].classList.contains('hidden')) {
+        el['photo-preview-backdrop'].classList.add('hidden');
+        if (el['photo-preview-img']) el['photo-preview-img'].src = '';
+        return true;
+      }
+      if (el['delete-confirm-backdrop'] && !el['delete-confirm-backdrop'].classList.contains('hidden')) {
+        closeDeleteConfirmModal();
+        return true;
+      }
+      if (el['card-context-menu-backdrop'] && !el['card-context-menu-backdrop'].classList.contains('hidden')) {
+        closeCardContextMenu();
+        return true;
+      }
+      if (!state.navHistory || state.navHistory.length === 0) {
+        return false;
+      }
+      var prevTab = state.navHistory.pop();
+      if (!prevTab || prevTab === state.activeTab) {
+        return false;
+      }
+      if (state.activeTab === 'form') {
+        resetRegistrationForm();
+      }
+      switchTab(prevTab, true, true);
+      if (prevTab === 'scan' && !state.mediaStream) {
+        startWebcamStream(true);
+      }
+      return true;
+    }
+
+    (function bindFourEdgeBackGesture() {
+      var EDGE_ZONE = 28;
+      var INWARD_MIN = 52;
+      var MAX_MS = 700;
+      var edge = null;
+      var sx = 0;
+      var sy = 0;
+      var st = 0;
+
+      document.addEventListener(
+        'touchstart',
+        function (ev) {
+          edge = null;
+          if (!ev || !ev.touches || ev.touches.length !== 1) return;
+          var t = ev.touches[0];
+          var vw = window.innerWidth || (document.documentElement ? document.documentElement.clientWidth : 0) || 0;
+          var vh = window.innerHeight || (document.documentElement ? document.documentElement.clientHeight : 0) || 0;
+          if (!vw || !vh) return;
+          sx = t.clientX;
+          sy = t.clientY;
+          st = Date.now();
+          if (sx <= EDGE_ZONE) edge = 'left';
+          else if (sx >= vw - EDGE_ZONE) edge = 'right';
+          else if (sy <= EDGE_ZONE) edge = 'top';
+          else if (sy >= vh - EDGE_ZONE) edge = 'bottom';
+        },
+        { passive: true }
+      );
+
+      document.addEventListener(
+        'touchend',
+        function (ev) {
+          if (!edge || !ev || !ev.changedTouches || ev.changedTouches.length !== 1) {
+            edge = null;
+            return;
+          }
+          var t = ev.changedTouches[0];
+          var dx = t.clientX - sx;
+          var dy = t.clientY - sy;
+          var dt = Date.now() - st;
+          var activeEdge = edge;
+          edge = null;
+          if (dt > MAX_MS) return;
+          var triggered =
+            (activeEdge === 'left' && dx >= INWARD_MIN && Math.abs(dx) > Math.abs(dy)) ||
+            (activeEdge === 'right' && dx <= -INWARD_MIN && Math.abs(dx) > Math.abs(dy)) ||
+            (activeEdge === 'top' && dy >= INWARD_MIN && Math.abs(dy) > Math.abs(dx)) ||
+            (activeEdge === 'bottom' && dy <= -INWARD_MIN && Math.abs(dy) > Math.abs(dx));
+          if (triggered) {
+            navigateBack();
+          }
+        },
+        { passive: true }
+      );
+    })();
+
     bindHorizontalTabSwipe();
     if (el['tab-btn-scan']) {
       el['tab-btn-scan'].addEventListener('click', function () {
