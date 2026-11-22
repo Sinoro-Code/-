@@ -1412,6 +1412,30 @@
     }
   }
 
+  function findFirstEmptyPhotoSlot() {
+    for (var i = 0; i < REG_PHOTO_SLOT_COUNT; i++) {
+      if (!state.regPhotoSlots[i] || !state.regPhotoSlots[i].thumbnail) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  function findNextEmptyPhotoSlot(afterIdx) {
+    var start = typeof afterIdx === 'number' && afterIdx >= 0 ? afterIdx + 1 : 0;
+    for (var i = start; i < REG_PHOTO_SLOT_COUNT; i++) {
+      if (!state.regPhotoSlots[i] || !state.regPhotoSlots[i].thumbnail) {
+        return i;
+      }
+    }
+    for (var j = 0; j < start && j < REG_PHOTO_SLOT_COUNT; j++) {
+      if (!state.regPhotoSlots[j] || !state.regPhotoSlots[j].thumbnail) {
+        return j;
+      }
+    }
+    return -1;
+  }
+
   function captureForRegistration(appendAngle, isManual, targetSlotIndex) {
     renderStageCanvasFrame();
     if (!hasValidOpticalSource()) {
@@ -1423,14 +1447,11 @@
         ? targetSlotIndex
         : state.regSelectedSlot;
     if (slotIdx < 0 || slotIdx >= REG_PHOTO_SLOT_COUNT) {
-      slotIdx = 0;
-      for (var k = 0; k < REG_PHOTO_SLOT_COUNT; k++) {
-        if (!state.regPhotoSlots[k]) {
-          slotIdx = k;
-          break;
-        }
-      }
+      slotIdx = findFirstEmptyPhotoSlot();
+      if (slotIdx < 0) slotIdx = 0;
     }
+
+    var wasEmpty = !state.regPhotoSlots[slotIdx] || !state.regPhotoSlots[slotIdx].thumbnail;
 
     var sourceElem = getActiveVideoSourceElement();
     var roiRect = getRoiRect(sourceElem);
@@ -1446,6 +1467,9 @@
       fullImage: fullImage,
       descriptors: VisionEngine.deduplicateDescriptors(extracted, 12)
     };
+    if (wasEmpty) {
+      state.regSelectedSlot = findNextEmptyPhotoSlot(slotIdx);
+    }
     rebuildRegAggregatesFromSlots();
     renderRegPhotoGrid();
 
@@ -1712,7 +1736,7 @@
     state.regDescriptors = [];
     state.regThumbnail = '';
     state.regPhotoSlots = createEmptyPhotoSlots();
-    state.regSelectedSlot = -1;
+    state.regSelectedSlot = findFirstEmptyPhotoSlot();
     state.regManualCaptured = false;
     renderRegPhotoGrid();
   }
@@ -1766,7 +1790,7 @@
       };
     }
 
-    state.regSelectedSlot = -1;
+    state.regSelectedSlot = findFirstEmptyPhotoSlot();
     state.regDescriptors = existingDescriptors;
     state.regThumbnail = p.thumbnail || EMPTY_THUMB_DATA_URI;
     state.regManualCaptured = true;
