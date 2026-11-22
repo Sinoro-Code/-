@@ -1159,8 +1159,15 @@
       }
     }
 
-    // Parallel Non-Blocking Hardware BarcodeDetector Probe (every 4th active frame)
-    if (state.sourceMode === 'webcam' && typeof VisionEngine.detectBarcode === 'function') {
+    // Parallel Non-Blocking Hardware BarcodeDetector Probe (ONLY when at least one product has a barcode)
+    var hasAnyBarcodeProduct = false;
+    for (var bp = 0; bp < state.products.length; bp++) {
+      if (state.products[bp] && state.products[bp].barcode) {
+        hasAnyBarcodeProduct = true;
+        break;
+      }
+    }
+    if (hasAnyBarcodeProduct && state.sourceMode === 'webcam' && typeof VisionEngine.detectBarcode === 'function') {
       state.barcodeTickCounter = (state.barcodeTickCounter + 1) & 3;
       if (state.barcodeTickCounter === 0) {
         VisionEngine.detectBarcode(sourceElem).then(function (codeObj) {
@@ -1168,10 +1175,7 @@
             var isNewBarcode = state.lastDetectedBarcode !== codeObj.rawValue;
             state.lastDetectedBarcode = codeObj.rawValue;
             state.lastBarcodeTime = Date.now();
-            if (state.activeTab === 'form' && el['reg-barcode'] && !el['reg-barcode'].value.trim()) {
-              el['reg-barcode'].value = codeObj.rawValue;
-              showToast('⚡ 已自動帶入條碼：' + codeObj.rawValue);
-            } else if (isNewBarcode) {
+            if (isNewBarcode) {
               scheduleRecognition(true);
             }
           }
@@ -1180,7 +1184,7 @@
     }
 
     var freshBarcode =
-      state.lastDetectedBarcode && Date.now() - state.lastBarcodeTime < 1500
+      hasAnyBarcodeProduct && state.lastDetectedBarcode && Date.now() - state.lastBarcodeTime < 1500
         ? state.lastDetectedBarcode
         : '';
 
@@ -1196,13 +1200,12 @@
       }
     );
 
-    // 3-Frame Temporal Hysteresis on live webcam stream (instant lock on barcode or >= 93% similarity)
+    // 3-Frame Temporal Hysteresis on live webcam stream (instant 1-frame lock on barcode or high confidence)
     var matchRes = rawMatchRes;
-    if (
-      state.sourceMode === 'webcam' &&
-      !rawMatchRes.exactBarcode &&
-      rawMatchRes.similarity < 0.93
-    ) {
+    var isHighConfidenceInstantLock =
+      rawMatchRes.exactBarcode ||
+      (rawMatchRes.matched && rawMatchRes.similarity >= 0.88 && rawMatchRes.margin >= 0.06);
+    if (state.sourceMode === 'webcam' && !isHighConfidenceInstantLock) {
       var frameId = rawMatchRes.matched && rawMatchRes.product ? rawMatchRes.product.id : null;
       state.matchHistory.push(frameId);
       if (state.matchHistory.length > 3) state.matchHistory.shift();
@@ -1366,13 +1369,14 @@
       if (slot && slot.thumbnail) {
         if (!firstThumb) firstThumb = slot.thumbnail;
         if (Array.isArray(slot.descriptors) && slot.descriptors.length > 0) {
-          mergedDesc = mergedDesc.concat(slot.descriptors);
+          var slotQuota = VisionEngine.deduplicateDescriptors(slot.descriptors, 4);
+          mergedDesc = mergedDesc.concat(slotQuota);
         }
       }
     }
     state.regThumbnail = firstThumb;
     state.regDescriptors =
-      mergedDesc.length > 0 ? VisionEngine.deduplicateDescriptors(mergedDesc, 24) : [];
+      mergedDesc.length > 0 ? VisionEngine.deduplicateDescriptors(mergedDesc, 40) : [];
   }
 
   function renderRegPhotoGrid() {
@@ -1516,7 +1520,7 @@
     var prodLocation = (el['reg-location'] && el['reg-location'].value.trim()) || 'A-01';
     var prodSpec = el['reg-spec'] ? el['reg-spec'].value.trim() : '';
 
-    var descriptors = VisionEngine.deduplicateDescriptors(state.regDescriptors || [], 24);
+    var descriptors = VisionEngine.deduplicateDescriptors(state.regDescriptors || [], 40);
     if (descriptors.length === 0 && !prodBarcode) {
       showToast('⚠️ 請先拍照擷取商品畫面或輸入條碼再儲存建檔', 'warn');
       return;

@@ -574,16 +574,18 @@
     vec[142] = Math.sqrt(varYB * invW);
     vec[143] = Math.sqrt(varLum * invW) - Math.sqrt(varSat * invW);
 
-    // Balanced perceptual sub-block normalization
-    normalizeSlice(vec, 0, 16, 0.34);
-    normalizeSlice(vec, 16, 8, 0.08);
-    normalizeSlice(vec, 24, 16, 0.12);
+    // Balanced perceptual sub-block normalization (CCVD-144 v4: Structure & Spatial Layout First)
+    // Color blocks (~41%): foreground-weighted color + spatial color layout
+    // Structure blocks (~59%): 4x4 luminance layout + HOG edge orientation + structural contrast
+    normalizeSlice(vec, 0, 16, 0.32);
+    normalizeSlice(vec, 16, 8, 0.07);
+    normalizeSlice(vec, 24, 16, 0.14);
     normalizeSlice(vec, 40, 8, 0.04);
-    normalizeSlice(vec, 48, 24, 0.20);
-    normalizeSlice(vec, 72, 24, 0.10);
-    normalizeSlice(vec, 96, 16, 0.05);
-    normalizeSlice(vec, 112, 16, 0.03);
-    normalizeSlice(vec, 128, 16, 0.14);
+    normalizeSlice(vec, 48, 24, 0.18);
+    normalizeSlice(vec, 72, 24, 0.13);
+    normalizeSlice(vec, 96, 16, 0.11);
+    normalizeSlice(vec, 112, 16, 0.06);
+    normalizeSlice(vec, 128, 16, 0.13);
 
     // Final global L2 normalization
     normalizeSlice(vec, 0, DESCRIPTOR_DIM, 1.0);
@@ -800,18 +802,70 @@
       secondBestScore = candidates.length > 1 ? Math.min(1, candidates[1].similarity) : 0;
     }
 
+    // Stage 3: Dual Fine Sub-Vector Verification (Color [0..71] + Structure [72..127])
+    // Prevents BOTH same-color/different-product AND same-shape/different-flavor false positives
+    let passesStructureGate = true;
+    let passesColorGate = true;
+    if (isRealCameraMode && bestProduct && primaryVec && bestProduct._f32Descs && bestProduct._f32Descs.length > 0) {
+      let bestStructSim = 0;
+      let bestColorSim = 0;
+      let qNormC = 0;
+      let qNormS = 0;
+      for (let k = 0; k < 48; k++) qNormC += primaryVec[k] * primaryVec[k];
+      for (let k = 72; k < 128; k++) qNormS += primaryVec[k] * primaryVec[k];
+      qNormC = Math.sqrt(qNormC);
+      qNormS = Math.sqrt(qNormS);
+      const refList = bestProduct._f32Descs;
+      for (let d = 0; d < refList.length; d++) {
+        const ref = refList[d];
+        if (qNormC > 1e-6) {
+          let dotC = 0;
+          let rNormC = 0;
+          for (let k = 0; k < 48; k++) {
+            dotC += primaryVec[k] * ref[k];
+            rNormC += ref[k] * ref[k];
+          }
+          rNormC = Math.sqrt(rNormC);
+          if (rNormC > 1e-6) {
+            const cSim = dotC / (qNormC * rNormC);
+            if (cSim > bestColorSim) bestColorSim = cSim;
+          }
+        }
+        if (qNormS > 1e-6) {
+          let dotS = 0;
+          let rNormS = 0;
+          for (let k = 72; k < 128; k++) {
+            dotS += primaryVec[k] * ref[k];
+            rNormS += ref[k] * ref[k];
+          }
+          rNormS = Math.sqrt(rNormS);
+          if (rNormS > 1e-6) {
+            const sSim = dotS / (qNormS * rNormS);
+            if (sSim > bestStructSim) bestStructSim = sSim;
+          }
+        }
+      }
+      if (qNormC > 1e-6) passesColorGate = bestColorSim >= 0.62;
+      if (qNormS > 1e-6) passesStructureGate = bestStructSim >= 0.62;
+    }
+
     const effectiveThreshold = isRealCameraMode
-      ? Math.min(threshold, 0.64)
-      : (bestProduct && (bestProduct.isCameraRegistered || !bestProduct.virtualPresetId) ? Math.min(threshold, 0.68) : threshold);
+      ? Math.min(threshold, 0.76)
+      : (bestProduct && (bestProduct.isCameraRegistered || !bestProduct.virtualPresetId) ? Math.min(threshold, 0.76) : threshold);
 
     const margin = bestScore - Math.max(0, secondBestScore);
-    // Distinctiveness Margin Gate: when >=2 distinct products compete near the threshold, require >=0.020 margin
+    // Distinctiveness Margin Gate: when >=2 distinct products compete below 0.90, require >=0.045 margin
     const passesMarginGate =
       candidates.length < 2 ||
-      bestScore >= 0.94 ||
-      margin >= 0.020;
+      bestScore >= 0.90 ||
+      margin >= 0.045;
 
-    const isMatched = bestProduct !== null && bestScore >= effectiveThreshold && passesMarginGate;
+    const isMatched =
+      bestProduct !== null &&
+      bestScore >= effectiveThreshold &&
+      passesMarginGate &&
+      passesColorGate &&
+      passesStructureGate;
     return {
       matched: isMatched,
       exactBarcode: false,
@@ -1415,28 +1469,53 @@
   }
 
   const AUG_CROPS = [
-    { scale: 0.68, dx: 0, dy: 0 },
-    { scale: 0.82, dx: 0, dy: 0 },
-    { scale: 1.16, dx: 0, dy: 0 },
-    { scale: 1.34, dx: 0, dy: 0 },
-    { scale: 0.92, dx: -0.10, dy: 0 },
-    { scale: 0.92, dx: 0.10, dy: 0 },
-    { scale: 0.92, dx: 0, dy: -0.10 },
-    { scale: 0.92, dx: 0, dy: 0.10 },
-    { scale: 0.84, dx: -0.08, dy: -0.08 },
-    { scale: 0.84, dx: 0.08, dy: 0.08 }
+    { scale: 0.72, dx: 0, dy: 0 },
+    { scale: 0.86, dx: 0, dy: 0 },
+    { scale: 1.12, dx: 0, dy: 0 },
+    { scale: 1.18, dx: 0, dy: 0 },
+    { scale: 0.92, dx: -0.08, dy: 0 },
+    { scale: 0.92, dx: 0.08, dy: 0 },
+    { scale: 0.92, dx: 0, dy: -0.08 },
+    { scale: 0.92, dx: 0, dy: 0.08 }
   ];
 
   const SCAN_CROPS = [
-    { scale: 0.74, dx: 0, dy: 0 },
-    { scale: 1.26, dx: 0, dy: 0 },
-    { scale: 0.94, dx: -0.09, dy: 0 },
-    { scale: 0.94, dx: 0.09, dy: 0 }
+    { scale: 0.78, dx: 0, dy: 0 },
+    { scale: 1.16, dx: 0, dy: 0 },
+    { scale: 0.94, dx: -0.07, dy: 0 },
+    { scale: 0.94, dx: 0.07, dy: 0 }
   ];
+
+  /**
+   * Ultra-fast (<0.01ms, Zero-GC) 16x16 gradient energy probe to reject blank surfaces & motion-blurred frames
+   */
+  function computeSceneTextureEnergy(rgba, size) {
+    const step = Math.max(1, Math.floor(size / 16));
+    let sumGrad = 0;
+    let count = 0;
+    for (let y = step; y < size - step; y += step) {
+      const row = y * size;
+      const rowUp = (y - step) * size;
+      for (let x = step; x < size - step; x += step) {
+        const p = (row + x) << 2;
+        const pL = (row + x - step) << 2;
+        const pU = (rowUp + x) << 2;
+        const lum = (rgba[p] * 77 + rgba[p + 1] * 150 + rgba[p + 2] * 29) >> 8;
+        const lumL = (rgba[pL] * 77 + rgba[pL + 1] * 150 + rgba[pL + 2] * 29) >> 8;
+        const lumU = (rgba[pU] * 77 + rgba[pU + 1] * 150 + rgba[pU + 2] * 29) >> 8;
+        const dx = lum - lumL;
+        const dy = lum - lumU;
+        sumGrad += (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy);
+        count++;
+      }
+    }
+    return count > 0 ? sumGrad / count : 0;
+  }
 
   /**
    * Capture current ROI from any source video/canvas/image using a SINGLE 88x88 GPU readback:
    * - Pre-Extraction Motion Gate skips static frames in < 0.015 ms before any descriptor math
+   * - Pre-Extraction Blur/Blank Gate skips empty walls & motion-blurred frames in < 0.01 ms
    * - Registration (cloneDescriptor = true): 128x128 WebP thumbnail + deduplicated Int8-Base64 multi-crop descriptors
    * - Live Scan (cloneDescriptor = false): Zero-GC Float32 primary descriptor + lazy CPU sub-crop query closure
    */
@@ -1447,9 +1526,9 @@
     const fullW = sourceElem.videoWidth || sourceElem.naturalWidth || sourceElem.width || 640;
     const fullH = sourceElem.videoHeight || sourceElem.naturalHeight || sourceElem.height || 480;
 
-    // Outer 1.34x bounding box so all multi-scale/shift crops fit inside ONE 88x88 GPU readback
-    const aw = Math.max(24, Math.min(fullW, Math.round(sw * 1.34)));
-    const ah = Math.max(24, Math.min(fullH, Math.round(sh * 1.34)));
+    // Outer 1.24x bounding box so all multi-scale/shift crops fit inside ONE 88x88 GPU readback
+    const aw = Math.max(24, Math.min(fullW, Math.round(sw * 1.24)));
+    const ah = Math.max(24, Math.min(fullH, Math.round(sh * 1.24)));
     const ax = Math.max(0, Math.min(fullW - aw, Math.round(sx + (sw - aw) * 0.5)));
     const ay = Math.max(0, Math.min(fullH - ah, Math.round(sy + (sh - ah) * 0.5)));
 
@@ -1462,6 +1541,23 @@
       if (motionDelta < staticThresh) {
         return {
           isStaticSkip: true,
+          isBlankOrBlurry: false,
+          motionDelta,
+          descriptor: null,
+          augmentedDescriptors: null,
+          queryDescriptors: null,
+          thumbnail: null
+        };
+      }
+    }
+
+    if (!cloneDescriptor && options && options.skipIfBlankOrBlurry) {
+      const textureEnergy = computeSceneTextureEnergy(atlasRgba, ATLAS_SIZE);
+      if (textureEnergy < (options.minTextureEnergy || 3.2)) {
+        return {
+          isStaticSkip: false,
+          isBlankOrBlurry: true,
+          textureEnergy,
           motionDelta,
           descriptor: null,
           augmentedDescriptors: null,
