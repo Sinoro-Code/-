@@ -1198,7 +1198,7 @@
     ) {
       var liveNeuralVec = VisionEngine.extractNeuralEmbedding(sourceElem, roiRect, false);
       if (liveNeuralVec) {
-        rawMatchRes = VisionEngine.matchNeuralProducts(liveNeuralVec, state.products, 0.74);
+        rawMatchRes = VisionEngine.matchNeuralProducts(liveNeuralVec, state.products, 0.58, sig.descriptor);
       }
     }
     if (!rawMatchRes) {
@@ -1794,6 +1794,8 @@
     var existingDescriptors = Array.isArray(p.descriptors) ? p.descriptors.slice() : [];
     state.regPhotoSlots = createEmptyPhotoSlots();
     var assignedDescriptors = false;
+    var existingNeural = Array.isArray(p.neuralDescriptors) ? p.neuralDescriptors.slice() : [];
+    var neuralCursor = 0;
     if (Array.isArray(p.photoSlots) && p.photoSlots.length > 0) {
       var restoreLen = Math.min(p.photoSlots.length, REG_PHOTO_SLOT_COUNT);
       for (var i = 0; i < restoreLen; i++) {
@@ -1802,10 +1804,12 @@
             Array.isArray(p.photoFullSlots) && p.photoFullSlots[i]
               ? p.photoFullSlots[i]
               : p.photoSlots[i];
+          var restoredNeural = neuralCursor < existingNeural.length ? existingNeural[neuralCursor++] : null;
           state.regPhotoSlots[i] = {
             thumbnail: p.photoSlots[i],
             fullImage: restoredFull,
-            descriptors: !assignedDescriptors ? existingDescriptors : []
+            descriptors: !assignedDescriptors ? existingDescriptors : [],
+            neuralDescriptor: restoredNeural
           };
           assignedDescriptors = true;
         }
@@ -1814,12 +1818,14 @@
       state.regPhotoSlots[0] = {
         thumbnail: p.thumbnail,
         fullImage: (Array.isArray(p.photoFullSlots) && p.photoFullSlots[0]) || p.thumbnail,
-        descriptors: existingDescriptors
+        descriptors: existingDescriptors,
+        neuralDescriptor: existingNeural.length > 0 ? existingNeural[0] : null
       };
     }
 
     state.regSelectedSlot = findFirstEmptyPhotoSlot();
     state.regDescriptors = existingDescriptors;
+    state.regNeuralDescriptors = existingNeural;
     state.regThumbnail = p.thumbnail || EMPTY_THUMB_DATA_URI;
     state.regManualCaptured = true;
 
@@ -3136,7 +3142,12 @@
         for (var pIdx = 0; pIdx < state.products.length; pIdx++) {
           var prod = state.products[pIdx];
           if (!prod) continue;
-          if (Array.isArray(prod.neuralDescriptors) && prod.neuralDescriptors.length > 0) continue;
+          var hasV2Neural =
+            Array.isArray(prod.neuralDescriptors) &&
+            prod.neuralDescriptors.length > 0 &&
+            typeof prod.neuralDescriptors[0] === 'string' &&
+            prod.neuralDescriptors[0].indexOf('N2:') === 0;
+          if (hasV2Neural) continue;
           var sources = [];
           if (Array.isArray(prod.photoFullSlots)) {
             for (var s = 0; s < prod.photoFullSlots.length; s++) {

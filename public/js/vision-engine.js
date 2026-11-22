@@ -1758,7 +1758,7 @@
           } catch (_e2) {}
         }
         await global.tf.ready();
-        var model = await global.mobilenet.load({ version: 2, alpha: 0.50 });
+        var model = await global.mobilenet.load({ version: 2, alpha: 1.0 });
         if (global.tf && typeof global.tf.tidy === 'function') {
           global.tf.tidy(function () {
             var dummy = global.tf.zeros([1, NEURAL_INPUT_SIZE, NEURAL_INPUT_SIZE, 3]);
@@ -1781,20 +1781,26 @@
   function packNeuralInt8(floatVec) {
     if (!floatVec || !floatVec.length) return '';
     var len = floatVec.length;
+    var mean = 0;
+    for (var m = 0; m < len; m++) mean += floatVec[m];
+    mean /= len;
     var norm = 0;
-    for (var i = 0; i < len; i++) norm += floatVec[i] * floatVec[i];
+    for (var i = 0; i < len; i++) {
+      var d = floatVec[i] - mean;
+      norm += d * d;
+    }
     norm = Math.sqrt(norm);
     if (norm < 1e-8) return '';
     var invNorm = 1.0 / norm;
     var maxAbs = 0;
     for (var j = 0; j < len; j++) {
-      var v = Math.abs(floatVec[j] * invNorm);
+      var v = Math.abs((floatVec[j] - mean) * invNorm);
       if (v > maxAbs) maxAbs = v;
     }
     var scale = maxAbs > 1e-8 ? 127.0 / maxAbs : 127.0;
     var bytes = new Uint8Array(len);
     for (var k = 0; k < len; k++) {
-      var q = Math.round(floatVec[k] * invNorm * scale);
+      var q = Math.round((floatVec[k] - mean) * invNorm * scale);
       if (q > 127) q = 127;
       else if (q < -127) q = -127;
       bytes[k] = q & 0xff;
@@ -1802,13 +1808,13 @@
     var bin = '';
     for (var b = 0; b < len; b++) bin += String.fromCharCode(bytes[b]);
     if (typeof btoa === 'function') {
-      return 'N1:' + btoa(bin);
+      return 'N2:' + btoa(bin);
     }
-    return 'N1:' + Buffer.from(bytes).toString('base64');
+    return 'N2:' + Buffer.from(bytes).toString('base64');
   }
 
   function unpackNeuralInt8(b64Str) {
-    if (!b64Str || typeof b64Str !== 'string' || b64Str.indexOf('N1:') !== 0) return null;
+    if (!b64Str || typeof b64Str !== 'string' || b64Str.indexOf('N2:') !== 0) return null;
     try {
       var rawB64 = b64Str.slice(3);
       var bytes;
@@ -1873,17 +1879,21 @@
         return emb.dataSync();
       });
       if (!rawFloat || !rawFloat.length) return null;
-      var vec = new Float32Array(rawFloat.length);
+      var len = rawFloat.length;
+      var mean = 0;
+      for (var m = 0; m < len; m++) mean += rawFloat[m];
+      mean /= len;
+      var vec = new Float32Array(len);
       var norm = 0;
-      for (var i = 0; i < rawFloat.length; i++) {
-        var v = rawFloat[i];
+      for (var i = 0; i < len; i++) {
+        var v = rawFloat[i] - mean;
         vec[i] = v;
         norm += v * v;
       }
       norm = Math.sqrt(norm);
       if (norm < 1e-8) return null;
       var inv = 1.0 / norm;
-      for (var j = 0; j < vec.length; j++) vec[j] *= inv;
+      for (var j = 0; j < len; j++) vec[j] *= inv;
       return packToInt8 ? packNeuralInt8(vec) : vec;
     } catch (_) {
       return null;
@@ -1925,8 +1935,8 @@
     return list;
   }
 
-  function matchNeuralProducts(liveNeuralVec, products, threshold) {
-    var effThresh = typeof threshold === 'number' ? threshold : 0.74;
+  function matchNeuralProducts(liveNeuralVec, products, threshold, liveCCVD) {
+    var effThresh = typeof threshold === 'number' ? threshold : 0.58;
     if (!liveNeuralVec || !Array.isArray(products) || products.length === 0) {
       return null;
     }
@@ -1956,8 +1966,38 @@
     var bestScore = candidates.length > 0 ? candidates[0].similarity : 0;
     var secondBestScore = candidates.length > 1 ? candidates[1].similarity : 0;
     var margin = bestScore - Math.max(0, secondBestScore);
-    var passesMargin = candidates.length < 2 || bestScore >= 0.88 || margin >= 0.05;
-    var isMatched = bestProduct !== null && bestScore >= effThresh && passesMargin;
+    var passesMargin = candidates.length < 2 || bestScore >= 0.78 || margin >= 0.06;
+
+    // Hybrid Color Guard: prevents same-brand/different-flavor confusion (e.g., Red vs Blue packaging)
+    var passesColorGuard = true;
+    if (bestProduct && liveCCVD && bestScore < 0.84) {
+      var f32ColorList = ensureProductCache(bestProduct);
+      if (f32ColorList && f32ColorList.length > 0) {
+        var qNormC = 0;
+        for (var c = 0; c < 48; c++) qNormC += liveCCVD[c] * liveCCVD[c];
+        qNormC = Math.sqrt(qNormC);
+        if (qNormC > 1e-6) {
+          var bestColorSim = 0;
+          for (var cd = 0; cd < f32ColorList.length; cd++) {
+            var cref = f32ColorList[cd];
+            var dotC = 0;
+            var rNormC = 0;
+            for (var ck = 0; ck < 48; ck++) {
+              dotC += liveCCVD[ck] * cref[ck];
+              rNormC += cref[ck] * cref[ck];
+            }
+            rNormC = Math.sqrt(rNormC);
+            if (rNormC > 1e-6) {
+              var cSim = dotC / (qNormC * rNormC);
+              if (cSim > bestColorSim) bestColorSim = cSim;
+            }
+          }
+          passesColorGuard = bestColorSim >= 0.45;
+        }
+      }
+    }
+
+    var isMatched = bestProduct !== null && bestScore >= effThresh && passesMargin && passesColorGuard;
 
     return {
       matched: isMatched,
