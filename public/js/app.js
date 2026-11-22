@@ -1856,8 +1856,15 @@
   function openDeleteConfirmModal(product, returnToTab) {
     if (!product) return;
     state.pendingDeleteSlotIndex = null;
+    state.pendingCancelEditTargetTab = null;
     state.pendingDeleteProduct = product;
     state.pendingDeleteReturnTab = returnToTab || null;
+    if (state.deleteModalWasCancelEdit && el['delete-confirm-text']) {
+      el['delete-confirm-text'].innerHTML =
+        '確定刪除 <span class="delete-confirm-name" id="delete-confirm-prod-name"></span> ?';
+      el['delete-confirm-prod-name'] = document.getElementById('delete-confirm-prod-name');
+      state.deleteModalWasCancelEdit = false;
+    }
     if (el['delete-confirm-prod-name']) {
       el['delete-confirm-prod-name'].textContent = product.name || '';
     }
@@ -1868,11 +1875,18 @@
   }
 
   function openDeleteSlotConfirmModal(slotIndex) {
-    if (typeof slotIndex !== 'number' || slotIndex < 0 || slotIndex > 8) return;
+    if (typeof slotIndex !== 'number' || slotIndex < 0 || slotIndex >= REG_PHOTO_SLOT_COUNT) return;
     if (!state.regPhotoSlots[slotIndex] || !state.regPhotoSlots[slotIndex].thumbnail) return;
     state.pendingDeleteProduct = null;
     state.pendingDeleteReturnTab = null;
+    state.pendingCancelEditTargetTab = null;
     state.pendingDeleteSlotIndex = slotIndex;
+    if (state.deleteModalWasCancelEdit && el['delete-confirm-text']) {
+      el['delete-confirm-text'].innerHTML =
+        '確定刪除 <span class="delete-confirm-name" id="delete-confirm-prod-name"></span> ?';
+      el['delete-confirm-prod-name'] = document.getElementById('delete-confirm-prod-name');
+      state.deleteModalWasCancelEdit = false;
+    }
     if (el['delete-confirm-prod-name']) {
       el['delete-confirm-prod-name'].textContent = '照片 ' + (slotIndex + 1);
     }
@@ -1882,10 +1896,26 @@
     triggerHaptic(25);
   }
 
+  function openCancelEditConfirmModal(targetTab) {
+    if (!el['delete-confirm-backdrop']) return;
+    state.pendingDeleteProduct = null;
+    state.pendingDeleteReturnTab = null;
+    state.pendingDeleteSlotIndex = null;
+    state.pendingCancelEditTargetTab = targetTab || 'scan';
+    state.deleteModalWasCancelEdit = true;
+    if (el['delete-confirm-text']) {
+      el['delete-confirm-text'].innerHTML =
+        '<span class="delete-confirm-name">確定取消編輯?</span>';
+    }
+    el['delete-confirm-backdrop'].classList.remove('hidden');
+    triggerHaptic(25);
+  }
+
   function closeDeleteConfirmModal() {
     state.pendingDeleteProduct = null;
     state.pendingDeleteReturnTab = null;
     state.pendingDeleteSlotIndex = null;
+    state.pendingCancelEditTargetTab = null;
     if (el['delete-confirm-backdrop']) {
       el['delete-confirm-backdrop'].classList.add('hidden');
     }
@@ -2517,15 +2547,22 @@
         closeCardContextMenu();
         return true;
       }
+      if (state.activeTab === 'form') {
+        var targetTab =
+          state.navHistory && state.navHistory.length > 0
+            ? state.navHistory[state.navHistory.length - 1]
+            : state.formOriginTab === 'register'
+              ? 'register'
+              : 'scan';
+        openCancelEditConfirmModal(targetTab);
+        return true;
+      }
       if (!state.navHistory || state.navHistory.length === 0) {
         return false;
       }
       var prevTab = state.navHistory.pop();
       if (!prevTab || prevTab === state.activeTab) {
         return false;
-      }
-      if (state.activeTab === 'form') {
-        resetRegistrationForm();
       }
       switchTab(prevTab, true, true);
       if (prevTab === 'scan' && !state.mediaStream) {
@@ -2687,6 +2724,19 @@
     }
     if (el['btn-confirm-delete']) {
       el['btn-confirm-delete'].addEventListener('click', function () {
+        if (state.pendingCancelEditTargetTab !== null) {
+          var cancelTarget = state.pendingCancelEditTargetTab;
+          closeDeleteConfirmModal();
+          if (state.navHistory && state.navHistory.length > 0 && state.navHistory[state.navHistory.length - 1] === cancelTarget) {
+            state.navHistory.pop();
+          }
+          resetRegistrationForm();
+          switchTab(cancelTarget, true, true);
+          if (cancelTarget === 'scan' && !state.mediaStream) {
+            startWebcamStream(true);
+          }
+          return;
+        }
         if (state.pendingDeleteSlotIndex !== null) {
           var slotIdx = state.pendingDeleteSlotIndex;
           closeDeleteConfirmModal();
