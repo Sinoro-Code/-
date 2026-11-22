@@ -1690,6 +1690,288 @@
     return null;
   }
 
+  // ==========================================================================
+  // On-Device MobileNetV2 Neural Embedding Engine (Scheme B: WebGL + Offline Cache)
+  // ==========================================================================
+  const NEURAL_INPUT_SIZE = 224;
+  let neuralModel = null;
+  let neuralLoadingPromise = null;
+  let neuralCanvas = null;
+  let neuralCtx = null;
+
+  function loadExternalScriptOnce(src) {
+    return new Promise(function (resolve, reject) {
+      if (typeof document === 'undefined' || !document.head) {
+        reject(new Error('No DOM'));
+        return;
+      }
+      var existing = document.querySelector('script[data-neural-src="' + src + '"]');
+      if (existing) {
+        if (existing.getAttribute('data-loaded') === '1') {
+          resolve();
+          return;
+        }
+        existing.addEventListener('load', function () { resolve(); });
+        existing.addEventListener('error', function () { reject(new Error('Script load failed')); });
+        return;
+      }
+      var s = document.createElement('script');
+      s.src = src;
+      s.async = true;
+      s.setAttribute('data-neural-src', src);
+      s.onload = function () {
+        s.setAttribute('data-loaded', '1');
+        resolve();
+      };
+      s.onerror = function () {
+        reject(new Error('Failed to load ' + src));
+      };
+      document.head.appendChild(s);
+    });
+  }
+
+  function isNeuralReady() {
+    return Boolean(neuralModel);
+  }
+
+  function initNeuralEngine() {
+    if (neuralModel) return Promise.resolve(true);
+    if (neuralLoadingPromise) return neuralLoadingPromise;
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return Promise.resolve(false);
+    }
+
+    neuralLoadingPromise = (async function () {
+      try {
+        if (typeof global.tf === 'undefined') {
+          await loadExternalScriptOnce('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js');
+        }
+        if (typeof global.mobilenet === 'undefined') {
+          await loadExternalScriptOnce('https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js');
+        }
+        if (!global.tf || !global.mobilenet) return false;
+        try {
+          await global.tf.setBackend('webgl');
+        } catch (_) {
+          try {
+            await global.tf.setBackend('cpu');
+          } catch (_e2) {}
+        }
+        await global.tf.ready();
+        var model = await global.mobilenet.load({ version: 2, alpha: 0.50 });
+        if (global.tf && typeof global.tf.tidy === 'function') {
+          global.tf.tidy(function () {
+            var dummy = global.tf.zeros([1, NEURAL_INPUT_SIZE, NEURAL_INPUT_SIZE, 3]);
+            if (typeof model.infer === 'function') {
+              model.infer(dummy, true);
+            }
+          });
+        }
+        neuralModel = model;
+        return true;
+      } catch (_) {
+        neuralLoadingPromise = null;
+        return false;
+      }
+    })();
+
+    return neuralLoadingPromise;
+  }
+
+  function packNeuralInt8(floatVec) {
+    if (!floatVec || !floatVec.length) return '';
+    var len = floatVec.length;
+    var norm = 0;
+    for (var i = 0; i < len; i++) norm += floatVec[i] * floatVec[i];
+    norm = Math.sqrt(norm);
+    if (norm < 1e-8) return '';
+    var invNorm = 1.0 / norm;
+    var maxAbs = 0;
+    for (var j = 0; j < len; j++) {
+      var v = Math.abs(floatVec[j] * invNorm);
+      if (v > maxAbs) maxAbs = v;
+    }
+    var scale = maxAbs > 1e-8 ? 127.0 / maxAbs : 127.0;
+    var bytes = new Uint8Array(len);
+    for (var k = 0; k < len; k++) {
+      var q = Math.round(floatVec[k] * invNorm * scale);
+      if (q > 127) q = 127;
+      else if (q < -127) q = -127;
+      bytes[k] = q & 0xff;
+    }
+    var bin = '';
+    for (var b = 0; b < len; b++) bin += String.fromCharCode(bytes[b]);
+    if (typeof btoa === 'function') {
+      return 'N1:' + btoa(bin);
+    }
+    return 'N1:' + Buffer.from(bytes).toString('base64');
+  }
+
+  function unpackNeuralInt8(b64Str) {
+    if (!b64Str || typeof b64Str !== 'string' || b64Str.indexOf('N1:') !== 0) return null;
+    try {
+      var rawB64 = b64Str.slice(3);
+      var bytes;
+      if (typeof atob === 'function') {
+        var bin = atob(rawB64);
+        bytes = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      } else {
+        bytes = new Uint8Array(Buffer.from(rawB64, 'base64'));
+      }
+      var len = bytes.length;
+      var out = new Float32Array(len);
+      var norm = 0;
+      for (var j = 0; j < len; j++) {
+        var signed = bytes[j] > 127 ? bytes[j] - 256 : bytes[j];
+        out[j] = signed;
+        norm += signed * signed;
+      }
+      norm = Math.sqrt(norm);
+      if (norm > 1e-8) {
+        var inv = 1.0 / norm;
+        for (var k = 0; k < len; k++) out[k] *= inv;
+      }
+      return out;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function ensureNeuralCanvas() {
+    if (!neuralCanvas && typeof document !== 'undefined') {
+      neuralCanvas = document.createElement('canvas');
+      neuralCanvas.width = NEURAL_INPUT_SIZE;
+      neuralCanvas.height = NEURAL_INPUT_SIZE;
+      neuralCtx = neuralCanvas.getContext('2d', { alpha: false });
+    }
+    return neuralCtx;
+  }
+
+  function extractNeuralEmbedding(sourceElem, roiRect, packToInt8) {
+    if (!neuralModel || !global.tf || !sourceElem) return null;
+    var ctx = ensureNeuralCanvas();
+    if (!ctx) return null;
+    try {
+      if (roiRect && roiRect.sw > 0 && roiRect.sh > 0) {
+        ctx.drawImage(
+          sourceElem,
+          roiRect.sx,
+          roiRect.sy,
+          roiRect.sw,
+          roiRect.sh,
+          0,
+          0,
+          NEURAL_INPUT_SIZE,
+          NEURAL_INPUT_SIZE
+        );
+      } else {
+        ctx.drawImage(sourceElem, 0, 0, NEURAL_INPUT_SIZE, NEURAL_INPUT_SIZE);
+      }
+      var rawFloat = global.tf.tidy(function () {
+        var emb = neuralModel.infer(neuralCanvas, true);
+        return emb.dataSync();
+      });
+      if (!rawFloat || !rawFloat.length) return null;
+      var vec = new Float32Array(rawFloat.length);
+      var norm = 0;
+      for (var i = 0; i < rawFloat.length; i++) {
+        var v = rawFloat[i];
+        vec[i] = v;
+        norm += v * v;
+      }
+      norm = Math.sqrt(norm);
+      if (norm < 1e-8) return null;
+      var inv = 1.0 / norm;
+      for (var j = 0; j < vec.length; j++) vec[j] *= inv;
+      return packToInt8 ? packNeuralInt8(vec) : vec;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function extractNeuralFromDataUrl(dataUrl) {
+    return new Promise(function (resolve) {
+      if (!neuralModel || !dataUrl || typeof Image === 'undefined') {
+        resolve(null);
+        return;
+      }
+      var img = new Image();
+      img.onload = function () {
+        var packed = extractNeuralEmbedding(img, null, true);
+        resolve(packed);
+      };
+      img.onerror = function () {
+        resolve(null);
+      };
+      img.src = dataUrl;
+    });
+  }
+
+  function ensureProductNeuralCache(p) {
+    if (!p || !Array.isArray(p.neuralDescriptors) || p.neuralDescriptors.length === 0) {
+      return null;
+    }
+    if (p._f32Neural && p._f32NeuralLen === p.neuralDescriptors.length) {
+      return p._f32Neural;
+    }
+    var list = [];
+    for (var i = 0; i < p.neuralDescriptors.length; i++) {
+      var u = unpackNeuralInt8(p.neuralDescriptors[i]);
+      if (u) list.push(u);
+    }
+    p._f32Neural = list;
+    p._f32NeuralLen = p.neuralDescriptors.length;
+    return list;
+  }
+
+  function matchNeuralProducts(liveNeuralVec, products, threshold) {
+    var effThresh = typeof threshold === 'number' ? threshold : 0.74;
+    if (!liveNeuralVec || !Array.isArray(products) || products.length === 0) {
+      return null;
+    }
+    var candidates = [];
+    var evaluatedCount = 0;
+    for (var i = 0; i < products.length; i++) {
+      var p = products[i];
+      var nList = ensureProductNeuralCache(p);
+      if (!nList || nList.length === 0) continue;
+      evaluatedCount++;
+      var maxSim = -1;
+      for (var d = 0; d < nList.length; d++) {
+        var ref = nList[d];
+        if (ref.length !== liveNeuralVec.length) continue;
+        var dot = 0;
+        for (var k = 0; k < ref.length; k++) dot += liveNeuralVec[k] * ref[k];
+        if (dot > maxSim) maxSim = dot;
+      }
+      if (maxSim > 0) {
+        candidates.push({ product: p, similarity: maxSim > 1 ? 1 : maxSim });
+      }
+    }
+    if (evaluatedCount === 0) return null;
+    candidates.sort(function (a, b) { return b.similarity - a.similarity; });
+
+    var bestProduct = candidates.length > 0 ? candidates[0].product : null;
+    var bestScore = candidates.length > 0 ? candidates[0].similarity : 0;
+    var secondBestScore = candidates.length > 1 ? candidates[1].similarity : 0;
+    var margin = bestScore - Math.max(0, secondBestScore);
+    var passesMargin = candidates.length < 2 || bestScore >= 0.88 || margin >= 0.05;
+    var isMatched = bestProduct !== null && bestScore >= effThresh && passesMargin;
+
+    return {
+      matched: isMatched,
+      exactBarcode: false,
+      matchedByBarcode: false,
+      isNeural: true,
+      product: isMatched ? bestProduct : null,
+      bestCandidate: bestProduct,
+      similarity: bestScore,
+      margin: margin,
+      topCandidates: candidates.slice(0, 3)
+    };
+  }
+
   global.VisionEngine = {
     SAMPLE_SIZE,
     ATLAS_SIZE,
@@ -1704,6 +1986,13 @@
     deduplicateDescriptors,
     cosineSimilarity144,
     matchProducts,
+    initNeuralEngine,
+    isNeuralReady,
+    packNeuralInt8,
+    unpackNeuralInt8,
+    extractNeuralEmbedding,
+    extractNeuralFromDataUrl,
+    matchNeuralProducts,
     detectBarcode,
     computeMotionDelta,
     resetMotionGate,

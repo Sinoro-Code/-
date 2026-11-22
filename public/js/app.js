@@ -1188,17 +1188,32 @@
         ? state.lastDetectedBarcode
         : '';
 
-    var rawMatchRes = VisionEngine.matchProducts(
-      sig.descriptor,
-      state.products,
-      state.threshold,
-      sig.queryDescriptors,
-      {
-        sourceMode: state.sourceMode === 'photo' ? 'photo' : 'webcam',
-        virtualPresetId: null,
-        detectedBarcode: freshBarcode
+    var rawMatchRes = null;
+    if (
+      !freshBarcode &&
+      typeof VisionEngine.isNeuralReady === 'function' &&
+      VisionEngine.isNeuralReady() &&
+      typeof VisionEngine.extractNeuralEmbedding === 'function' &&
+      typeof VisionEngine.matchNeuralProducts === 'function'
+    ) {
+      var liveNeuralVec = VisionEngine.extractNeuralEmbedding(sourceElem, roiRect, false);
+      if (liveNeuralVec) {
+        rawMatchRes = VisionEngine.matchNeuralProducts(liveNeuralVec, state.products, 0.74);
       }
-    );
+    }
+    if (!rawMatchRes) {
+      rawMatchRes = VisionEngine.matchProducts(
+        sig.descriptor,
+        state.products,
+        state.threshold,
+        sig.queryDescriptors,
+        {
+          sourceMode: state.sourceMode === 'photo' ? 'photo' : 'webcam',
+          virtualPresetId: null,
+          detectedBarcode: freshBarcode
+        }
+      );
+    }
 
     // 3-Frame Temporal Hysteresis on live webcam stream (instant 1-frame lock on barcode or high confidence)
     var matchRes = rawMatchRes;
@@ -1364,6 +1379,7 @@
   function rebuildRegAggregatesFromSlots() {
     var firstThumb = '';
     var mergedDesc = [];
+    var mergedNeural = [];
     for (var i = 0; i < REG_PHOTO_SLOT_COUNT; i++) {
       var slot = state.regPhotoSlots[i];
       if (slot && slot.thumbnail) {
@@ -1372,11 +1388,15 @@
           var slotQuota = VisionEngine.deduplicateDescriptors(slot.descriptors, 4);
           mergedDesc = mergedDesc.concat(slotQuota);
         }
+        if (slot.neuralDescriptor) {
+          mergedNeural.push(slot.neuralDescriptor);
+        }
       }
     }
     state.regThumbnail = firstThumb;
     state.regDescriptors =
       mergedDesc.length > 0 ? VisionEngine.deduplicateDescriptors(mergedDesc, 40) : [];
+    state.regNeuralDescriptors = mergedNeural;
   }
 
   function renderRegPhotoGrid() {
@@ -1462,10 +1482,17 @@
     }
 
     var extracted = sig.augmentedDescriptors || [sig.descriptor];
+    var neuralDesc =
+      typeof VisionEngine.isNeuralReady === 'function' &&
+      VisionEngine.isNeuralReady() &&
+      typeof VisionEngine.extractNeuralEmbedding === 'function'
+        ? VisionEngine.extractNeuralEmbedding(sourceElem, roiRect, true)
+        : null;
     state.regPhotoSlots[slotIdx] = {
       thumbnail: sig.thumbnail || EMPTY_THUMB_DATA_URI,
       fullImage: fullImage,
-      descriptors: VisionEngine.deduplicateDescriptors(extracted, 12)
+      descriptors: VisionEngine.deduplicateDescriptors(extracted, 12),
+      neuralDescriptor: neuralDesc
     };
     if (wasEmpty) {
       state.regSelectedSlot = findNextEmptyPhotoSlot(slotIdx);
@@ -1573,7 +1600,8 @@
       photoSlots: persistedPhotoSlots,
       photoFullSlots: persistedPhotoFullSlots,
       descriptors: descriptors,
-      descriptorVersion: 2,
+      neuralDescriptors: Array.isArray(state.regNeuralDescriptors) ? state.regNeuralDescriptors.slice() : [],
+      descriptorVersion: 4,
       isCameraRegistered: true,
       virtualPresetId: null
     };
@@ -3050,5 +3078,45 @@
 
     // Automatically start live optical camera on launch (gracefully falls back to standby guide if unavailable)
     await startWebcamStream(true);
+    // Start MobileNetV2 neural engine asynchronously (non-blocking) and auto-upgrade existing products
+    if (typeof VisionEngine.initNeuralEngine === 'function') {
+      VisionEngine.initNeuralEngine().then(async function (ready) {
+        if (!ready || typeof VisionEngine.extractNeuralFromDataUrl !== 'function') return;
+        var changed = false;
+        for (var pIdx = 0; pIdx < state.products.length; pIdx++) {
+          var prod = state.products[pIdx];
+          if (!prod) continue;
+          if (Array.isArray(prod.neuralDescriptors) && prod.neuralDescriptors.length > 0) continue;
+          var sources = [];
+          if (Array.isArray(prod.photoFullSlots)) {
+            for (var s = 0; s < prod.photoFullSlots.length; s++) {
+              if (prod.photoFullSlots[s]) sources.push(prod.photoFullSlots[s]);
+            }
+          }
+          if (sources.length === 0 && Array.isArray(prod.photoSlots)) {
+            for (var t = 0; t < prod.photoSlots.length; t++) {
+              if (prod.photoSlots[t]) sources.push(prod.photoSlots[t]);
+            }
+          }
+          if (sources.length === 0 && prod.thumbnail) {
+            sources.push(prod.thumbnail);
+          }
+          var extractedNeural = [];
+          for (var u = 0; u < sources.length; u++) {
+            var nVec = await VisionEngine.extractNeuralFromDataUrl(sources[u]);
+            if (nVec) extractedNeural.push(nVec);
+          }
+          if (extractedNeural.length > 0) {
+            prod.neuralDescriptors = extractedNeural;
+            delete prod._f32Neural;
+            changed = true;
+          }
+        }
+        if (changed) {
+          saveLocalStore();
+          scheduleRecognition(true);
+        }
+      });
+    }
   });
 })();
