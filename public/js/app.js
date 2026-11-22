@@ -2478,7 +2478,9 @@
       return true;
     }
 
-    (function bindFourEdgeBackGesture() {
+    window.__handleAppBack = navigateBack;
+
+    (function bindLeftRightEdgeBackGesture() {
       var EDGE_ZONE = 28;
       var INWARD_MIN = 52;
       var MAX_MS = 700;
@@ -2494,15 +2496,12 @@
           if (!ev || !ev.touches || ev.touches.length !== 1) return;
           var t = ev.touches[0];
           var vw = window.innerWidth || (document.documentElement ? document.documentElement.clientWidth : 0) || 0;
-          var vh = window.innerHeight || (document.documentElement ? document.documentElement.clientHeight : 0) || 0;
-          if (!vw || !vh) return;
+          if (!vw) return;
           sx = t.clientX;
           sy = t.clientY;
           st = Date.now();
           if (sx <= EDGE_ZONE) edge = 'left';
           else if (sx >= vw - EDGE_ZONE) edge = 'right';
-          else if (sy <= EDGE_ZONE) edge = 'top';
-          else if (sy >= vh - EDGE_ZONE) edge = 'bottom';
         },
         { passive: true }
       );
@@ -2523,9 +2522,7 @@
           if (dt > MAX_MS) return;
           var triggered =
             (activeEdge === 'left' && dx >= INWARD_MIN && Math.abs(dx) > Math.abs(dy)) ||
-            (activeEdge === 'right' && dx <= -INWARD_MIN && Math.abs(dx) > Math.abs(dy)) ||
-            (activeEdge === 'top' && dy >= INWARD_MIN && Math.abs(dy) > Math.abs(dx)) ||
-            (activeEdge === 'bottom' && dy <= -INWARD_MIN && Math.abs(dy) > Math.abs(dx));
+            (activeEdge === 'right' && dx <= -INWARD_MIN && Math.abs(dx) > Math.abs(dy));
           if (triggered) {
             navigateBack();
           }

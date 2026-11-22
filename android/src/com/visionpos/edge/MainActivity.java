@@ -54,7 +54,7 @@ import java.util.Map;
 public class MainActivity extends Activity {
     private static final int REQ_CAMERA_PERMISSION = 1001;
     private static final int REQ_FILE_CHOOSER = 1002;
-    private static final String APP_URL = "https://visionpos.local/index.html?v=364";
+    private static final String APP_URL = "https://visionpos.local/index.html?v=365";
 
     private WebView webView;
     private PermissionRequest pendingWebPermission;
@@ -362,19 +362,11 @@ public class MainActivity extends Activity {
     public void onBackPressed() {
         if (webView != null) {
             webView.evaluateJavascript(
-                    "(function(){var m=document.getElementById('receipt-modal');if(m&&!m.classList.contains('hidden')){m.classList.add('hidden');return 'closed';}return '';})()",
-                    val -> {
-                        if (val != null && val.contains("closed")) return;
-                        if (webView != null && webView.canGoBack()) {
-                            webView.goBack();
-                        } else {
-                            MainActivity.super.onBackPressed();
-                        }
-                    }
+                    "(function(){if(typeof window.__handleAppBack==='function'){window.__handleAppBack();}})()",
+                    null
             );
-            return;
         }
-        super.onBackPressed();
+        // Keep back navigation inside the app; do nothing when there is no previous page
     }
 
     @Override
